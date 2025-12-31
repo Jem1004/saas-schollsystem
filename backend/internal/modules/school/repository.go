@@ -1,0 +1,568 @@
+package school
+
+import (
+	"context"
+	"errors"
+
+	"gorm.io/gorm"
+
+	"github.com/school-management/backend/internal/domain/models"
+)
+
+var (
+	ErrClassNotFound    = errors.New("class not found")
+	ErrStudentNotFound  = errors.New("student not found")
+	ErrParentNotFound   = errors.New("parent not found")
+	ErrDuplicateNISN    = errors.New("student with this NISN already exists")
+	ErrDuplicateNIS     = errors.New("student with this NIS already exists in this school")
+	ErrDuplicateClass   = errors.New("class with this name already exists for this grade and year")
+	ErrTeacherNotFound  = errors.New("teacher not found")
+	ErrInvalidTeacher   = errors.New("user is not a valid teacher for homeroom assignment")
+)
+
+// Repository defines the interface for school data operations
+type Repository interface {
+	// Class operations
+	CreateClass(ctx context.Context, class *models.Class) error
+	FindAllClasses(ctx context.Context, schoolID uint, filter ClassFilter) ([]models.Class, int64, error)
+	FindClassByID(ctx context.Context, schoolID uint, id uint) (*models.Class, error)
+	FindClassByNameGradeYear(ctx context.Context, schoolID uint, name string, grade int, year string) (*models.Class, error)
+	UpdateClass(ctx context.Context, class *models.Class) error
+	DeleteClass(ctx context.Context, schoolID uint, id uint) error
+	GetClassStudentCount(ctx context.Context, classID uint) (int64, error)
+
+	// Student operations
+	CreateStudent(ctx context.Context, student *models.Student) error
+	FindAllStudents(ctx context.Context, schoolID uint, filter StudentFilter) ([]models.Student, int64, error)
+	FindStudentByID(ctx context.Context, schoolID uint, id uint) (*models.Student, error)
+	FindStudentByNISN(ctx context.Context, nisn string) (*models.Student, error)
+	FindStudentByNIS(ctx context.Context, schoolID uint, nis string) (*models.Student, error)
+	FindStudentsByClass(ctx context.Context, classID uint) ([]models.Student, error)
+	UpdateStudent(ctx context.Context, student *models.Student) error
+	DeleteStudent(ctx context.Context, schoolID uint, id uint) error
+
+	// Parent operations
+	CreateParent(ctx context.Context, parent *models.Parent) error
+	FindAllParents(ctx context.Context, schoolID uint, filter ParentFilter) ([]models.Parent, int64, error)
+	FindParentByID(ctx context.Context, schoolID uint, id uint) (*models.Parent, error)
+	FindParentByUserID(ctx context.Context, userID uint) (*models.Parent, error)
+	UpdateParent(ctx context.Context, parent *models.Parent) error
+	DeleteParent(ctx context.Context, schoolID uint, id uint) error
+	LinkParentToStudents(ctx context.Context, parentID uint, studentIDs []uint) error
+	UnlinkParentFromStudent(ctx context.Context, parentID uint, studentID uint) error
+	GetParentStudents(ctx context.Context, parentID uint) ([]models.Student, error)
+
+	// Teacher operations
+	FindTeacherByID(ctx context.Context, schoolID uint, teacherID uint) (*models.User, error)
+	ValidateHomeroomTeacher(ctx context.Context, schoolID uint, teacherID uint) error
+}
+
+// repository implements the Repository interface
+type repository struct {
+	db *gorm.DB
+}
+
+// NewRepository creates a new school repository
+func NewRepository(db *gorm.DB) Repository {
+	return &repository{db: db}
+}
+
+
+// ==================== Class Repository Methods ====================
+
+// CreateClass creates a new class
+// Requirements: 3.1 - WHEN an Admin_Sekolah creates a class, THE System SHALL associate it with the school tenant
+func (r *repository) CreateClass(ctx context.Context, class *models.Class) error {
+	return r.db.WithContext(ctx).Create(class).Error
+}
+
+// FindAllClasses retrieves all classes for a school with pagination and filtering
+func (r *repository) FindAllClasses(ctx context.Context, schoolID uint, filter ClassFilter) ([]models.Class, int64, error) {
+	var classes []models.Class
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.Class{}).Where("school_id = ?", schoolID)
+
+	// Apply filters
+	if filter.Name != "" {
+		query = query.Where("name ILIKE ?", "%"+filter.Name+"%")
+	}
+	if filter.Grade != nil {
+		query = query.Where("grade = ?", *filter.Grade)
+	}
+	if filter.Year != "" {
+		query = query.Where("year = ?", filter.Year)
+	}
+
+	// Count total records
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.PageSize > 100 {
+		filter.PageSize = 100
+	}
+
+	// Fetch records with homeroom teacher
+	err := query.
+		Preload("HomeroomTeacher").
+		Order("grade ASC, name ASC").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Find(&classes).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return classes, total, nil
+}
+
+// FindClassByID retrieves a class by ID within a school
+func (r *repository) FindClassByID(ctx context.Context, schoolID uint, id uint) (*models.Class, error) {
+	var class models.Class
+	err := r.db.WithContext(ctx).
+		Preload("HomeroomTeacher").
+		Where("id = ? AND school_id = ?", id, schoolID).
+		First(&class).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrClassNotFound
+		}
+		return nil, err
+	}
+
+	return &class, nil
+}
+
+// FindClassByNameGradeYear finds a class by name, grade, and year within a school
+func (r *repository) FindClassByNameGradeYear(ctx context.Context, schoolID uint, name string, grade int, year string) (*models.Class, error) {
+	var class models.Class
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND name = ? AND grade = ? AND year = ?", schoolID, name, grade, year).
+		First(&class).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrClassNotFound
+		}
+		return nil, err
+	}
+
+	return &class, nil
+}
+
+// UpdateClass updates a class
+func (r *repository) UpdateClass(ctx context.Context, class *models.Class) error {
+	result := r.db.WithContext(ctx).Save(class)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrClassNotFound
+	}
+	return nil
+}
+
+// DeleteClass deletes a class
+func (r *repository) DeleteClass(ctx context.Context, schoolID uint, id uint) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND school_id = ?", id, schoolID).
+		Delete(&models.Class{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrClassNotFound
+	}
+	return nil
+}
+
+// GetClassStudentCount returns the number of students in a class
+func (r *repository) GetClassStudentCount(ctx context.Context, classID uint) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&models.Student{}).
+		Where("class_id = ?", classID).
+		Count(&count).Error
+	return count, err
+}
+
+
+// ==================== Student Repository Methods ====================
+
+// CreateStudent creates a new student
+// Requirements: 3.2 - WHEN an Admin_Sekolah registers a student, THE System SHALL require NIS, NISN, name, and class assignment
+func (r *repository) CreateStudent(ctx context.Context, student *models.Student) error {
+	return r.db.WithContext(ctx).Create(student).Error
+}
+
+// FindAllStudents retrieves all students for a school with pagination and filtering
+func (r *repository) FindAllStudents(ctx context.Context, schoolID uint, filter StudentFilter) ([]models.Student, int64, error) {
+	var students []models.Student
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.Student{}).Where("school_id = ?", schoolID)
+
+	// Apply filters
+	if filter.Name != "" {
+		query = query.Where("name ILIKE ?", "%"+filter.Name+"%")
+	}
+	if filter.NIS != "" {
+		query = query.Where("nis ILIKE ?", "%"+filter.NIS+"%")
+	}
+	if filter.NISN != "" {
+		query = query.Where("nisn ILIKE ?", "%"+filter.NISN+"%")
+	}
+	if filter.ClassID != nil {
+		query = query.Where("class_id = ?", *filter.ClassID)
+	}
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+
+	// Count total records
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.PageSize > 100 {
+		filter.PageSize = 100
+	}
+
+	// Fetch records with class
+	err := query.
+		Preload("Class").
+		Order("name ASC").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Find(&students).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return students, total, nil
+}
+
+// FindStudentByID retrieves a student by ID within a school
+func (r *repository) FindStudentByID(ctx context.Context, schoolID uint, id uint) (*models.Student, error) {
+	var student models.Student
+	err := r.db.WithContext(ctx).
+		Preload("Class").
+		Preload("Parents").
+		Where("id = ? AND school_id = ?", id, schoolID).
+		First(&student).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStudentNotFound
+		}
+		return nil, err
+	}
+
+	return &student, nil
+}
+
+// FindStudentByNISN retrieves a student by NISN (globally unique)
+// Requirements: 3.5 - IF duplicate NISN is detected within the system, THEN THE System SHALL reject the registration
+func (r *repository) FindStudentByNISN(ctx context.Context, nisn string) (*models.Student, error) {
+	var student models.Student
+	err := r.db.WithContext(ctx).
+		Where("nisn = ?", nisn).
+		First(&student).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStudentNotFound
+		}
+		return nil, err
+	}
+
+	return &student, nil
+}
+
+// FindStudentByNIS retrieves a student by NIS within a school
+func (r *repository) FindStudentByNIS(ctx context.Context, schoolID uint, nis string) (*models.Student, error) {
+	var student models.Student
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND nis = ?", schoolID, nis).
+		First(&student).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStudentNotFound
+		}
+		return nil, err
+	}
+
+	return &student, nil
+}
+
+// FindStudentsByClass retrieves all students in a class
+func (r *repository) FindStudentsByClass(ctx context.Context, classID uint) ([]models.Student, error) {
+	var students []models.Student
+	err := r.db.WithContext(ctx).
+		Where("class_id = ?", classID).
+		Order("name ASC").
+		Find(&students).Error
+
+	return students, err
+}
+
+// UpdateStudent updates a student
+func (r *repository) UpdateStudent(ctx context.Context, student *models.Student) error {
+	result := r.db.WithContext(ctx).Save(student)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrStudentNotFound
+	}
+	return nil
+}
+
+// DeleteStudent deletes a student
+func (r *repository) DeleteStudent(ctx context.Context, schoolID uint, id uint) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND school_id = ?", id, schoolID).
+		Delete(&models.Student{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrStudentNotFound
+	}
+	return nil
+}
+
+
+// ==================== Parent Repository Methods ====================
+
+// CreateParent creates a new parent
+// Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
+func (r *repository) CreateParent(ctx context.Context, parent *models.Parent) error {
+	return r.db.WithContext(ctx).Create(parent).Error
+}
+
+// FindAllParents retrieves all parents for a school with pagination and filtering
+func (r *repository) FindAllParents(ctx context.Context, schoolID uint, filter ParentFilter) ([]models.Parent, int64, error) {
+	var parents []models.Parent
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.Parent{}).Where("school_id = ?", schoolID)
+
+	// Apply filters
+	if filter.Name != "" {
+		query = query.Where("name ILIKE ?", "%"+filter.Name+"%")
+	}
+	if filter.Phone != "" {
+		query = query.Where("phone ILIKE ?", "%"+filter.Phone+"%")
+	}
+
+	// Count total records
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.PageSize > 100 {
+		filter.PageSize = 100
+	}
+
+	// Fetch records with students and user
+	err := query.
+		Preload("User").
+		Preload("Students").
+		Order("name ASC").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Find(&parents).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return parents, total, nil
+}
+
+// FindParentByID retrieves a parent by ID within a school
+func (r *repository) FindParentByID(ctx context.Context, schoolID uint, id uint) (*models.Parent, error) {
+	var parent models.Parent
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Students").
+		Preload("Students.Class").
+		Where("id = ? AND school_id = ?", id, schoolID).
+		First(&parent).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrParentNotFound
+		}
+		return nil, err
+	}
+
+	return &parent, nil
+}
+
+// FindParentByUserID retrieves a parent by user ID
+func (r *repository) FindParentByUserID(ctx context.Context, userID uint) (*models.Parent, error) {
+	var parent models.Parent
+	err := r.db.WithContext(ctx).
+		Preload("Students").
+		Where("user_id = ?", userID).
+		First(&parent).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrParentNotFound
+		}
+		return nil, err
+	}
+
+	return &parent, nil
+}
+
+// UpdateParent updates a parent
+func (r *repository) UpdateParent(ctx context.Context, parent *models.Parent) error {
+	result := r.db.WithContext(ctx).Save(parent)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrParentNotFound
+	}
+	return nil
+}
+
+// DeleteParent deletes a parent
+func (r *repository) DeleteParent(ctx context.Context, schoolID uint, id uint) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND school_id = ?", id, schoolID).
+		Delete(&models.Parent{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrParentNotFound
+	}
+	return nil
+}
+
+// LinkParentToStudents links a parent to multiple students
+// Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
+func (r *repository) LinkParentToStudents(ctx context.Context, parentID uint, studentIDs []uint) error {
+	// Get the parent
+	var parent models.Parent
+	if err := r.db.WithContext(ctx).First(&parent, parentID).Error; err != nil {
+		return ErrParentNotFound
+	}
+
+	// Get the students
+	var students []models.Student
+	if err := r.db.WithContext(ctx).Where("id IN ?", studentIDs).Find(&students).Error; err != nil {
+		return err
+	}
+
+	// Replace associations
+	return r.db.WithContext(ctx).Model(&parent).Association("Students").Replace(students)
+}
+
+// UnlinkParentFromStudent unlinks a parent from a student
+func (r *repository) UnlinkParentFromStudent(ctx context.Context, parentID uint, studentID uint) error {
+	var parent models.Parent
+	if err := r.db.WithContext(ctx).First(&parent, parentID).Error; err != nil {
+		return ErrParentNotFound
+	}
+
+	var student models.Student
+	if err := r.db.WithContext(ctx).First(&student, studentID).Error; err != nil {
+		return ErrStudentNotFound
+	}
+
+	return r.db.WithContext(ctx).Model(&parent).Association("Students").Delete(&student)
+}
+
+// GetParentStudents retrieves all students linked to a parent
+func (r *repository) GetParentStudents(ctx context.Context, parentID uint) ([]models.Student, error) {
+	var parent models.Parent
+	if err := r.db.WithContext(ctx).Preload("Students").Preload("Students.Class").First(&parent, parentID).Error; err != nil {
+		return nil, ErrParentNotFound
+	}
+	return parent.Students, nil
+}
+
+// ==================== Teacher Repository Methods ====================
+
+// FindTeacherByID retrieves a teacher by ID within a school
+func (r *repository) FindTeacherByID(ctx context.Context, schoolID uint, teacherID uint) (*models.User, error) {
+	var user models.User
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND school_id = ?", teacherID, schoolID).
+		First(&user).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTeacherNotFound
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+// ValidateHomeroomTeacher validates that a user can be assigned as homeroom teacher
+// Requirements: 4.3 - WHEN an Admin_Sekolah assigns Wali_Kelas role, THE System SHALL require class assignment
+func (r *repository) ValidateHomeroomTeacher(ctx context.Context, schoolID uint, teacherID uint) error {
+	var user models.User
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND school_id = ?", teacherID, schoolID).
+		First(&user).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrTeacherNotFound
+		}
+		return err
+	}
+
+	// Check if user has a valid role for homeroom teacher
+	validRoles := []models.UserRole{
+		models.RoleWaliKelas,
+		models.RoleGuru,
+		models.RoleAdminSekolah,
+	}
+
+	isValid := false
+	for _, role := range validRoles {
+		if user.Role == role {
+			isValid = true
+			break
+		}
+	}
+
+	if !isValid {
+		return ErrInvalidTeacher
+	}
+
+	return nil
+}

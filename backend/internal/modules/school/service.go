@@ -1,0 +1,795 @@
+package school
+
+import (
+	"context"
+	"errors"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/school-management/backend/internal/domain/models"
+)
+
+var (
+	ErrNameRequired       = errors.New("name is required")
+	ErrNISRequired        = errors.New("NIS is required")
+	ErrNISNRequired       = errors.New("NISN is required")
+	ErrClassIDRequired    = errors.New("class_id is required")
+	ErrGradeRequired      = errors.New("grade is required")
+	ErrYearRequired       = errors.New("year is required")
+	ErrPasswordRequired   = errors.New("password is required")
+	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
+	ErrStudentIDsRequired = errors.New("at least one student_id is required")
+	ErrClassHasStudents   = errors.New("cannot delete class with students")
+)
+
+// Service defines the interface for school business logic
+type Service interface {
+	// Class operations
+	CreateClass(ctx context.Context, schoolID uint, req CreateClassRequest) (*ClassResponse, error)
+	GetAllClasses(ctx context.Context, schoolID uint, filter ClassFilter) (*ClassListResponse, error)
+	GetClassByID(ctx context.Context, schoolID uint, id uint) (*ClassResponse, error)
+	UpdateClass(ctx context.Context, schoolID uint, id uint, req UpdateClassRequest) (*ClassResponse, error)
+	DeleteClass(ctx context.Context, schoolID uint, id uint) error
+	AssignHomeroomTeacher(ctx context.Context, schoolID uint, classID uint, teacherID uint) (*ClassResponse, error)
+
+	// Student operations
+	CreateStudent(ctx context.Context, schoolID uint, req CreateStudentRequest) (*StudentResponse, error)
+	GetAllStudents(ctx context.Context, schoolID uint, filter StudentFilter) (*StudentListResponse, error)
+	GetStudentByID(ctx context.Context, schoolID uint, id uint) (*StudentResponse, error)
+	GetStudentByNISN(ctx context.Context, nisn string) (*StudentResponse, error)
+	GetStudentsByClass(ctx context.Context, schoolID uint, classID uint) ([]StudentResponse, error)
+	UpdateStudent(ctx context.Context, schoolID uint, id uint, req UpdateStudentRequest) (*StudentResponse, error)
+	DeleteStudent(ctx context.Context, schoolID uint, id uint) error
+
+	// Parent operations
+	CreateParent(ctx context.Context, schoolID uint, req CreateParentRequest) (*ParentResponse, error)
+	GetAllParents(ctx context.Context, schoolID uint, filter ParentFilter) (*ParentListResponse, error)
+	GetParentByID(ctx context.Context, schoolID uint, id uint) (*ParentResponse, error)
+	UpdateParent(ctx context.Context, schoolID uint, id uint, req UpdateParentRequest) (*ParentResponse, error)
+	DeleteParent(ctx context.Context, schoolID uint, id uint) error
+	LinkParentToStudents(ctx context.Context, schoolID uint, parentID uint, studentIDs []uint) (*ParentResponse, error)
+}
+
+// service implements the Service interface
+type service struct {
+	repo     Repository
+	userRepo UserRepository
+}
+
+// UserRepository defines the interface for user operations needed by school service
+type UserRepository interface {
+	Create(ctx context.Context, user *models.User) error
+	FindByUsername(ctx context.Context, username string) (*models.User, error)
+}
+
+// NewService creates a new school service
+func NewService(repo Repository, userRepo UserRepository) Service {
+	return &service{
+		repo:     repo,
+		userRepo: userRepo,
+	}
+}
+
+
+// ==================== Class Service Methods ====================
+
+// CreateClass creates a new class
+// Requirements: 3.1 - WHEN an Admin_Sekolah creates a class, THE System SHALL associate it with the school tenant and allow student assignment
+func (s *service) CreateClass(ctx context.Context, schoolID uint, req CreateClassRequest) (*ClassResponse, error) {
+	// Validate required fields
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, ErrNameRequired
+	}
+	if req.Grade <= 0 {
+		return nil, ErrGradeRequired
+	}
+	year := strings.TrimSpace(req.Year)
+	if year == "" {
+		return nil, ErrYearRequired
+	}
+
+	// Check for duplicate class
+	existing, err := s.repo.FindClassByNameGradeYear(ctx, schoolID, name, req.Grade, year)
+	if err != nil && !errors.Is(err, ErrClassNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, ErrDuplicateClass
+	}
+
+	// Validate homeroom teacher if provided
+	if req.HomeroomTeacherID != nil {
+		if err := s.repo.ValidateHomeroomTeacher(ctx, schoolID, *req.HomeroomTeacherID); err != nil {
+			return nil, err
+		}
+	}
+
+	// Create class
+	class := &models.Class{
+		SchoolID:          schoolID,
+		Name:              name,
+		Grade:             req.Grade,
+		Year:              year,
+		HomeroomTeacherID: req.HomeroomTeacherID,
+	}
+
+	if err := s.repo.CreateClass(ctx, class); err != nil {
+		return nil, err
+	}
+
+	// Reload with relations
+	class, err = s.repo.FindClassByID(ctx, schoolID, class.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toClassResponse(ctx, class), nil
+}
+
+// GetAllClasses retrieves all classes for a school
+func (s *service) GetAllClasses(ctx context.Context, schoolID uint, filter ClassFilter) (*ClassListResponse, error) {
+	// Set defaults
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+
+	classes, total, err := s.repo.FindAllClasses(ctx, schoolID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to response
+	classResponses := make([]ClassResponse, len(classes))
+	for i, class := range classes {
+		classResponses[i] = *s.toClassResponse(ctx, &class)
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / filter.PageSize
+	if int(total)%filter.PageSize > 0 {
+		totalPages++
+	}
+
+	return &ClassListResponse{
+		Classes: classResponses,
+		Pagination: PaginationMeta{
+			Page:       filter.Page,
+			PageSize:   filter.PageSize,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+// GetClassByID retrieves a class by ID
+func (s *service) GetClassByID(ctx context.Context, schoolID uint, id uint) (*ClassResponse, error) {
+	class, err := s.repo.FindClassByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.toClassResponse(ctx, class), nil
+}
+
+// UpdateClass updates a class
+func (s *service) UpdateClass(ctx context.Context, schoolID uint, id uint, req UpdateClassRequest) (*ClassResponse, error) {
+	// Get existing class
+	class, err := s.repo.FindClassByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update fields if provided
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			return nil, ErrNameRequired
+		}
+		class.Name = name
+	}
+	if req.Grade != nil {
+		if *req.Grade <= 0 {
+			return nil, ErrGradeRequired
+		}
+		class.Grade = *req.Grade
+	}
+	if req.Year != nil {
+		year := strings.TrimSpace(*req.Year)
+		if year == "" {
+			return nil, ErrYearRequired
+		}
+		class.Year = year
+	}
+
+	// Check for duplicate if name, grade, or year changed
+	existing, err := s.repo.FindClassByNameGradeYear(ctx, schoolID, class.Name, class.Grade, class.Year)
+	if err != nil && !errors.Is(err, ErrClassNotFound) {
+		return nil, err
+	}
+	if existing != nil && existing.ID != class.ID {
+		return nil, ErrDuplicateClass
+	}
+
+	// Validate and update homeroom teacher if provided
+	if req.HomeroomTeacherID != nil {
+		if *req.HomeroomTeacherID == 0 {
+			class.HomeroomTeacherID = nil
+		} else {
+			if err := s.repo.ValidateHomeroomTeacher(ctx, schoolID, *req.HomeroomTeacherID); err != nil {
+				return nil, err
+			}
+			class.HomeroomTeacherID = req.HomeroomTeacherID
+		}
+	}
+
+	if err := s.repo.UpdateClass(ctx, class); err != nil {
+		return nil, err
+	}
+
+	// Reload with relations
+	class, err = s.repo.FindClassByID(ctx, schoolID, class.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toClassResponse(ctx, class), nil
+}
+
+// DeleteClass deletes a class
+func (s *service) DeleteClass(ctx context.Context, schoolID uint, id uint) error {
+	// Check if class has students
+	count, err := s.repo.GetClassStudentCount(ctx, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrClassHasStudents
+	}
+
+	return s.repo.DeleteClass(ctx, schoolID, id)
+}
+
+// AssignHomeroomTeacher assigns a homeroom teacher to a class
+// Requirements: 4.3 - WHEN an Admin_Sekolah assigns Wali_Kelas role, THE System SHALL require class assignment
+func (s *service) AssignHomeroomTeacher(ctx context.Context, schoolID uint, classID uint, teacherID uint) (*ClassResponse, error) {
+	// Validate teacher
+	if err := s.repo.ValidateHomeroomTeacher(ctx, schoolID, teacherID); err != nil {
+		return nil, err
+	}
+
+	// Get class
+	class, err := s.repo.FindClassByID(ctx, schoolID, classID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign teacher
+	class.HomeroomTeacherID = &teacherID
+
+	if err := s.repo.UpdateClass(ctx, class); err != nil {
+		return nil, err
+	}
+
+	// Reload with relations
+	class, err = s.repo.FindClassByID(ctx, schoolID, class.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toClassResponse(ctx, class), nil
+}
+
+// toClassResponse converts a Class model to ClassResponse DTO
+func (s *service) toClassResponse(ctx context.Context, class *models.Class) *ClassResponse {
+	response := &ClassResponse{
+		ID:                class.ID,
+		SchoolID:          class.SchoolID,
+		Name:              class.Name,
+		Grade:             class.Grade,
+		Year:              class.Year,
+		HomeroomTeacherID: class.HomeroomTeacherID,
+		CreatedAt:         class.CreatedAt,
+		UpdatedAt:         class.UpdatedAt,
+	}
+
+	// Get student count
+	count, _ := s.repo.GetClassStudentCount(ctx, class.ID)
+	response.StudentCount = count
+
+	// Add homeroom teacher info if available
+	if class.HomeroomTeacher != nil {
+		response.HomeroomTeacher = &TeacherResponse{
+			ID:       class.HomeroomTeacher.ID,
+			Name:     class.HomeroomTeacher.Name,
+			Username: class.HomeroomTeacher.Username,
+		}
+	}
+
+	return response
+}
+
+
+// ==================== Student Service Methods ====================
+
+// CreateStudent creates a new student
+// Requirements: 3.2 - WHEN an Admin_Sekolah registers a student, THE System SHALL require NIS, NISN, name, and class assignment
+// Requirements: 3.5 - IF duplicate NISN is detected within the system, THEN THE System SHALL reject the registration with an error message
+func (s *service) CreateStudent(ctx context.Context, schoolID uint, req CreateStudentRequest) (*StudentResponse, error) {
+	// Validate required fields
+	nis := strings.TrimSpace(req.NIS)
+	if nis == "" {
+		return nil, ErrNISRequired
+	}
+	nisn := strings.TrimSpace(req.NISN)
+	if nisn == "" {
+		return nil, ErrNISNRequired
+	}
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, ErrNameRequired
+	}
+	if req.ClassID == 0 {
+		return nil, ErrClassIDRequired
+	}
+
+	// Validate class exists
+	_, err := s.repo.FindClassByID(ctx, schoolID, req.ClassID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for duplicate NISN (globally unique)
+	existing, err := s.repo.FindStudentByNISN(ctx, nisn)
+	if err != nil && !errors.Is(err, ErrStudentNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, ErrDuplicateNISN
+	}
+
+	// Check for duplicate NIS within school
+	existing, err = s.repo.FindStudentByNIS(ctx, schoolID, nis)
+	if err != nil && !errors.Is(err, ErrStudentNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, ErrDuplicateNIS
+	}
+
+	// Create student
+	student := &models.Student{
+		SchoolID: schoolID,
+		ClassID:  req.ClassID,
+		NIS:      nis,
+		NISN:     nisn,
+		Name:     name,
+		RFIDCode: strings.TrimSpace(req.RFIDCode),
+		IsActive: true,
+	}
+
+	if err := s.repo.CreateStudent(ctx, student); err != nil {
+		return nil, err
+	}
+
+	// Reload with relations
+	student, err = s.repo.FindStudentByID(ctx, schoolID, student.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toStudentResponse(student), nil
+}
+
+// GetAllStudents retrieves all students for a school
+func (s *service) GetAllStudents(ctx context.Context, schoolID uint, filter StudentFilter) (*StudentListResponse, error) {
+	// Set defaults
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+
+	students, total, err := s.repo.FindAllStudents(ctx, schoolID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to response
+	studentResponses := make([]StudentResponse, len(students))
+	for i, student := range students {
+		studentResponses[i] = *s.toStudentResponse(&student)
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / filter.PageSize
+	if int(total)%filter.PageSize > 0 {
+		totalPages++
+	}
+
+	return &StudentListResponse{
+		Students: studentResponses,
+		Pagination: PaginationMeta{
+			Page:       filter.Page,
+			PageSize:   filter.PageSize,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+// GetStudentByID retrieves a student by ID
+func (s *service) GetStudentByID(ctx context.Context, schoolID uint, id uint) (*StudentResponse, error) {
+	student, err := s.repo.FindStudentByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.toStudentResponse(student), nil
+}
+
+// GetStudentByNISN retrieves a student by NISN
+func (s *service) GetStudentByNISN(ctx context.Context, nisn string) (*StudentResponse, error) {
+	student, err := s.repo.FindStudentByNISN(ctx, nisn)
+	if err != nil {
+		return nil, err
+	}
+	return s.toStudentResponse(student), nil
+}
+
+// GetStudentsByClass retrieves all students in a class
+func (s *service) GetStudentsByClass(ctx context.Context, schoolID uint, classID uint) ([]StudentResponse, error) {
+	// Validate class exists
+	_, err := s.repo.FindClassByID(ctx, schoolID, classID)
+	if err != nil {
+		return nil, err
+	}
+
+	students, err := s.repo.FindStudentsByClass(ctx, classID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to response
+	responses := make([]StudentResponse, len(students))
+	for i, student := range students {
+		responses[i] = *s.toStudentResponse(&student)
+	}
+
+	return responses, nil
+}
+
+// UpdateStudent updates a student
+func (s *service) UpdateStudent(ctx context.Context, schoolID uint, id uint, req UpdateStudentRequest) (*StudentResponse, error) {
+	// Get existing student
+	student, err := s.repo.FindStudentByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update fields if provided
+	if req.NIS != nil {
+		nis := strings.TrimSpace(*req.NIS)
+		if nis == "" {
+			return nil, ErrNISRequired
+		}
+		// Check for duplicate NIS if changed
+		if nis != student.NIS {
+			existing, err := s.repo.FindStudentByNIS(ctx, schoolID, nis)
+			if err != nil && !errors.Is(err, ErrStudentNotFound) {
+				return nil, err
+			}
+			if existing != nil && existing.ID != student.ID {
+				return nil, ErrDuplicateNIS
+			}
+		}
+		student.NIS = nis
+	}
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			return nil, ErrNameRequired
+		}
+		student.Name = name
+	}
+	if req.ClassID != nil {
+		if *req.ClassID == 0 {
+			return nil, ErrClassIDRequired
+		}
+		// Validate class exists
+		_, err := s.repo.FindClassByID(ctx, schoolID, *req.ClassID)
+		if err != nil {
+			return nil, err
+		}
+		student.ClassID = *req.ClassID
+	}
+	if req.RFIDCode != nil {
+		student.RFIDCode = strings.TrimSpace(*req.RFIDCode)
+	}
+	if req.IsActive != nil {
+		student.IsActive = *req.IsActive
+	}
+
+	if err := s.repo.UpdateStudent(ctx, student); err != nil {
+		return nil, err
+	}
+
+	// Reload with relations
+	student, err = s.repo.FindStudentByID(ctx, schoolID, student.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toStudentResponse(student), nil
+}
+
+// DeleteStudent deletes a student
+func (s *service) DeleteStudent(ctx context.Context, schoolID uint, id uint) error {
+	return s.repo.DeleteStudent(ctx, schoolID, id)
+}
+
+// toStudentResponse converts a Student model to StudentResponse DTO
+func (s *service) toStudentResponse(student *models.Student) *StudentResponse {
+	response := &StudentResponse{
+		ID:        student.ID,
+		SchoolID:  student.SchoolID,
+		ClassID:   student.ClassID,
+		NIS:       student.NIS,
+		NISN:      student.NISN,
+		Name:      student.Name,
+		RFIDCode:  student.RFIDCode,
+		IsActive:  student.IsActive,
+		CreatedAt: student.CreatedAt,
+		UpdatedAt: student.UpdatedAt,
+	}
+
+	// Add class info if available
+	if student.Class.ID != 0 {
+		response.Class = &ClassResponse{
+			ID:       student.Class.ID,
+			SchoolID: student.Class.SchoolID,
+			Name:     student.Class.Name,
+			Grade:    student.Class.Grade,
+			Year:     student.Class.Year,
+		}
+	}
+
+	return response
+}
+
+
+// ==================== Parent Service Methods ====================
+
+// CreateParent creates a new parent with a user account
+// Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
+func (s *service) CreateParent(ctx context.Context, schoolID uint, req CreateParentRequest) (*ParentResponse, error) {
+	// Validate required fields
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, ErrNameRequired
+	}
+	password := strings.TrimSpace(req.Password)
+	if password == "" {
+		return nil, ErrPasswordRequired
+	}
+	if len(password) < 8 {
+		return nil, ErrPasswordTooShort
+	}
+
+	// Generate username from email or phone
+	email := strings.TrimSpace(req.Email)
+	phone := strings.TrimSpace(req.Phone)
+	username := email
+	if username == "" {
+		username = phone
+	}
+	if username == "" {
+		return nil, errors.New("email or phone is required for parent account")
+	}
+
+	// Check if username already exists
+	existingUser, err := s.userRepo.FindByUsername(ctx, username)
+	if err == nil && existingUser != nil {
+		return nil, errors.New("user with this email/phone already exists")
+	}
+
+	// Hash password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create user account for parent
+	user := &models.User{
+		SchoolID:     &schoolID,
+		Role:         models.RoleParent,
+		Username:     username,
+		PasswordHash: string(passwordHash),
+		Email:        email,
+		Name:         name,
+		IsActive:     true,
+		MustResetPwd: true,
+	}
+
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+
+	// Create parent
+	parent := &models.Parent{
+		SchoolID: schoolID,
+		UserID:   user.ID,
+		Name:     name,
+		Phone:    phone,
+	}
+
+	if err := s.repo.CreateParent(ctx, parent); err != nil {
+		return nil, err
+	}
+
+	// Link to students if provided
+	if len(req.StudentIDs) > 0 {
+		if err := s.repo.LinkParentToStudents(ctx, parent.ID, req.StudentIDs); err != nil {
+			return nil, err
+		}
+	}
+
+	// Reload with relations
+	parent, err = s.repo.FindParentByID(ctx, schoolID, parent.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toParentResponse(parent), nil
+}
+
+// GetAllParents retrieves all parents for a school
+func (s *service) GetAllParents(ctx context.Context, schoolID uint, filter ParentFilter) (*ParentListResponse, error) {
+	// Set defaults
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+
+	parents, total, err := s.repo.FindAllParents(ctx, schoolID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to response
+	parentResponses := make([]ParentResponse, len(parents))
+	for i, parent := range parents {
+		parentResponses[i] = *s.toParentResponse(&parent)
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / filter.PageSize
+	if int(total)%filter.PageSize > 0 {
+		totalPages++
+	}
+
+	return &ParentListResponse{
+		Parents: parentResponses,
+		Pagination: PaginationMeta{
+			Page:       filter.Page,
+			PageSize:   filter.PageSize,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+// GetParentByID retrieves a parent by ID
+func (s *service) GetParentByID(ctx context.Context, schoolID uint, id uint) (*ParentResponse, error) {
+	parent, err := s.repo.FindParentByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.toParentResponse(parent), nil
+}
+
+// UpdateParent updates a parent
+func (s *service) UpdateParent(ctx context.Context, schoolID uint, id uint, req UpdateParentRequest) (*ParentResponse, error) {
+	// Get existing parent
+	parent, err := s.repo.FindParentByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update fields if provided
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			return nil, ErrNameRequired
+		}
+		parent.Name = name
+	}
+	if req.Phone != nil {
+		parent.Phone = strings.TrimSpace(*req.Phone)
+	}
+
+	if err := s.repo.UpdateParent(ctx, parent); err != nil {
+		return nil, err
+	}
+
+	// Reload with relations
+	parent, err = s.repo.FindParentByID(ctx, schoolID, parent.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toParentResponse(parent), nil
+}
+
+// DeleteParent deletes a parent
+func (s *service) DeleteParent(ctx context.Context, schoolID uint, id uint) error {
+	return s.repo.DeleteParent(ctx, schoolID, id)
+}
+
+// LinkParentToStudents links a parent to students
+// Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
+func (s *service) LinkParentToStudents(ctx context.Context, schoolID uint, parentID uint, studentIDs []uint) (*ParentResponse, error) {
+	if len(studentIDs) == 0 {
+		return nil, ErrStudentIDsRequired
+	}
+
+	// Validate parent exists
+	parent, err := s.repo.FindParentByID(ctx, schoolID, parentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate all students exist and belong to the same school
+	for _, studentID := range studentIDs {
+		_, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Link parent to students
+	if err := s.repo.LinkParentToStudents(ctx, parentID, studentIDs); err != nil {
+		return nil, err
+	}
+
+	// Reload with relations
+	parent, err = s.repo.FindParentByID(ctx, schoolID, parent.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toParentResponse(parent), nil
+}
+
+// toParentResponse converts a Parent model to ParentResponse DTO
+func (s *service) toParentResponse(parent *models.Parent) *ParentResponse {
+	response := &ParentResponse{
+		ID:        parent.ID,
+		SchoolID:  parent.SchoolID,
+		UserID:    parent.UserID,
+		Name:      parent.Name,
+		Phone:     parent.Phone,
+		CreatedAt: parent.CreatedAt,
+		UpdatedAt: parent.UpdatedAt,
+	}
+
+	// Add email from user if available
+	if parent.User.ID != 0 {
+		response.Email = parent.User.Email
+	}
+
+	// Add students if available
+	if len(parent.Students) > 0 {
+		response.Students = make([]StudentResponse, len(parent.Students))
+		for i, student := range parent.Students {
+			response.Students[i] = *s.toStudentResponse(&student)
+		}
+	}
+
+	return response
+}
