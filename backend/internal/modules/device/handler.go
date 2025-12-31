@@ -31,6 +31,19 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	devices.Delete("/:id", h.DeleteDevice)
 }
 
+// RegisterRoutesWithoutGroup registers device routes without creating a sub-group
+// Use this when the router already has the correct path prefix
+func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
+	router.Post("", h.RegisterDevice)
+	router.Get("", h.GetDevices)
+	router.Get("/grouped", h.GetDevicesGrouped)
+	router.Get("/:id", h.GetDevice)
+	router.Put("/:id", h.UpdateDevice)
+	router.Post("/:id/revoke", h.RevokeAPIKey)
+	router.Post("/:id/regenerate", h.RegenerateAPIKey)
+	router.Delete("/:id", h.DeleteDevice)
+}
+
 // RegisterPublicRoutes registers public device routes (for ESP32 devices)
 func (h *Handler) RegisterPublicRoutes(router fiber.Router) {
 	router.Post("/devices/validate-key", h.ValidateAPIKey)

@@ -48,10 +48,17 @@ func AuthMiddleware(jwtManager *auth.JWTManager) fiber.Handler {
 		// Using both camelCase and snake_case for backward compatibility
 		c.Locals("userID", claims.UserID)
 		c.Locals("user_id", claims.UserID)
-		c.Locals("schoolID", claims.SchoolID)
 		c.Locals("role", claims.Role)
 		c.Locals("username", claims.Username)
 		c.Locals("claims", claims)
+
+		// Store schoolID - handle nil pointer properly
+		if claims.SchoolID != nil {
+			c.Locals("schoolID", claims.SchoolID)
+		} else {
+			// Explicitly set nil for super_admin or users without school
+			c.Locals("schoolID", (*uint)(nil))
+		}
 
 		return c.Next()
 	}

@@ -27,6 +27,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	// Notification operations
 	notifications.Get("", h.GetNotifications)
 	notifications.Get("/summary", h.GetNotificationSummary)
+	notifications.Get("/unread-count", h.GetUnreadCount)
 	notifications.Get("/:id", h.GetNotificationByID)
 	notifications.Post("/:id/read", h.MarkAsRead)
 	notifications.Post("/read", h.MarkMultipleAsRead)
@@ -97,6 +98,34 @@ func (h *Handler) GetNotificationSummary(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    summary,
+	})
+}
+
+// GetUnreadCount handles getting unread notification count for the current user
+// @Summary Get unread notification count
+// @Description Get the count of unread notifications for the current user
+// @Tags Notifications
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/notifications/unread-count [get]
+func (h *Handler) GetUnreadCount(c *fiber.Ctx) error {
+	userID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return h.authRequiredError(c)
+	}
+
+	count, err := h.service.GetUnreadCount(c.Context(), userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"count": count,
+		},
 	})
 }
 

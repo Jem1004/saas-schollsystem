@@ -199,3 +199,82 @@ type TeacherResponse struct {
 type AssignHomeroomTeacherRequest struct {
 	TeacherID uint `json:"teacher_id" validate:"required"`
 }
+
+// ==================== Stats DTOs ====================
+
+// TodayAttendanceStats represents today's attendance statistics
+type TodayAttendanceStats struct {
+	Present int64 `json:"present"`
+	Absent  int64 `json:"absent"`
+	Late    int64 `json:"late"`
+	Total   int64 `json:"total"`
+}
+
+// SchoolStatsResponse represents the school statistics for admin sekolah dashboard
+type SchoolStatsResponse struct {
+	TotalStudents   int64                `json:"totalStudents"`
+	TotalClasses    int64                `json:"totalClasses"`
+	TotalTeachers   int64                `json:"totalTeachers"`
+	TotalParents    int64                `json:"totalParents"`
+	TodayAttendance TodayAttendanceStats `json:"todayAttendance"`
+}
+
+
+// ==================== User DTOs ====================
+
+// UserFilter represents filter options for listing users
+type UserFilter struct {
+	Name     string `query:"name"`
+	Role     string `query:"role"`
+	IsActive *bool  `query:"is_active"`
+	Page     int    `query:"page"`
+	PageSize int    `query:"page_size"`
+}
+
+// DefaultUserFilter returns default filter values
+func DefaultUserFilter() UserFilter {
+	return UserFilter{
+		Page:     1,
+		PageSize: 20,
+	}
+}
+
+// UserResponse represents the user data in responses
+type UserResponse struct {
+	ID              uint      `json:"id"`
+	SchoolID        uint      `json:"school_id"`
+	Role            string    `json:"role"`
+	Username        string    `json:"username"`
+	Email           string    `json:"email,omitempty"`
+	Name            string    `json:"name,omitempty"`
+	IsActive        bool      `json:"is_active"`
+	MustResetPwd    bool      `json:"must_reset_pwd"`
+	AssignedClassID *uint     `json:"assigned_class_id,omitempty"`
+	LastLoginAt     *string   `json:"last_login_at,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// UserListResponse represents a paginated list of users
+type UserListResponse struct {
+	Users      []UserResponse `json:"users"`
+	Pagination PaginationMeta `json:"pagination"`
+}
+
+// CreateUserRequest represents the request to create a new user
+type CreateUserRequest struct {
+	Role            string `json:"role" validate:"required,oneof=guru wali_kelas guru_bk admin_sekolah"`
+	Username        string `json:"username" validate:"required"`
+	Email           string `json:"email"`
+	Name            string `json:"name"`
+	Password        string `json:"password" validate:"required,min=8"`
+	AssignedClassID *uint  `json:"assigned_class_id"`
+}
+
+// UpdateUserRequest represents the request to update a user
+type UpdateUserRequest struct {
+	Email           *string `json:"email"`
+	Name            *string `json:"name"`
+	IsActive        *bool   `json:"is_active"`
+	AssignedClassID *uint   `json:"assigned_class_id"`
+}

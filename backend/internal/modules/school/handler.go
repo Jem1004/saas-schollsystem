@@ -22,6 +22,9 @@ func NewHandler(service Service) *Handler {
 // RegisterRoutes registers school routes (Admin Sekolah)
 // Requirements: 3.1, 3.2, 3.3 - Admin Sekolah manages school data
 func (h *Handler) RegisterRoutes(router fiber.Router) {
+	// Stats route
+	router.Get("/stats", h.GetStats)
+
 	// Class routes
 	classes := router.Group("/classes")
 	classes.Post("", h.CreateClass)
@@ -48,6 +51,47 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	parents.Put("/:id", h.UpdateParent)
 	parents.Delete("/:id", h.DeleteParent)
 	parents.Post("/:id/students", h.LinkParentToStudents)
+
+	// User routes (school staff)
+	users := router.Group("/users")
+	users.Post("", h.CreateUser)
+	users.Get("", h.GetUsers)
+	users.Get("/:id", h.GetUser)
+	users.Put("/:id", h.UpdateUser)
+	users.Delete("/:id", h.DeleteUser)
+}
+
+// GetStats handles getting school statistics for dashboard
+// @Summary Get school statistics
+// @Description Get statistics for the school dashboard (students, classes, teachers, parents, attendance)
+// @Tags School
+// @Produce json
+// @Success 200 {object} SchoolStatsResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/stats [get]
+func (h *Handler) GetStats(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Tenant context is required",
+			},
+		})
+	}
+
+	stats, err := h.service.GetStats(c.Context(), schoolID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    stats,
+	})
 }
 
 // ==================== Class Handlers ====================
@@ -1100,6 +1144,16 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			},
 		})
 
+	// User errors
+	case errors.Is(err, ErrUserNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "NOT_FOUND_USER",
+				"message": "User not found",
+			},
+		})
+
 	// Validation errors
 	case errors.Is(err, ErrNameRequired):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -1183,6 +1237,261 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			},
 		})
 	}
+}
+
+// ==================== User Handlers ====================
+
+// GetUsers handles listing all users (school staff)
+// @Summary List all users
+// @Description Get a paginated list of all users (school staff) in the school
+// @Tags Users
+// @Produce json
+// @Param name query string false "Filter by name"
+// @Param role query string false "Filter by role"
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(20)
+// @Success 200 {object} UserListResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/users [get]
+func (h *Handler) GetUsers(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Tenant context is required",
+			},
+		})
+	}
+
+	filter := DefaultUserFilter()
+	filter.Name = c.Query("name")
+	filter.Role = c.Query("role")
+
+	if isActiveStr := c.Query("is_active"); isActiveStr != "" {
+		isActive := isActiveStr == "true"
+		filter.IsActive = &isActive
+	}
+	if page, err := strconv.Atoi(c.Query("page", "1")); err == nil && page > 0 {
+		filter.Page = page
+	}
+	if pageSize, err := strconv.Atoi(c.Query("page_size", "20")); err == nil && pageSize > 0 {
+		filter.PageSize = pageSize
+	}
+
+	response, err := h.service.GetAllUsers(c.Context(), schoolID, filter)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// GetUser handles getting a single user
+// @Summary Get a user by ID
+// @Description Get detailed information about a specific user
+// @Tags Users
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} UserResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/users/{id} [get]
+func (h *Handler) GetUser(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Tenant context is required",
+			},
+		})
+	}
+
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Invalid user ID",
+			},
+		})
+	}
+
+	response, err := h.service.GetUserByID(c.Context(), schoolID, uint(id))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// CreateUser handles user creation
+// @Summary Create a new user
+// @Description Create a new user (school staff) in the school
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body CreateUserRequest true "User data"
+// @Success 201 {object} UserResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/users [post]
+func (h *Handler) CreateUser(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Tenant context is required",
+			},
+		})
+	}
+
+	var req CreateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Invalid request body",
+			},
+		})
+	}
+
+	response, err := h.service.CreateUser(c.Context(), schoolID, req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "User created successfully",
+	})
+}
+
+// UpdateUser handles updating a user
+// @Summary Update a user
+// @Description Update user information
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param request body UpdateUserRequest true "User data to update"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/users/{id} [put]
+func (h *Handler) UpdateUser(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Tenant context is required",
+			},
+		})
+	}
+
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Invalid user ID",
+			},
+		})
+	}
+
+	var req UpdateUserRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Invalid request body",
+			},
+		})
+	}
+
+	response, err := h.service.UpdateUser(c.Context(), schoolID, uint(id), req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "User updated successfully",
+	})
+}
+
+// DeleteUser handles deleting a user
+// @Summary Delete a user
+// @Description Delete a user from the school
+// @Tags Users
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/users/{id} [delete]
+func (h *Handler) DeleteUser(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Tenant context is required",
+			},
+		})
+	}
+
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Invalid user ID",
+			},
+		})
+	}
+
+	if err := h.service.DeleteUser(c.Context(), schoolID, uint(id)); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "User deleted successfully",
+	})
 }
 
 // ErrorResponse represents an error response

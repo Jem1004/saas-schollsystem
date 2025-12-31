@@ -33,6 +33,21 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	router.Delete("/schools/:id", h.DeleteSchool)
 }
 
+// RegisterRoutesWithoutGroup registers tenant routes without creating a sub-group
+// Use this when the router already has the correct path prefix
+func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
+	router.Post("", h.CreateSchool)
+	router.Get("", h.GetSchools)
+	// Register more specific routes first to avoid route conflicts
+	router.Get("/:id/detail", h.GetSchoolDetail)
+	router.Post("/:id/deactivate", h.DeactivateSchool)
+	router.Post("/:id/activate", h.ActivateSchool)
+	// Then register generic parameter routes
+	router.Get("/:id", h.GetSchool)
+	router.Put("/:id", h.UpdateSchool)
+	router.Delete("/:id", h.DeleteSchool)
+}
+
 // CreateSchool handles school creation
 // @Summary Create a new school (tenant)
 // @Description Create a new school in the multi-tenant system

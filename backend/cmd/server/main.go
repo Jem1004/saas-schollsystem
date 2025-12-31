@@ -115,17 +115,19 @@ func main() {
 	tenantService := tenant.NewService(tenantRepo)
 	tenantHandler := tenant.NewHandler(tenantService)
 
-	// Super Admin routes for tenant management
-	superAdminRoutes := protected.Group("", middleware.SuperAdminOnly())
-	tenantHandler.RegisterRoutes(superAdminRoutes)
-
 	// Initialize Device Module (Super Admin only)
 	deviceRepo := device.NewRepository(db)
 	deviceService := device.NewService(deviceRepo)
 	deviceHandler := device.NewHandler(deviceService)
 
-	// Device routes for super admin (device management)
-	deviceHandler.RegisterRoutes(superAdminRoutes)
+	// Super Admin routes - use specific path prefixes to avoid middleware conflicts
+	// Schools management (Super Admin only)
+	schoolsAdmin := protected.Group("/schools", middleware.SuperAdminOnly())
+	tenantHandler.RegisterRoutesWithoutGroup(schoolsAdmin)
+
+	// Devices management (Super Admin only)
+	devicesAdmin := protected.Group("/devices", middleware.SuperAdminOnly())
+	deviceHandler.RegisterRoutesWithoutGroup(devicesAdmin)
 
 	// Public device routes (for ESP32 API key validation)
 	deviceHandler.RegisterPublicRoutes(api)
@@ -140,7 +142,7 @@ func main() {
 	schoolHandler := school.NewHandler(schoolService)
 
 	// School routes for admin sekolah (classes, students, parents)
-	adminSekolahRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
+	adminSekolahRoutes := tenantScoped.Group("/school", middleware.RoleMiddleware(
 		models.RoleAdminSekolah,
 		models.RoleSuperAdmin,
 	))

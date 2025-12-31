@@ -49,6 +49,16 @@ type Service interface {
 	UpdateParent(ctx context.Context, schoolID uint, id uint, req UpdateParentRequest) (*ParentResponse, error)
 	DeleteParent(ctx context.Context, schoolID uint, id uint) error
 	LinkParentToStudents(ctx context.Context, schoolID uint, parentID uint, studentIDs []uint) (*ParentResponse, error)
+
+	// Stats operations
+	GetStats(ctx context.Context, schoolID uint) (*SchoolStatsResponse, error)
+
+	// User operations
+	GetAllUsers(ctx context.Context, schoolID uint, filter UserFilter) (*UserListResponse, error)
+	GetUserByID(ctx context.Context, schoolID uint, id uint) (*UserResponse, error)
+	CreateUser(ctx context.Context, schoolID uint, req CreateUserRequest) (*UserResponse, error)
+	UpdateUser(ctx context.Context, schoolID uint, id uint, req UpdateUserRequest) (*UserResponse, error)
+	DeleteUser(ctx context.Context, schoolID uint, id uint) error
 }
 
 // service implements the Service interface
@@ -789,6 +799,175 @@ func (s *service) toParentResponse(parent *models.Parent) *ParentResponse {
 		for i, student := range parent.Students {
 			response.Students[i] = *s.toStudentResponse(&student)
 		}
+	}
+
+	return response
+}
+
+// ==================== Stats Service Methods ====================
+
+// GetStats retrieves statistics for a school (for admin sekolah dashboard)
+func (s *service) GetStats(ctx context.Context, schoolID uint) (*SchoolStatsResponse, error) {
+	return s.repo.GetSchoolStats(ctx, schoolID)
+}
+
+
+// ==================== User Service Methods ====================
+
+// GetAllUsers retrieves all users for a school
+func (s *service) GetAllUsers(ctx context.Context, schoolID uint, filter UserFilter) (*UserListResponse, error) {
+	// Set defaults
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+
+	users, total, err := s.repo.FindAllUsers(ctx, schoolID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to response
+	userResponses := make([]UserResponse, len(users))
+	for i, user := range users {
+		userResponses[i] = *s.toUserResponse(&user)
+	}
+
+	// Calculate total pages
+	totalPages := int(total) / filter.PageSize
+	if int(total)%filter.PageSize > 0 {
+		totalPages++
+	}
+
+	return &UserListResponse{
+		Users: userResponses,
+		Pagination: PaginationMeta{
+			Page:       filter.Page,
+			PageSize:   filter.PageSize,
+			Total:      total,
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+// GetUserByID retrieves a user by ID
+func (s *service) GetUserByID(ctx context.Context, schoolID uint, id uint) (*UserResponse, error) {
+	user, err := s.repo.FindUserByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.toUserResponse(user), nil
+}
+
+// CreateUser creates a new user
+func (s *service) CreateUser(ctx context.Context, schoolID uint, req CreateUserRequest) (*UserResponse, error) {
+	// Validate required fields
+	username := strings.TrimSpace(req.Username)
+	if username == "" {
+		return nil, errors.New("username is required")
+	}
+	password := strings.TrimSpace(req.Password)
+	if password == "" {
+		return nil, ErrPasswordRequired
+	}
+	if len(password) < 8 {
+		return nil, ErrPasswordTooShort
+	}
+
+	// Check if username already exists
+	existingUser, err := s.userRepo.FindByUsername(ctx, username)
+	if err == nil && existingUser != nil {
+		return nil, errors.New("username already exists")
+	}
+
+	// Hash password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create user
+	user := &models.User{
+		SchoolID:     &schoolID,
+		Role:         models.UserRole(req.Role),
+		Username:     username,
+		PasswordHash: string(passwordHash),
+		Email:        strings.TrimSpace(req.Email),
+		Name:         strings.TrimSpace(req.Name),
+		IsActive:     true,
+		MustResetPwd: true,
+	}
+
+	if err := s.repo.CreateUser(ctx, user); err != nil {
+		return nil, err
+	}
+
+	// Reload user
+	user, err = s.repo.FindUserByID(ctx, schoolID, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toUserResponse(user), nil
+}
+
+// UpdateUser updates a user
+func (s *service) UpdateUser(ctx context.Context, schoolID uint, id uint, req UpdateUserRequest) (*UserResponse, error) {
+	// Get existing user
+	user, err := s.repo.FindUserByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update fields if provided
+	if req.Email != nil {
+		user.Email = strings.TrimSpace(*req.Email)
+	}
+	if req.Name != nil {
+		user.Name = strings.TrimSpace(*req.Name)
+	}
+	if req.IsActive != nil {
+		user.IsActive = *req.IsActive
+	}
+
+	if err := s.repo.UpdateUser(ctx, user); err != nil {
+		return nil, err
+	}
+
+	// Reload user
+	user, err = s.repo.FindUserByID(ctx, schoolID, user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.toUserResponse(user), nil
+}
+
+// DeleteUser deletes a user
+func (s *service) DeleteUser(ctx context.Context, schoolID uint, id uint) error {
+	return s.repo.DeleteUser(ctx, schoolID, id)
+}
+
+// toUserResponse converts a User model to UserResponse DTO
+func (s *service) toUserResponse(user *models.User) *UserResponse {
+	response := &UserResponse{
+		ID:           user.ID,
+		SchoolID:     *user.SchoolID,
+		Role:         string(user.Role),
+		Username:     user.Username,
+		Email:        user.Email,
+		Name:         user.Name,
+		IsActive:     user.IsActive,
+		MustResetPwd: user.MustResetPwd,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+	}
+
+	if user.LastLoginAt != nil {
+		lastLogin := user.LastLoginAt.Format("2006-01-02T15:04:05Z07:00")
+		response.LastLoginAt = &lastLogin
 	}
 
 	return response

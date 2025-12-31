@@ -225,6 +225,17 @@ func (h *Handler) GetCurrentUser(c *fiber.Ctx) error {
 		})
 	}
 
+	// Also return token claims for debugging
+	role, _ := c.Locals("role").(string)
+	schoolIDVal := c.Locals("schoolID")
+	
+	var schoolID *uint
+	if schoolIDVal != nil {
+		if sid, ok := schoolIDVal.(*uint); ok {
+			schoolID = sid
+		}
+	}
+
 	user, err := h.service.GetUserByID(c.Context(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -239,6 +250,11 @@ func (h *Handler) GetCurrentUser(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    toUserResponse(user),
+		"debug": fiber.Map{
+			"token_role":      role,
+			"token_school_id": schoolID,
+			"db_school_id":    user.SchoolID,
+		},
 	})
 }
 

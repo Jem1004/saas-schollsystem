@@ -14,22 +14,46 @@ import (
 // Requirements: 1.5 - IF a request attempts to access data from another tenant, THEN THE System SHALL reject the request
 func TenantMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Get school ID from context (set by auth middleware)
-		schoolID, ok := c.Locals("schoolID").(*uint)
 		role, _ := c.Locals("role").(string)
+		username, _ := c.Locals("username").(string)
 
 		// Super admin can access all tenants
 		if role == string(models.RoleSuperAdmin) {
 			return c.Next()
 		}
 
+		// Get school ID from context (set by auth middleware)
+		schoolIDVal := c.Locals("schoolID")
+		
+		// Check if schoolID exists and is not nil
+		var schoolID *uint
+		if schoolIDVal != nil {
+			switch v := schoolIDVal.(type) {
+			case *uint:
+				if v != nil {
+					schoolID = v
+				}
+			case uint:
+				schoolID = &v
+			}
+		}
+
 		// For non-super_admin users, school_id must be present
-		if !ok || schoolID == nil {
+		if schoolID == nil {
+			// Log for debugging
+			c.Append("X-Debug-User", username)
+			c.Append("X-Debug-Role", role)
+			
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_TENANT_REQUIRED",
-					"message": "Tenant context is required",
+					"message": "Tenant context is required. Please ensure your account is associated with a school.",
+					"debug": fiber.Map{
+						"username": username,
+						"role":     role,
+						"hint":     "User does not have school_id in JWT token. Please re-login with an account that has school_id.",
+					},
 				},
 			})
 		}

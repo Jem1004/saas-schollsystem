@@ -55,6 +55,16 @@ type Repository interface {
 	// Teacher operations
 	FindTeacherByID(ctx context.Context, schoolID uint, teacherID uint) (*models.User, error)
 	ValidateHomeroomTeacher(ctx context.Context, schoolID uint, teacherID uint) error
+
+	// Stats operations
+	GetSchoolStats(ctx context.Context, schoolID uint) (*SchoolStatsResponse, error)
+
+	// User operations (for school staff management)
+	FindAllUsers(ctx context.Context, schoolID uint, filter UserFilter) ([]models.User, int64, error)
+	FindUserByID(ctx context.Context, schoolID uint, id uint) (*models.User, error)
+	CreateUser(ctx context.Context, user *models.User) error
+	UpdateUser(ctx context.Context, user *models.User) error
+	DeleteUser(ctx context.Context, schoolID uint, id uint) error
 }
 
 // repository implements the Repository interface
@@ -564,5 +574,183 @@ func (r *repository) ValidateHomeroomTeacher(ctx context.Context, schoolID uint,
 		return ErrInvalidTeacher
 	}
 
+	return nil
+}
+
+// ==================== Stats Repository Methods ====================
+
+// GetSchoolStats retrieves statistics for a school (for admin sekolah dashboard)
+func (r *repository) GetSchoolStats(ctx context.Context, schoolID uint) (*SchoolStatsResponse, error) {
+	stats := &SchoolStatsResponse{}
+
+	// Count total students
+	if err := r.db.WithContext(ctx).
+		Model(&models.Student{}).
+		Where("school_id = ?", schoolID).
+		Count(&stats.TotalStudents).Error; err != nil {
+		return nil, err
+	}
+
+	// Count total classes
+	if err := r.db.WithContext(ctx).
+		Model(&models.Class{}).
+		Where("school_id = ?", schoolID).
+		Count(&stats.TotalClasses).Error; err != nil {
+		return nil, err
+	}
+
+	// Count total teachers (users with role guru, wali_kelas, or guru_bk)
+	if err := r.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("school_id = ? AND role IN ?", schoolID, []models.UserRole{
+			models.RoleGuru,
+			models.RoleWaliKelas,
+			models.RoleGuruBK,
+		}).
+		Count(&stats.TotalTeachers).Error; err != nil {
+		return nil, err
+	}
+
+	// Count total parents
+	if err := r.db.WithContext(ctx).
+		Model(&models.Parent{}).
+		Where("school_id = ?", schoolID).
+		Count(&stats.TotalParents).Error; err != nil {
+		return nil, err
+	}
+
+	// Get today's attendance stats
+	today := r.db.NowFunc().Format("2006-01-02")
+
+	// Total students for attendance
+	stats.TodayAttendance.Total = stats.TotalStudents
+
+	// Count present (status = 'present' or 'late')
+	var presentCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&models.Attendance{}).
+		Joins("JOIN students ON students.id = attendances.student_id").
+		Where("students.school_id = ? AND DATE(attendances.check_in_time) = ?", schoolID, today).
+		Where("attendances.status IN ?", []string{"present", "late"}).
+		Count(&presentCount).Error; err != nil {
+		return nil, err
+	}
+	stats.TodayAttendance.Present = presentCount
+
+	// Count late
+	var lateCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&models.Attendance{}).
+		Joins("JOIN students ON students.id = attendances.student_id").
+		Where("students.school_id = ? AND DATE(attendances.check_in_time) = ?", schoolID, today).
+		Where("attendances.status = ?", "late").
+		Count(&lateCount).Error; err != nil {
+		return nil, err
+	}
+	stats.TodayAttendance.Late = lateCount
+
+	// Absent = Total - Present (those who haven't checked in)
+	stats.TodayAttendance.Absent = stats.TotalStudents - presentCount
+
+	return stats, nil
+}
+
+// ==================== User Repository Methods ====================
+
+// FindAllUsers retrieves all users for a school with pagination and filtering
+func (r *repository) FindAllUsers(ctx context.Context, schoolID uint, filter UserFilter) ([]models.User, int64, error) {
+	var users []models.User
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&models.User{}).Where("school_id = ?", schoolID)
+
+	// Exclude parent and student roles (they have their own management)
+	query = query.Where("role NOT IN ?", []models.UserRole{models.RoleParent, models.RoleStudent, models.RoleSuperAdmin})
+
+	// Apply filters
+	if filter.Name != "" {
+		query = query.Where("name ILIKE ?", "%"+filter.Name+"%")
+	}
+	if filter.Role != "" {
+		query = query.Where("role = ?", filter.Role)
+	}
+	if filter.IsActive != nil {
+		query = query.Where("is_active = ?", *filter.IsActive)
+	}
+
+	// Count total records
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.PageSize > 100 {
+		filter.PageSize = 100
+	}
+
+	// Fetch records
+	err := query.
+		Order("name ASC").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// FindUserByID retrieves a user by ID within a school
+func (r *repository) FindUserByID(ctx context.Context, schoolID uint, id uint) (*models.User, error) {
+	var user models.User
+	err := r.db.WithContext(ctx).
+		Where("id = ? AND school_id = ?", id, schoolID).
+		First(&user).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+// CreateUser creates a new user
+func (r *repository) CreateUser(ctx context.Context, user *models.User) error {
+	return r.db.WithContext(ctx).Create(user).Error
+}
+
+// UpdateUser updates a user
+func (r *repository) UpdateUser(ctx context.Context, user *models.User) error {
+	result := r.db.WithContext(ctx).Save(user)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}
+
+// DeleteUser deletes a user
+func (r *repository) DeleteUser(ctx context.Context, schoolID uint, id uint) error {
+	result := r.db.WithContext(ctx).
+		Where("id = ? AND school_id = ?", id, schoolID).
+		Delete(&models.User{})
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrUserNotFound
+	}
 	return nil
 }
