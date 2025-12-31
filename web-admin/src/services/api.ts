@@ -11,7 +11,7 @@ export interface ApiError {
 
 // Base URL from environment or default
 // @ts-expect-error - Vite env types
-const BASE_URL = (import.meta.env?.VITE_API_BASE_URL as string) || '/api'
+const BASE_URL = (import.meta.env?.VITE_API_BASE_URL as string) || '/api/v1'
 
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -93,7 +93,7 @@ api.interceptors.response.use(
       }
 
       try {
-        const response = await axios.post('/api/auth/refresh', { refreshToken })
+        const response = await axios.post('/api/v1/auth/refresh', { refreshToken })
         const { accessToken, refreshToken: newRefreshToken } = response.data
         
         localStorage.setItem('accessToken', accessToken)

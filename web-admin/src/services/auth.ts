@@ -49,6 +49,15 @@ function transformUser(backendUser: BackendLoginResponse['user']): User {
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     const response = await api.post<ApiResponse<BackendLoginResponse>>('/auth/login', credentials)
+    
+    console.log('Raw API response:', response.data)
+    
+    // Check if response has expected structure
+    if (!response.data.success || !response.data.data) {
+      const errorMsg = response.data.error?.message || 'Login gagal'
+      throw new Error(errorMsg)
+    }
+    
     const data = response.data.data
     
     return {
@@ -60,6 +69,11 @@ export const authService = {
 
   async refreshToken(refreshToken: string): Promise<TokenPair> {
     const response = await api.post<ApiResponse<{ access_token: string; refresh_token: string }>>('/auth/refresh', { refresh_token: refreshToken })
+    
+    if (!response.data.success || !response.data.data) {
+      throw new Error('Token refresh failed')
+    }
+    
     return {
       accessToken: response.data.data.access_token,
       refreshToken: response.data.data.refresh_token,

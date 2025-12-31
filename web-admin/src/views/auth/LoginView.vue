@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
 import type { Rule } from 'ant-design-vue/es/form'
+import type { ValidateErrorEntity } from 'ant-design-vue/es/form/interface'
 import { useAuthStore } from '@/stores/auth'
 import { authService } from '@/services'
 import type { LoginRequest } from '@/types/user'
@@ -21,11 +22,9 @@ const formState = reactive<LoginRequest>({
 const rules: Record<string, Rule[]> = {
   username: [
     { required: true, message: 'Username atau email wajib diisi', trigger: 'blur' },
-    { min: 3, message: 'Minimal 3 karakter', trigger: 'blur' },
   ],
   password: [
     { required: true, message: 'Password wajib diisi', trigger: 'blur' },
-    { min: 6, message: 'Minimal 6 karakter', trigger: 'blur' },
   ],
 }
 
@@ -37,7 +36,7 @@ const handleLogin = async () => {
   }
   
   loading.value = true
-  console.log('Starting login process...')
+  console.log('Starting login process...', formState)
   
   try {
     const response = await authService.login(formState)
@@ -76,12 +75,17 @@ const handleLogin = async () => {
       message.error('Login gagal. Silakan coba lagi.')
     } else if (error.code === 'ERR_NETWORK') {
       message.error('Tidak dapat terhubung ke server')
+    } else {
+      message.error('Terjadi kesalahan')
     }
-    // Don't show error for other cases (like navigation errors)
   } finally {
     loading.value = false
     console.log('Login process completed')
   }
+}
+
+const onFinishFailed = (errorInfo: ValidateErrorEntity) => {
+  console.log('Form validation failed:', errorInfo)
 }
 </script>
 
@@ -101,7 +105,7 @@ const handleLogin = async () => {
         :rules="rules"
         layout="vertical"
         @finish="handleLogin"
-        @submit.prevent
+        @finishFailed="onFinishFailed"
         class="login-form"
       >
         <a-form-item name="username" label="Username / Email">

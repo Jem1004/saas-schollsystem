@@ -163,6 +163,19 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/wali-kelas/BKMonitoring.vue'),
         meta: { title: 'Monitoring BK', roles: ['wali_kelas'] },
       },
+      // Account Routes (all authenticated users)
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/account/ProfileView.vue'),
+        meta: { title: 'Profil Saya' },
+      },
+      {
+        path: 'account-settings',
+        name: 'AccountSettings',
+        component: () => import('@/views/account/SettingsView.vue'),
+        meta: { title: 'Pengaturan' },
+      },
     ],
   },
   {

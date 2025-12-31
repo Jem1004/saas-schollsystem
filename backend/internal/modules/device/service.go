@@ -21,6 +21,7 @@ var (
 type Service interface {
 	RegisterDevice(ctx context.Context, req RegisterDeviceRequest) (*DeviceWithAPIKeyResponse, error)
 	GetAllDevices(ctx context.Context, filter DeviceFilter) (*DeviceListResponse, error)
+	GetDevicesGroupedBySchool(ctx context.Context) (*GroupedDevicesResponse, error)
 	GetDeviceByID(ctx context.Context, id uint) (*DeviceResponse, error)
 	GetDevicesBySchool(ctx context.Context, schoolID uint) ([]DeviceResponse, error)
 	UpdateDevice(ctx context.Context, id uint, req UpdateDeviceRequest) (*DeviceResponse, error)
@@ -270,6 +271,24 @@ func (s *service) RegenerateAPIKey(ctx context.Context, id uint) (*RegenerateAPI
 // DeleteDevice deletes a device
 func (s *service) DeleteDevice(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
+}
+
+// GetDevicesGroupedBySchool retrieves all devices grouped by school
+func (s *service) GetDevicesGroupedBySchool(ctx context.Context) (*GroupedDevicesResponse, error) {
+	schoolDevices, err := s.repo.FindAllGroupedBySchool(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	total := 0
+	for i := range schoolDevices {
+		total += len(schoolDevices[i].Devices)
+	}
+
+	return &GroupedDevicesResponse{
+		Schools: schoolDevices,
+		Total:   total,
+	}, nil
 }
 
 // toDeviceResponse converts a Device model to DeviceResponse DTO

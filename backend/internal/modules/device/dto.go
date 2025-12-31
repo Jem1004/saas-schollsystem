@@ -42,6 +42,21 @@ type DeviceListResponse struct {
 	Pagination PaginationMeta   `json:"pagination"`
 }
 
+// SchoolDevicesResponse represents devices grouped by school
+type SchoolDevicesResponse struct {
+	SchoolID    uint             `json:"school_id"`
+	SchoolName  string           `json:"school_name"`
+	IsActive    bool             `json:"is_active"`
+	DeviceCount int              `json:"device_count"`
+	Devices     []DeviceResponse `json:"devices"`
+}
+
+// GroupedDevicesResponse represents all devices grouped by school
+type GroupedDevicesResponse struct {
+	Schools []SchoolDevicesResponse `json:"schools"`
+	Total   int                     `json:"total"`
+}
+
 // PaginationMeta represents pagination metadata
 type PaginationMeta struct {
 	Page       int   `json:"page"`

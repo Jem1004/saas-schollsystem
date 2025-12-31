@@ -9,6 +9,11 @@ type CreateSchoolRequest struct {
 	Address string `json:"address"`
 	Phone   string `json:"phone"`
 	Email   string `json:"email"`
+	// Admin credentials - optional, will be auto-generated if not provided
+	AdminUsername string `json:"admin_username"`
+	AdminPassword string `json:"admin_password"`
+	AdminName     string `json:"admin_name"`
+	AdminEmail    string `json:"admin_email"`
 }
 
 // UpdateSchoolRequest represents the request to update a school
@@ -33,12 +38,57 @@ type SchoolResponse struct {
 	Stats     *SchoolStats `json:"stats,omitempty"`
 }
 
+// SchoolWithAdminResponse includes admin credentials (only returned on creation)
+type SchoolWithAdminResponse struct {
+	SchoolResponse
+	Admin *AdminCredentials `json:"admin,omitempty"`
+}
+
+// AdminCredentials represents the admin user credentials
+type AdminCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Message  string `json:"message"`
+}
+
 // SchoolStats represents statistics for a school
 type SchoolStats struct {
 	TotalClasses  int64 `json:"total_classes"`
 	TotalStudents int64 `json:"total_students"`
 	TotalUsers    int64 `json:"total_users"`
 	TotalDevices  int64 `json:"total_devices"`
+}
+
+// AdminInfo represents admin user info (without password)
+type AdminInfo struct {
+	ID        uint   `json:"id"`
+	Username  string `json:"username"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	IsActive  bool   `json:"is_active"`
+	CreatedAt string `json:"created_at"`
+}
+
+// SchoolDetailResponse represents detailed school info including admins
+type SchoolDetailResponse struct {
+	SchoolResponse
+	Admins []AdminInfo `json:"admins,omitempty"`
+}
+
+// DeleteSchoolResponse represents the response for delete operation
+type DeleteSchoolResponse struct {
+	ID      uint   `json:"id"`
+	Name    string `json:"name"`
+	Message string `json:"message"`
+	Deleted struct {
+		Users       int64 `json:"users"`
+		Students    int64 `json:"students"`
+		Classes     int64 `json:"classes"`
+		Devices     int64 `json:"devices"`
+		Attendances int64 `json:"attendances"`
+	} `json:"deleted"`
 }
 
 // SchoolListResponse represents a paginated list of schools

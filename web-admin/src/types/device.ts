@@ -28,6 +28,19 @@ export interface DeviceListResponse {
   pageSize: number
 }
 
+export interface SchoolDevices {
+  schoolId: number
+  schoolName: string
+  isActive: boolean
+  deviceCount: number
+  devices: Device[]
+}
+
+export interface GroupedDevicesResponse {
+  schools: SchoolDevices[]
+  total: number
+}
+
 export interface DeviceStats {
   totalDevices: number
   activeDevices: number

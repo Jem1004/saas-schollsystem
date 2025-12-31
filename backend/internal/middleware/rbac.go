@@ -132,7 +132,30 @@ func StudentAccessMiddleware(accessPolicy policy.AccessPolicy) fiber.Handler {
 
 // SuperAdminOnly restricts access to super admin only
 func SuperAdminOnly() fiber.Handler {
-	return RoleMiddleware(models.RoleSuperAdmin)
+	return func(c *fiber.Ctx) error {
+		role, ok := c.Locals("role").(string)
+		if !ok {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success": false,
+				"error": fiber.Map{
+					"code":    "AUTHZ_ROLE_DENIED",
+					"message": "Access denied",
+				},
+			})
+		}
+
+		if models.UserRole(role) == models.RoleSuperAdmin {
+			return c.Next()
+		}
+
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_ROLE_DENIED",
+				"message": "Super admin access required",
+			},
+		})
+	}
 }
 
 // AdminSekolahOnly restricts access to school admin only

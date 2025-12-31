@@ -20,13 +20,17 @@ func NewHandler(service Service) *Handler {
 // RegisterRoutes registers tenant routes (Super Admin only)
 // Requirements: 1.1, 1.2, 1.3 - Super Admin manages tenants
 func (h *Handler) RegisterRoutes(router fiber.Router) {
-	schools := router.Group("/schools")
-	schools.Post("", h.CreateSchool)
-	schools.Get("", h.GetSchools)
-	schools.Get("/:id", h.GetSchool)
-	schools.Put("/:id", h.UpdateSchool)
-	schools.Post("/:id/deactivate", h.DeactivateSchool)
-	schools.Post("/:id/activate", h.ActivateSchool)
+	// Register routes directly without sub-group to avoid potential routing issues
+	router.Post("/schools", h.CreateSchool)
+	router.Get("/schools", h.GetSchools)
+	// Register more specific routes first to avoid route conflicts
+	router.Get("/schools/:id/detail", h.GetSchoolDetail)
+	router.Post("/schools/:id/deactivate", h.DeactivateSchool)
+	router.Post("/schools/:id/activate", h.ActivateSchool)
+	// Then register generic parameter routes
+	router.Get("/schools/:id", h.GetSchool)
+	router.Put("/schools/:id", h.UpdateSchool)
+	router.Delete("/schools/:id", h.DeleteSchool)
 }
 
 // CreateSchool handles school creation
@@ -146,6 +150,41 @@ func (h *Handler) GetSchool(c *fiber.Ctx) error {
 	}
 
 	response, err := h.service.GetSchoolByID(c.Context(), uint(id))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// GetSchoolDetail handles getting a school with admin info
+// @Summary Get school detail with admin info
+// @Description Get detailed information about a school including admin users
+// @Tags Schools
+// @Produce json
+// @Param id path int true "School ID"
+// @Success 200 {object} SchoolDetailResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/schools/{id}/detail [get]
+func (h *Handler) GetSchoolDetail(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Invalid school ID",
+			},
+		})
+	}
+
+	response, err := h.service.GetSchoolDetail(c.Context(), uint(id))
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -278,6 +317,42 @@ func (h *Handler) ActivateSchool(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteSchool handles deleting a school and all associated data
+// @Summary Delete a school
+// @Description Permanently delete a school and all associated data (cascade delete)
+// @Tags Schools
+// @Produce json
+// @Param id path int true "School ID"
+// @Success 200 {object} DeleteSchoolResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/schools/{id} [delete]
+func (h *Handler) DeleteSchool(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Invalid school ID",
+			},
+		})
+	}
+
+	response, err := h.service.DeleteSchool(c.Context(), uint(id))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
 // handleError handles service errors and returns appropriate HTTP responses
 func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 	switch {
@@ -319,6 +394,22 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_STATE",
 				"message": "School is already active",
+			},
+		})
+	case errors.Is(err, ErrUsernameExists):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_DUPLICATE_ENTRY",
+				"message": "Username already exists",
+			},
+		})
+	case errors.Is(err, ErrInvalidUsername):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Username can only contain letters, numbers, and underscores",
 			},
 		})
 	default:

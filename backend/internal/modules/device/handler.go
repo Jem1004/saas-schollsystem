@@ -23,6 +23,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	devices := router.Group("/devices")
 	devices.Post("", h.RegisterDevice)
 	devices.Get("", h.GetDevices)
+	devices.Get("/grouped", h.GetDevicesGrouped)
 	devices.Get("/:id", h.GetDevice)
 	devices.Put("/:id", h.UpdateDevice)
 	devices.Post("/:id/revoke", h.RevokeAPIKey)
@@ -135,6 +136,28 @@ func (h *Handler) GetDevices(c *fiber.Ctx) error {
 	}
 
 	response, err := h.service.GetAllDevices(c.Context(), filter)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// GetDevicesGrouped handles listing all devices grouped by school
+// @Summary List all devices grouped by school
+// @Description Get all RFID devices grouped by school
+// @Tags Devices
+// @Produce json
+// @Success 200 {object} GroupedDevicesResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/devices/grouped [get]
+func (h *Handler) GetDevicesGrouped(c *fiber.Ctx) error {
+	response, err := h.service.GetDevicesGroupedBySchool(c.Context())
 	if err != nil {
 		return h.handleError(c, err)
 	}

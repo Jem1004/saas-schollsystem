@@ -21,6 +21,7 @@ var (
 type Repository interface {
 	Create(ctx context.Context, device *models.Device) error
 	FindAll(ctx context.Context, filter DeviceFilter) ([]models.Device, int64, error)
+	FindAllGroupedBySchool(ctx context.Context) ([]SchoolDevicesResponse, error)
 	FindByID(ctx context.Context, id uint) (*models.Device, error)
 	FindByDeviceCode(ctx context.Context, code string) (*models.Device, error)
 	FindByAPIKey(ctx context.Context, apiKey string) (*models.Device, error)
@@ -228,4 +229,56 @@ func (r *repository) Delete(ctx context.Context, id uint) error {
 		return ErrDeviceNotFound
 	}
 	return nil
+}
+
+// FindAllGroupedBySchool retrieves all devices grouped by school
+func (r *repository) FindAllGroupedBySchool(ctx context.Context) ([]SchoolDevicesResponse, error) {
+	// Get all schools that have devices
+	var schools []models.School
+	err := r.db.WithContext(ctx).
+		Joins("JOIN devices ON devices.school_id = schools.id").
+		Group("schools.id").
+		Order("schools.name ASC").
+		Find(&schools).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Get devices for each school
+	result := make([]SchoolDevicesResponse, 0, len(schools))
+	for _, school := range schools {
+		var devices []models.Device
+		err := r.db.WithContext(ctx).
+			Where("school_id = ?", school.ID).
+			Order("created_at DESC").
+			Find(&devices).Error
+		if err != nil {
+			return nil, err
+		}
+
+		deviceResponses := make([]DeviceResponse, len(devices))
+		for i, device := range devices {
+			deviceResponses[i] = DeviceResponse{
+				ID:          device.ID,
+				SchoolID:    device.SchoolID,
+				SchoolName:  school.Name,
+				DeviceCode:  device.DeviceCode,
+				Description: device.Description,
+				IsActive:    device.IsActive,
+				LastSeenAt:  device.LastSeenAt,
+				CreatedAt:   device.CreatedAt,
+				UpdatedAt:   device.UpdatedAt,
+			}
+		}
+
+		result = append(result, SchoolDevicesResponse{
+			SchoolID:    school.ID,
+			SchoolName:  school.Name,
+			IsActive:    school.IsActive,
+			DeviceCount: len(devices),
+			Devices:     deviceResponses,
+		})
+	}
+
+	return result, nil
 }

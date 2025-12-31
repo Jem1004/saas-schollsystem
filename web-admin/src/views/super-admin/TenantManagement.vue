@@ -15,6 +15,14 @@ import {
   Row,
   Col,
   Typography,
+  Divider,
+  Descriptions,
+  DescriptionsItem,
+  Tooltip,
+  Collapse,
+  CollapsePanel,
+  Statistic,
+  Alert,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -24,11 +32,18 @@ import {
   CheckCircleOutlined,
   StopOutlined,
   ReloadOutlined,
+  CopyOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  UserOutlined,
+  DeleteOutlined,
+  InfoCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons-vue'
 import { tenantService } from '@/services'
-import type { School, CreateSchoolRequest, UpdateSchoolRequest } from '@/types/tenant'
+import type { School, SchoolDetail, CreateSchoolRequest, UpdateSchoolRequest, AdminCredentials } from '@/types/tenant'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 // Table state
 const loading = ref(false)
@@ -46,6 +61,22 @@ const modalLoading = ref(false)
 const isEditing = ref(false)
 const editingSchool = ref<School | null>(null)
 
+// Admin credentials modal state
+const credentialsModalVisible = ref(false)
+const adminCredentials = ref<AdminCredentials | null>(null)
+const showPassword = ref(false)
+
+// School detail modal state
+const detailModalVisible = ref(false)
+const detailLoading = ref(false)
+const schoolDetail = ref<SchoolDetail | null>(null)
+
+// Delete confirmation state
+const deleteModalVisible = ref(false)
+const deleteLoading = ref(false)
+const schoolToDelete = ref<School | null>(null)
+const deleteConfirmText = ref('')
+
 // Form state
 const formRef = ref()
 const formState = reactive<CreateSchoolRequest>({
@@ -53,22 +84,21 @@ const formState = reactive<CreateSchoolRequest>({
   address: '',
   phone: '',
   email: '',
+  adminUsername: '',
+  adminPassword: '',
+  adminName: '',
+  adminEmail: '',
 })
 
 // Form rules
 const formRules = {
   name: [{ required: true, message: 'Nama sekolah wajib diisi' }],
   email: [{ type: 'email' as const, message: 'Format email tidak valid' }],
+  adminEmail: [{ type: 'email' as const, message: 'Format email tidak valid' }],
+  adminUsername: [
+    { pattern: /^[a-zA-Z0-9_]*$/, message: 'Username hanya boleh huruf, angka, dan underscore' },
+  ],
 }
-
-// Mock data for development
-const mockSchools: School[] = [
-  { id: 1, name: 'SMP Negeri 1 Jakarta', address: 'Jl. Merdeka No. 1, Jakarta Pusat', phone: '021-1234567', email: 'smpn1@jakarta.sch.id', isActive: true, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 2, name: 'SMP Negeri 2 Bandung', address: 'Jl. Asia Afrika No. 10, Bandung', phone: '022-7654321', email: 'smpn2@bandung.sch.id', isActive: true, createdAt: '2024-01-14T09:00:00Z', updatedAt: '2024-01-14T09:00:00Z' },
-  { id: 3, name: 'SMP Negeri 3 Surabaya', address: 'Jl. Pemuda No. 5, Surabaya', phone: '031-9876543', email: 'smpn3@surabaya.sch.id', isActive: false, createdAt: '2024-01-13T08:00:00Z', updatedAt: '2024-01-20T14:00:00Z' },
-  { id: 4, name: 'SMP Negeri 4 Yogyakarta', address: 'Jl. Malioboro No. 20, Yogyakarta', phone: '0274-123456', email: 'smpn4@jogja.sch.id', isActive: true, createdAt: '2024-01-12T11:00:00Z', updatedAt: '2024-01-12T11:00:00Z' },
-  { id: 5, name: 'SMP Negeri 5 Semarang', address: 'Jl. Pandanaran No. 15, Semarang', phone: '024-8765432', email: 'smpn5@semarang.sch.id', isActive: true, createdAt: '2024-01-11T07:00:00Z', updatedAt: '2024-01-11T07:00:00Z' },
-]
 
 // Table columns
 const columns: TableProps['columns'] = [
@@ -104,21 +134,20 @@ const columns: TableProps['columns'] = [
   {
     title: 'Aksi',
     key: 'action',
-    width: 200,
+    width: 280,
     align: 'center',
   },
 ]
 
 // Computed filtered data
 const filteredSchools = computed(() => {
-  if (!searchText.value) return schools.value
-  const search = searchText.value.toLowerCase()
-  return schools.value.filter(
-    (school) =>
-      school.name.toLowerCase().includes(search) ||
-      school.email?.toLowerCase().includes(search) ||
-      school.phone?.includes(search)
-  )
+  return schools.value
+})
+
+// Check if delete is allowed
+const canDelete = computed(() => {
+  if (!schoolToDelete.value) return false
+  return deleteConfirmText.value === schoolToDelete.value.name
 })
 
 // Load schools data
@@ -133,15 +162,13 @@ const loadSchools = async () => {
     schools.value = response.data
     total.value = response.total
   } catch {
-    // Use mock data on error
-    schools.value = mockSchools
-    total.value = mockSchools.length
+    message.error('Gagal memuat data sekolah')
   } finally {
     loading.value = false
   }
 }
 
-// Handle table change (pagination, sorting)
+// Handle table change
 const handleTableChange: TableProps['onChange'] = (pag) => {
   pagination.current = pag.current || 1
   pagination.pageSize = pag.pageSize || 10
@@ -170,7 +197,32 @@ const openEditModal = (school: School) => {
   formState.address = school.address || ''
   formState.phone = school.phone || ''
   formState.email = school.email || ''
+  formState.adminUsername = ''
+  formState.adminPassword = ''
+  formState.adminName = ''
+  formState.adminEmail = ''
   modalVisible.value = true
+}
+
+// Open detail modal
+const openDetailModal = async (school: School) => {
+  detailLoading.value = true
+  detailModalVisible.value = true
+  try {
+    schoolDetail.value = await tenantService.getSchoolDetail(school.id)
+  } catch {
+    message.error('Gagal memuat detail sekolah')
+    detailModalVisible.value = false
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+// Open delete modal
+const openDeleteModal = (school: School) => {
+  schoolToDelete.value = school
+  deleteConfirmText.value = ''
+  deleteModalVisible.value = true
 }
 
 // Reset form
@@ -179,6 +231,10 @@ const resetForm = () => {
   formState.address = ''
   formState.phone = ''
   formState.email = ''
+  formState.adminUsername = ''
+  formState.adminPassword = ''
+  formState.adminName = ''
+  formState.adminEmail = ''
   formRef.value?.resetFields()
 }
 
@@ -208,15 +264,23 @@ const handleSubmit = async () => {
       await tenantService.updateSchool(editingSchool.value.id, updateData)
       message.success('Sekolah berhasil diperbarui')
     } else {
-      await tenantService.createSchool(formState)
+      const result = await tenantService.createSchool(formState)
       message.success('Sekolah berhasil ditambahkan')
+      
+      // Show admin credentials modal
+      if (result.admin) {
+        adminCredentials.value = result.admin
+        showPassword.value = true
+        credentialsModalVisible.value = true
+      }
     }
     modalVisible.value = false
     resetForm()
     loadSchools()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Terjadi kesalahan')
+    const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } }
+    const errorMessage = err.message || err.response?.data?.error?.message || 'Terjadi kesalahan'
+    message.error(errorMessage)
   } finally {
     modalLoading.value = false
   }
@@ -229,8 +293,9 @@ const handleActivate = async (school: School) => {
     message.success(`Sekolah ${school.name} berhasil diaktifkan`)
     loadSchools()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal mengaktifkan sekolah')
+    const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } }
+    const errorMessage = err.message || err.response?.data?.error?.message || 'Gagal mengaktifkan sekolah'
+    message.error(errorMessage)
   }
 }
 
@@ -241,8 +306,40 @@ const handleDeactivate = async (school: School) => {
     message.success(`Sekolah ${school.name} berhasil dinonaktifkan`)
     loadSchools()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal menonaktifkan sekolah')
+    const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } }
+    const errorMessage = err.message || err.response?.data?.error?.message || 'Gagal menonaktifkan sekolah'
+    message.error(errorMessage)
+  }
+}
+
+// Handle delete school
+const handleDelete = async () => {
+  if (!schoolToDelete.value || !canDelete.value) return
+  
+  deleteLoading.value = true
+  try {
+    const result = await tenantService.deleteSchool(schoolToDelete.value.id)
+    message.success(result.message)
+    deleteModalVisible.value = false
+    schoolToDelete.value = null
+    deleteConfirmText.value = ''
+    loadSchools()
+  } catch (error: unknown) {
+    const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } }
+    const errorMessage = err.message || err.response?.data?.error?.message || 'Gagal menghapus sekolah'
+    message.error(errorMessage)
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
+// Copy to clipboard
+const copyToClipboard = async (text: string, label: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    message.success(`${label} berhasil disalin`)
+  } catch {
+    message.error('Gagal menyalin')
   }
 }
 
@@ -321,6 +418,11 @@ onMounted(() => {
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
+              <Tooltip title="Lihat Detail">
+                <Button size="small" @click="openDetailModal(record as School)">
+                  <template #icon><InfoCircleOutlined /></template>
+                </Button>
+              </Tooltip>
               <Button size="small" @click="openEditModal(record as School)">
                 <template #icon><EditOutlined /></template>
                 Edit
@@ -335,7 +437,6 @@ onMounted(() => {
               >
                 <Button size="small" danger>
                   <template #icon><StopOutlined /></template>
-                  Nonaktifkan
                 </Button>
               </Popconfirm>
               <Popconfirm
@@ -347,9 +448,13 @@ onMounted(() => {
               >
                 <Button size="small" type="primary" ghost>
                   <template #icon><CheckCircleOutlined /></template>
-                  Aktifkan
                 </Button>
               </Popconfirm>
+              <Tooltip title="Hapus Permanen">
+                <Button size="small" danger type="primary" @click="openDeleteModal(record as School)">
+                  <template #icon><DeleteOutlined /></template>
+                </Button>
+              </Tooltip>
             </Space>
           </template>
         </template>
@@ -361,6 +466,7 @@ onMounted(() => {
       v-model:open="modalVisible"
       :title="isEditing ? 'Edit Sekolah' : 'Tambah Sekolah Baru'"
       :confirm-loading="modalLoading"
+      width="600px"
       @ok="handleSubmit"
       @cancel="handleModalCancel"
     >
@@ -388,12 +494,289 @@ onMounted(() => {
             </FormItem>
           </Col>
           <Col :span="12">
-            <FormItem label="Email" name="email">
+            <FormItem label="Email Sekolah" name="email">
               <Input v-model:value="formState.email" placeholder="email@sekolah.sch.id" />
             </FormItem>
           </Col>
         </Row>
+
+        <!-- Admin Section (only for create) -->
+        <template v-if="!isEditing">
+          <Divider orientation="left">
+            <Space>
+              <UserOutlined />
+              <span>Akun Admin Sekolah</span>
+            </Space>
+          </Divider>
+          
+          <Collapse ghost>
+            <CollapsePanel key="admin" header="Kustomisasi Akun Admin (Opsional)">
+              <Text type="secondary" style="display: block; margin-bottom: 16px;">
+                Jika dikosongkan, username dan password akan di-generate otomatis.
+              </Text>
+              <Row :gutter="16">
+                <Col :span="12">
+                  <FormItem label="Username Admin" name="adminUsername">
+                    <Input 
+                      v-model:value="formState.adminUsername" 
+                      placeholder="Otomatis jika kosong"
+                    />
+                  </FormItem>
+                </Col>
+                <Col :span="12">
+                  <FormItem label="Password Admin" name="adminPassword">
+                    <Input.Password 
+                      v-model:value="formState.adminPassword" 
+                      placeholder="Otomatis jika kosong"
+                    />
+                  </FormItem>
+                </Col>
+              </Row>
+              <Row :gutter="16">
+                <Col :span="12">
+                  <FormItem label="Nama Admin" name="adminName">
+                    <Input 
+                      v-model:value="formState.adminName" 
+                      placeholder="Otomatis jika kosong"
+                    />
+                  </FormItem>
+                </Col>
+                <Col :span="12">
+                  <FormItem label="Email Admin" name="adminEmail">
+                    <Input 
+                      v-model:value="formState.adminEmail" 
+                      placeholder="Sama dengan email sekolah jika kosong"
+                    />
+                  </FormItem>
+                </Col>
+              </Row>
+            </CollapsePanel>
+          </Collapse>
+        </template>
       </Form>
+    </Modal>
+
+    <!-- Admin Credentials Modal -->
+    <Modal
+      v-model:open="credentialsModalVisible"
+      title="Kredensial Admin Sekolah"
+      :footer="null"
+      :closable="true"
+      :mask-closable="false"
+      width="500px"
+      @cancel="credentialsModalVisible = false"
+    >
+      <div v-if="adminCredentials" class="credentials-modal">
+        <div class="credentials-warning">
+          <Text type="warning">
+            ⚠️ {{ adminCredentials.message }}
+          </Text>
+        </div>
+
+        <Descriptions :column="1" bordered size="small" style="margin-top: 16px;">
+          <DescriptionsItem label="Username">
+            <div class="credential-item">
+              <Text code>{{ adminCredentials.username }}</Text>
+              <Tooltip title="Salin Username">
+                <Button 
+                  size="small" 
+                  type="text" 
+                  @click="copyToClipboard(adminCredentials.username, 'Username')"
+                >
+                  <template #icon><CopyOutlined /></template>
+                </Button>
+              </Tooltip>
+            </div>
+          </DescriptionsItem>
+          <DescriptionsItem label="Password">
+            <div class="credential-item">
+              <Text code>
+                {{ showPassword ? adminCredentials.password : '••••••••••••' }}
+              </Text>
+              <Space>
+                <Tooltip :title="showPassword ? 'Sembunyikan' : 'Tampilkan'">
+                  <Button size="small" type="text" @click="showPassword = !showPassword">
+                    <template #icon>
+                      <EyeInvisibleOutlined v-if="showPassword" />
+                      <EyeOutlined v-else />
+                    </template>
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Salin Password">
+                  <Button 
+                    size="small" 
+                    type="text" 
+                    @click="copyToClipboard(adminCredentials.password, 'Password')"
+                  >
+                    <template #icon><CopyOutlined /></template>
+                  </Button>
+                </Tooltip>
+              </Space>
+            </div>
+          </DescriptionsItem>
+          <DescriptionsItem label="Nama">
+            {{ adminCredentials.name }}
+          </DescriptionsItem>
+          <DescriptionsItem v-if="adminCredentials.email" label="Email">
+            {{ adminCredentials.email }}
+          </DescriptionsItem>
+        </Descriptions>
+
+        <div class="credentials-actions">
+          <Button 
+            type="primary" 
+            block 
+            @click="copyToClipboard(`Username: ${adminCredentials.username}\nPassword: ${adminCredentials.password}`, 'Kredensial')"
+          >
+            <template #icon><CopyOutlined /></template>
+            Salin Semua Kredensial
+          </Button>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- School Detail Modal -->
+    <Modal
+      v-model:open="detailModalVisible"
+      title="Detail Sekolah"
+      :footer="null"
+      width="600px"
+      @cancel="detailModalVisible = false"
+    >
+      <div v-if="detailLoading" style="text-align: center; padding: 40px;">
+        Memuat...
+      </div>
+      <div v-else-if="schoolDetail" class="detail-modal">
+        <Descriptions :column="2" bordered size="small">
+          <DescriptionsItem label="Nama Sekolah" :span="2">
+            {{ schoolDetail.name }}
+          </DescriptionsItem>
+          <DescriptionsItem label="Email">
+            {{ schoolDetail.email || '-' }}
+          </DescriptionsItem>
+          <DescriptionsItem label="Telepon">
+            {{ schoolDetail.phone || '-' }}
+          </DescriptionsItem>
+          <DescriptionsItem label="Alamat" :span="2">
+            {{ schoolDetail.address || '-' }}
+          </DescriptionsItem>
+          <DescriptionsItem label="Status">
+            <Tag :color="schoolDetail.isActive ? 'success' : 'default'">
+              {{ schoolDetail.isActive ? 'Aktif' : 'Nonaktif' }}
+            </Tag>
+          </DescriptionsItem>
+          <DescriptionsItem label="Tanggal Dibuat">
+            {{ formatDate(schoolDetail.createdAt) }}
+          </DescriptionsItem>
+        </Descriptions>
+
+        <!-- Stats -->
+        <div v-if="schoolDetail.stats" style="margin-top: 24px;">
+          <Divider orientation="left">Statistik</Divider>
+          <Row :gutter="16">
+            <Col :span="6">
+              <Statistic title="User" :value="schoolDetail.stats.totalUsers" />
+            </Col>
+            <Col :span="6">
+              <Statistic title="Siswa" :value="schoolDetail.stats.totalStudents" />
+            </Col>
+            <Col :span="6">
+              <Statistic title="Kelas" :value="schoolDetail.stats.totalClasses" />
+            </Col>
+            <Col :span="6">
+              <Statistic title="Device" :value="schoolDetail.stats.totalDevices" />
+            </Col>
+          </Row>
+        </div>
+
+        <!-- Admin Users -->
+        <div v-if="schoolDetail.admins && schoolDetail.admins.length > 0" style="margin-top: 24px;">
+          <Divider orientation="left">
+            <Space>
+              <UserOutlined />
+              <span>Admin Sekolah</span>
+            </Space>
+          </Divider>
+          <div v-for="admin in schoolDetail.admins" :key="admin.id" class="admin-item">
+            <Descriptions :column="2" size="small" bordered>
+              <DescriptionsItem label="Username">
+                <div class="credential-item">
+                  <Text code>{{ admin.username }}</Text>
+                  <Tooltip title="Salin Username">
+                    <Button 
+                      size="small" 
+                      type="text" 
+                      @click="copyToClipboard(admin.username, 'Username')"
+                    >
+                      <template #icon><CopyOutlined /></template>
+                    </Button>
+                  </Tooltip>
+                </div>
+              </DescriptionsItem>
+              <DescriptionsItem label="Status">
+                <Tag :color="admin.isActive ? 'success' : 'default'">
+                  {{ admin.isActive ? 'Aktif' : 'Nonaktif' }}
+                </Tag>
+              </DescriptionsItem>
+              <DescriptionsItem label="Nama">
+                {{ admin.name }}
+              </DescriptionsItem>
+              <DescriptionsItem label="Email">
+                {{ admin.email || '-' }}
+              </DescriptionsItem>
+            </Descriptions>
+          </div>
+        </div>
+      </div>
+    </Modal>
+
+    <!-- Delete Confirmation Modal -->
+    <Modal
+      v-model:open="deleteModalVisible"
+      title="Hapus Sekolah Permanen"
+      :confirm-loading="deleteLoading"
+      ok-text="Hapus Permanen"
+      ok-type="danger"
+      :ok-button-props="{ disabled: !canDelete }"
+      @ok="handleDelete"
+      @cancel="deleteModalVisible = false"
+    >
+      <div v-if="schoolToDelete" class="delete-modal">
+        <Alert
+          type="error"
+          show-icon
+          style="margin-bottom: 16px;"
+        >
+          <template #icon><ExclamationCircleOutlined /></template>
+          <template #message>
+            <Text strong>Peringatan: Tindakan ini tidak dapat dibatalkan!</Text>
+          </template>
+          <template #description>
+            <div>
+              Menghapus sekolah <Text strong>{{ schoolToDelete.name }}</Text> akan menghapus:
+              <ul style="margin: 8px 0; padding-left: 20px;">
+                <li>Semua data user (admin, guru, siswa, orang tua)</li>
+                <li>Semua data siswa dan kelas</li>
+                <li>Semua data absensi</li>
+                <li>Semua data BK (pelanggaran, prestasi, izin, konseling)</li>
+                <li>Semua data nilai dan catatan wali kelas</li>
+                <li>Semua device yang terdaftar</li>
+              </ul>
+            </div>
+          </template>
+        </Alert>
+
+        <div style="margin-top: 16px;">
+          <Text>
+            Untuk mengkonfirmasi, ketik nama sekolah: <Text strong code>{{ schoolToDelete.name }}</Text>
+          </Text>
+          <Input
+            v-model:value="deleteConfirmText"
+            placeholder="Ketik nama sekolah untuk konfirmasi"
+            style="margin-top: 8px;"
+          />
+        </div>
+      </div>
     </Modal>
   </div>
 </template>
@@ -421,5 +804,43 @@ onMounted(() => {
     margin-top: 16px;
     justify-content: flex-start;
   }
+}
+
+.credentials-modal {
+  padding: 8px 0;
+}
+
+.credentials-warning {
+  padding: 12px;
+  background: #fffbe6;
+  border-radius: 6px;
+  border: 1px solid #ffe58f;
+}
+
+.credential-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.credentials-actions {
+  margin-top: 24px;
+}
+
+.detail-modal {
+  padding: 8px 0;
+}
+
+.admin-item {
+  margin-bottom: 12px;
+}
+
+.admin-item:last-child {
+  margin-bottom: 0;
+}
+
+.delete-modal {
+  padding: 8px 0;
 }
 </style>
