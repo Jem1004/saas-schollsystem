@@ -150,7 +150,15 @@ func (r *repository) FindAll(ctx context.Context, schoolID uint, filter GradeFil
 
 // Update updates a grade record
 func (r *repository) Update(ctx context.Context, grade *models.Grade) error {
-	result := r.db.WithContext(ctx).Save(grade)
+	result := r.db.WithContext(ctx).
+		Model(&models.Grade{}).
+		Where("id = ?", grade.ID).
+		Updates(map[string]interface{}{
+			"student_id":  grade.StudentID,
+			"title":       grade.Title,
+			"score":       grade.Score,
+			"description": grade.Description,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

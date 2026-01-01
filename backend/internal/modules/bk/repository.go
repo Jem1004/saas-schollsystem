@@ -447,7 +447,17 @@ func (r *repository) FindPermits(ctx context.Context, schoolID uint, filter Perm
 // UpdatePermit updates a permit record
 // Requirements: 8.4 - THE System SHALL allow recording of return time
 func (r *repository) UpdatePermit(ctx context.Context, permit *models.Permit) error {
-	result := r.db.WithContext(ctx).Save(permit)
+	result := r.db.WithContext(ctx).
+		Model(&models.Permit{}).
+		Where("id = ?", permit.ID).
+		Updates(map[string]interface{}{
+			"student_id":          permit.StudentID,
+			"reason":              permit.Reason,
+			"exit_time":           permit.ExitTime,
+			"return_time":         permit.ReturnTime,
+			"responsible_teacher": permit.ResponsibleTeacher,
+			"document_url":        permit.DocumentURL,
+		})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -575,7 +585,14 @@ func (r *repository) FindCounselingNotes(ctx context.Context, schoolID uint, fil
 
 // UpdateCounselingNote updates a counseling note
 func (r *repository) UpdateCounselingNote(ctx context.Context, note *models.CounselingNote) error {
-	result := r.db.WithContext(ctx).Save(note)
+	result := r.db.WithContext(ctx).
+		Model(&models.CounselingNote{}).
+		Where("id = ?", note.ID).
+		Updates(map[string]interface{}{
+			"student_id":     note.StudentID,
+			"internal_note":  note.InternalNote,
+			"parent_summary": note.ParentSummary,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

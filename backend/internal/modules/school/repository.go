@@ -39,6 +39,7 @@ type Repository interface {
 	FindStudentByNIS(ctx context.Context, schoolID uint, nis string) (*models.Student, error)
 	FindStudentsByClass(ctx context.Context, classID uint) ([]models.Student, error)
 	UpdateStudent(ctx context.Context, student *models.Student) error
+	UpdateStudentUserID(ctx context.Context, studentID uint, userID uint) error
 	DeleteStudent(ctx context.Context, schoolID uint, id uint) error
 
 	// Parent operations
@@ -47,6 +48,8 @@ type Repository interface {
 	FindParentByID(ctx context.Context, schoolID uint, id uint) (*models.Parent, error)
 	FindParentByUserID(ctx context.Context, userID uint) (*models.Parent, error)
 	UpdateParent(ctx context.Context, parent *models.Parent) error
+	UpdateParentUserEmail(ctx context.Context, userID uint, email string) error
+	ResetUserPassword(ctx context.Context, userID uint, passwordHash string) error
 	DeleteParent(ctx context.Context, schoolID uint, id uint) error
 	LinkParentToStudents(ctx context.Context, parentID uint, studentIDs []uint) error
 	UnlinkParentFromStudent(ctx context.Context, parentID uint, studentID uint) error
@@ -170,7 +173,15 @@ func (r *repository) FindClassByNameGradeYear(ctx context.Context, schoolID uint
 
 // UpdateClass updates a class
 func (r *repository) UpdateClass(ctx context.Context, class *models.Class) error {
-	result := r.db.WithContext(ctx).Save(class)
+	result := r.db.WithContext(ctx).
+		Model(&models.Class{}).
+		Where("id = ?", class.ID).
+		Updates(map[string]interface{}{
+			"name":                class.Name,
+			"grade":               class.Grade,
+			"year":                class.Year,
+			"homeroom_teacher_id": class.HomeroomTeacherID,
+		})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -334,7 +345,17 @@ func (r *repository) FindStudentsByClass(ctx context.Context, classID uint) ([]m
 
 // UpdateStudent updates a student
 func (r *repository) UpdateStudent(ctx context.Context, student *models.Student) error {
-	result := r.db.WithContext(ctx).Save(student)
+	result := r.db.WithContext(ctx).
+		Model(&models.Student{}).
+		Where("id = ?", student.ID).
+		Updates(map[string]interface{}{
+			"class_id":   student.ClassID,
+			"nis":        student.NIS,
+			"nisn":       student.NISN,
+			"name":       student.Name,
+			"rf_id_code": student.RFIDCode,
+			"is_active":  student.IsActive,
+		})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -453,12 +474,30 @@ func (r *repository) FindParentByUserID(ctx context.Context, userID uint) (*mode
 
 // UpdateParent updates a parent
 func (r *repository) UpdateParent(ctx context.Context, parent *models.Parent) error {
-	result := r.db.WithContext(ctx).Save(parent)
+	result := r.db.WithContext(ctx).
+		Model(&models.Parent{}).
+		Where("id = ?", parent.ID).
+		Updates(map[string]interface{}{
+			"name":  parent.Name,
+			"phone": parent.Phone,
+		})
 	if result.Error != nil {
 		return result.Error
 	}
 	if result.RowsAffected == 0 {
 		return ErrParentNotFound
+	}
+	return nil
+}
+
+// UpdateParentUserEmail updates the email of the user associated with a parent
+func (r *repository) UpdateParentUserEmail(ctx context.Context, userID uint, email string) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", userID).
+		Update("email", email)
+	if result.Error != nil {
+		return result.Error
 	}
 	return nil
 }
@@ -487,13 +526,15 @@ func (r *repository) LinkParentToStudents(ctx context.Context, parentID uint, st
 		return ErrParentNotFound
 	}
 
-	// Get the students
+	// Get the students (handle empty array case)
 	var students []models.Student
-	if err := r.db.WithContext(ctx).Where("id IN ?", studentIDs).Find(&students).Error; err != nil {
-		return err
+	if len(studentIDs) > 0 {
+		if err := r.db.WithContext(ctx).Where("id IN ?", studentIDs).Find(&students).Error; err != nil {
+			return err
+		}
 	}
 
-	// Replace associations
+	// Replace associations (empty students array will clear all associations)
 	return r.db.WithContext(ctx).Model(&parent).Association("Students").Replace(students)
 }
 
@@ -730,7 +771,14 @@ func (r *repository) CreateUser(ctx context.Context, user *models.User) error {
 
 // UpdateUser updates a user
 func (r *repository) UpdateUser(ctx context.Context, user *models.User) error {
-	result := r.db.WithContext(ctx).Save(user)
+	result := r.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", user.ID).
+		Updates(map[string]interface{}{
+			"email":     user.Email,
+			"name":      user.Name,
+			"is_active": user.IsActive,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

@@ -103,7 +103,17 @@ func (r *repository) FindByStudentAndDate(ctx context.Context, studentID uint, d
 
 // Update updates an attendance record
 func (r *repository) Update(ctx context.Context, attendance *models.Attendance) error {
-	result := r.db.WithContext(ctx).Save(attendance)
+	result := r.db.WithContext(ctx).
+		Model(&models.Attendance{}).
+		Where("id = ?", attendance.ID).
+		Updates(map[string]interface{}{
+			"student_id":     attendance.StudentID,
+			"date":           attendance.Date,
+			"check_in_time":  attendance.CheckInTime,
+			"check_out_time": attendance.CheckOutTime,
+			"status":         attendance.Status,
+			"method":         attendance.Method,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

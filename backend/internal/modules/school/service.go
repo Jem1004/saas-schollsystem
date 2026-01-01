@@ -49,6 +49,11 @@ type Service interface {
 	UpdateParent(ctx context.Context, schoolID uint, id uint, req UpdateParentRequest) (*ParentResponse, error)
 	DeleteParent(ctx context.Context, schoolID uint, id uint) error
 	LinkParentToStudents(ctx context.Context, schoolID uint, parentID uint, studentIDs []uint) (*ParentResponse, error)
+	ResetParentPassword(ctx context.Context, schoolID uint, parentID uint) (*ResetPasswordResponse, error)
+
+	// Student operations with account
+	CreateStudentAccount(ctx context.Context, schoolID uint, studentID uint) (*StudentResponse, error)
+	ResetStudentPassword(ctx context.Context, schoolID uint, studentID uint) (*ResetPasswordResponse, error)
 
 	// Stats operations
 	GetStats(ctx context.Context, schoolID uint) (*SchoolStatsResponse, error)
@@ -506,15 +511,16 @@ func (s *service) UpdateStudent(ctx context.Context, schoolID uint, id uint, req
 		student.Name = name
 	}
 	if req.ClassID != nil {
-		if *req.ClassID == 0 {
+		if *req.ClassID <= 0 {
 			return nil, ErrClassIDRequired
 		}
+		classID := uint(*req.ClassID)
 		// Validate class exists
-		_, err := s.repo.FindClassByID(ctx, schoolID, *req.ClassID)
+		_, err := s.repo.FindClassByID(ctx, schoolID, classID)
 		if err != nil {
 			return nil, err
 		}
-		student.ClassID = *req.ClassID
+		student.ClassID = classID
 	}
 	if req.RFIDCode != nil {
 		student.RFIDCode = strings.TrimSpace(*req.RFIDCode)
@@ -558,6 +564,7 @@ func (s *service) toStudentResponse(student *models.Student) *StudentResponse {
 
 	// Add class info if available
 	if student.Class.ID != 0 {
+		response.ClassName = student.Class.Name
 		response.Class = &ClassResponse{
 			ID:       student.Class.ID,
 			SchoolID: student.Class.SchoolID,
@@ -573,6 +580,9 @@ func (s *service) toStudentResponse(student *models.Student) *StudentResponse {
 
 // ==================== Parent Service Methods ====================
 
+// Default password for new accounts
+const DefaultPassword = "password123"
+
 // CreateParent creates a new parent with a user account
 // Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
 func (s *service) CreateParent(ctx context.Context, schoolID uint, req CreateParentRequest) (*ParentResponse, error) {
@@ -581,29 +591,31 @@ func (s *service) CreateParent(ctx context.Context, schoolID uint, req CreatePar
 	if name == "" {
 		return nil, ErrNameRequired
 	}
-	password := strings.TrimSpace(req.Password)
-	if password == "" {
-		return nil, ErrPasswordRequired
-	}
-	if len(password) < 8 {
-		return nil, ErrPasswordTooShort
-	}
-
-	// Generate username from email or phone
-	email := strings.TrimSpace(req.Email)
+	
+	// Phone is required for parent (used as primary username)
 	phone := strings.TrimSpace(req.Phone)
-	username := email
-	if username == "" {
-		username = phone
+	if phone == "" {
+		return nil, errors.New("phone number is required for parent account")
 	}
+	
+	email := strings.TrimSpace(req.Email)
+
+	// Username priority: Phone first, then Email
+	username := phone
 	if username == "" {
-		return nil, errors.New("email or phone is required for parent account")
+		username = email
 	}
 
 	// Check if username already exists
 	existingUser, err := s.userRepo.FindByUsername(ctx, username)
 	if err == nil && existingUser != nil {
-		return nil, errors.New("user with this email/phone already exists")
+		return nil, errors.New("user with this phone number already exists")
+	}
+
+	// Use default password if not provided
+	password := strings.TrimSpace(req.Password)
+	if password == "" {
+		password = DefaultPassword
 	}
 
 	// Hash password
@@ -653,7 +665,11 @@ func (s *service) CreateParent(ctx context.Context, schoolID uint, req CreatePar
 		return nil, err
 	}
 
-	return s.toParentResponse(parent), nil
+	response := s.toParentResponse(parent)
+	response.Username = username
+	response.TemporaryPassword = password
+	
+	return response, nil
 }
 
 // GetAllParents retrieves all parents for a school
@@ -727,6 +743,26 @@ func (s *service) UpdateParent(ctx context.Context, schoolID uint, id uint, req 
 		return nil, err
 	}
 
+	// Update email in user table if provided
+	if req.Email != nil {
+		email := strings.TrimSpace(*req.Email)
+		if err := s.repo.UpdateParentUserEmail(ctx, parent.UserID, email); err != nil {
+			return nil, err
+		}
+	}
+
+	// Always update student links (frontend always sends student_ids)
+	// Validate all students exist and belong to the same school
+	for _, studentID := range req.StudentIDs {
+		_, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := s.repo.LinkParentToStudents(ctx, parent.ID, req.StudentIDs); err != nil {
+		return nil, err
+	}
+
 	// Reload with relations
 	parent, err = s.repo.FindParentByID(ctx, schoolID, parent.ID)
 	if err != nil {
@@ -739,6 +775,124 @@ func (s *service) UpdateParent(ctx context.Context, schoolID uint, id uint, req 
 // DeleteParent deletes a parent
 func (s *service) DeleteParent(ctx context.Context, schoolID uint, id uint) error {
 	return s.repo.DeleteParent(ctx, schoolID, id)
+}
+
+// ResetParentPassword resets a parent's password to default
+func (s *service) ResetParentPassword(ctx context.Context, schoolID uint, parentID uint) (*ResetPasswordResponse, error) {
+	// Get parent
+	parent, err := s.repo.FindParentByID(ctx, schoolID, parentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hash default password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(DefaultPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update user password
+	if err := s.repo.ResetUserPassword(ctx, parent.UserID, string(passwordHash)); err != nil {
+		return nil, err
+	}
+
+	return &ResetPasswordResponse{
+		Username:          parent.Phone,
+		TemporaryPassword: DefaultPassword,
+		Message:           "Password berhasil direset. User wajib mengganti password saat login pertama.",
+	}, nil
+}
+
+// CreateStudentAccount creates a user account for a student
+func (s *service) CreateStudentAccount(ctx context.Context, schoolID uint, studentID uint) (*StudentResponse, error) {
+	// Get student
+	student, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if student already has an account
+	if student.UserID != nil {
+		return nil, errors.New("student already has an account")
+	}
+
+	// Username is NIS
+	username := student.NIS
+
+	// Check if username already exists
+	existingUser, err := s.userRepo.FindByUsername(ctx, username)
+	if err == nil && existingUser != nil {
+		return nil, errors.New("user with this NIS already exists")
+	}
+
+	// Hash default password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(DefaultPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create user account for student
+	user := &models.User{
+		SchoolID:     &schoolID,
+		Role:         models.RoleStudent,
+		Username:     username,
+		PasswordHash: string(passwordHash),
+		Name:         student.Name,
+		IsActive:     true,
+		MustResetPwd: true,
+	}
+
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+
+	// Link user to student
+	if err := s.repo.UpdateStudentUserID(ctx, studentID, user.ID); err != nil {
+		return nil, err
+	}
+
+	// Reload student
+	student, err = s.repo.FindStudentByID(ctx, schoolID, studentID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := s.toStudentResponse(student)
+	response.Username = username
+	response.TemporaryPassword = DefaultPassword
+
+	return response, nil
+}
+
+// ResetStudentPassword resets a student's password to default
+func (s *service) ResetStudentPassword(ctx context.Context, schoolID uint, studentID uint) (*ResetPasswordResponse, error) {
+	// Get student
+	student, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if student has an account
+	if student.UserID == nil {
+		return nil, errors.New("student does not have an account")
+	}
+
+	// Hash default password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(DefaultPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update user password
+	if err := s.repo.ResetUserPassword(ctx, *student.UserID, string(passwordHash)); err != nil {
+		return nil, err
+	}
+
+	return &ResetPasswordResponse{
+		Username:          student.NIS,
+		TemporaryPassword: DefaultPassword,
+		Message:           "Password berhasil direset. User wajib mengganti password saat login pertama.",
+	}, nil
 }
 
 // LinkParentToStudents links a parent to students

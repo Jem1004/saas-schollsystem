@@ -176,7 +176,15 @@ func (r *repository) FindBySchoolID(ctx context.Context, schoolID uint) ([]model
 
 // Update updates a device
 func (r *repository) Update(ctx context.Context, device *models.Device) error {
-	result := r.db.WithContext(ctx).Save(device)
+	result := r.db.WithContext(ctx).
+		Model(&models.Device{}).
+		Where("id = ?", device.ID).
+		Updates(map[string]interface{}{
+			"school_id":   device.SchoolID,
+			"device_code": device.DeviceCode,
+			"description": device.Description,
+			"is_active":   device.IsActive,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

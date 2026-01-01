@@ -154,7 +154,14 @@ func (r *repository) FindAll(ctx context.Context, schoolID uint, filter NoteFilt
 
 // Update updates a homeroom note
 func (r *repository) Update(ctx context.Context, note *models.HomeroomNote) error {
-	result := r.db.WithContext(ctx).Save(note)
+	result := r.db.WithContext(ctx).
+		Model(&models.HomeroomNote{}).
+		Where("id = ?", note.ID).
+		Updates(map[string]interface{}{
+			"student_id": note.StudentID,
+			"teacher_id": note.TeacherID,
+			"content":    note.Content,
+		})
 	if result.Error != nil {
 		return result.Error
 	}

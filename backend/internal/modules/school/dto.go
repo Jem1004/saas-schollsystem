@@ -74,7 +74,7 @@ type CreateStudentRequest struct {
 type UpdateStudentRequest struct {
 	NIS      *string `json:"nis"`
 	Name     *string `json:"name"`
-	ClassID  *uint   `json:"class_id"`
+	ClassID  *int    `json:"class_id"`
 	RFIDCode *string `json:"rfid_code"`
 	IsActive *bool   `json:"is_active"`
 }
@@ -84,6 +84,7 @@ type StudentResponse struct {
 	ID        uint           `json:"id"`
 	SchoolID  uint           `json:"school_id"`
 	ClassID   uint           `json:"class_id"`
+	ClassName string         `json:"class_name,omitempty"`
 	NIS       string         `json:"nis"`
 	NISN      string         `json:"nisn"`
 	Name      string         `json:"name"`
@@ -126,16 +127,18 @@ func DefaultStudentFilter() StudentFilter {
 // Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
 type CreateParentRequest struct {
 	Name       string `json:"name" validate:"required"`
-	Phone      string `json:"phone"`
+	Phone      string `json:"phone" validate:"required"`
 	Email      string `json:"email"`
-	Password   string `json:"password" validate:"required,min=8"`
+	Password   string `json:"password"` // Optional, will use default if empty
 	StudentIDs []uint `json:"student_ids"`
 }
 
 // UpdateParentRequest represents the request to update a parent
 type UpdateParentRequest struct {
-	Name  *string `json:"name"`
-	Phone *string `json:"phone"`
+	Name       *string `json:"name"`
+	Phone      *string `json:"phone"`
+	Email      *string `json:"email"`
+	StudentIDs []uint  `json:"student_ids"`
 }
 
 // LinkParentStudentRequest represents the request to link a parent to students
@@ -145,15 +148,17 @@ type LinkParentStudentRequest struct {
 
 // ParentResponse represents the parent data in responses
 type ParentResponse struct {
-	ID        uint              `json:"id"`
-	SchoolID  uint              `json:"school_id"`
-	UserID    uint              `json:"user_id"`
-	Name      string            `json:"name"`
-	Phone     string            `json:"phone"`
-	Email     string            `json:"email,omitempty"`
-	Students  []StudentResponse `json:"students,omitempty"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	ID                uint              `json:"id"`
+	SchoolID          uint              `json:"school_id"`
+	UserID            uint              `json:"user_id"`
+	Name              string            `json:"name"`
+	Phone             string            `json:"phone"`
+	Email             string            `json:"email,omitempty"`
+	Username          string            `json:"username,omitempty"`
+	TemporaryPassword string            `json:"temporary_password,omitempty"`
+	Students          []StudentResponse `json:"students,omitempty"`
+	CreatedAt         time.Time         `json:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at"`
 }
 
 // ParentListResponse represents a paginated list of parents
@@ -186,6 +191,13 @@ type PaginationMeta struct {
 	PageSize   int   `json:"page_size"`
 	Total      int64 `json:"total"`
 	TotalPages int   `json:"total_pages"`
+}
+
+// ResetPasswordResponse represents the response after resetting a password
+type ResetPasswordResponse struct {
+	Username          string `json:"username"`
+	TemporaryPassword string `json:"temporary_password"`
+	Message           string `json:"message"`
 }
 
 // TeacherResponse represents a simplified teacher response
