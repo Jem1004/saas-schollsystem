@@ -19,10 +19,14 @@ import (
 	"github.com/school-management/backend/internal/modules/auth"
 	"github.com/school-management/backend/internal/modules/bk"
 	"github.com/school-management/backend/internal/modules/device"
+	"github.com/school-management/backend/internal/modules/displaytoken"
 	"github.com/school-management/backend/internal/modules/grade"
 	"github.com/school-management/backend/internal/modules/homeroom"
 	"github.com/school-management/backend/internal/modules/notification"
 	"github.com/school-management/backend/internal/modules/parent"
+	"github.com/school-management/backend/internal/modules/publicdisplay"
+	"github.com/school-management/backend/internal/modules/realtime"
+	"github.com/school-management/backend/internal/modules/schedule"
 	"github.com/school-management/backend/internal/modules/school"
 	"github.com/school-management/backend/internal/modules/settings"
 	"github.com/school-management/backend/internal/modules/student"
@@ -143,12 +147,19 @@ func main() {
 	// Tenant-scoped routes (for non-super_admin users)
 	tenantScoped := protected.Group("", middleware.TenantMiddleware())
 
+	// Initialize Settings Module FIRST to avoid route conflicts
+	// Requirements: School Settings - attendance time, notification toggles, academic year
+	settingsRepo := settings.NewRepository(db)
+	settingsService := settings.NewService(settingsRepo)
+	settingsHandler := settings.NewHandler(settingsService)
+
+	// Settings routes for Admin Sekolah (full access to school settings)
+	// Role check is done inside the handler
+	settingsHandler.RegisterRoutes(tenantScoped)
+
 	// Pairing routes for admin sekolah (start/cancel/status pairing)
-	pairingRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
-		models.RoleAdminSekolah,
-		models.RoleSuperAdmin,
-	))
-	pairingHandler.RegisterRoutes(pairingRoutes)
+	pairingRoutes := tenantScoped.Group("/pairing")
+	pairingHandler.RegisterRoutesWithoutGroup(pairingRoutes)
 
 	// Initialize School Module (Admin Sekolah)
 	schoolRepo := school.NewRepository(db)
@@ -157,28 +168,70 @@ func main() {
 	schoolHandler := school.NewHandler(schoolService)
 
 	// School routes for admin sekolah (classes, students, parents)
-	adminSekolahRoutes := tenantScoped.Group("/school", middleware.RoleMiddleware(
-		models.RoleAdminSekolah,
-		models.RoleSuperAdmin,
-	))
+	adminSekolahRoutes := tenantScoped.Group("/school")
 	schoolHandler.RegisterRoutes(adminSekolahRoutes)
+
+	// Initialize Schedule Module (Admin Sekolah only)
+	// Requirements: 3.1 - Multi-schedule support for different activities
+	scheduleRepo := schedule.NewRepository(db)
+	scheduleService := schedule.NewService(scheduleRepo)
+	scheduleHandler := schedule.NewHandler(scheduleService)
+
+	// Schedule routes for admin sekolah only
+	scheduleRoutes := tenantScoped.Group("/schedules", middleware.AdminSekolahOnly())
+	scheduleHandler.RegisterRoutesWithoutGroup(scheduleRoutes)
+
+	// Initialize Display Token Module (Admin Sekolah only)
+	// Requirements: 5.1, 6.1 - Display token management for public display access
+	displayTokenRepo := displaytoken.NewRepository(db)
+	displayTokenService := displaytoken.NewService(displayTokenRepo)
+	displayTokenHandler := displaytoken.NewHandler(displayTokenService)
+
+	// Display token routes for admin sekolah only
+	displayTokenRoutes := tenantScoped.Group("/display-tokens", middleware.AdminSekolahOnly())
+	displayTokenHandler.RegisterRoutesWithoutGroup(displayTokenRoutes)
 
 	// Initialize Attendance Module
 	attendanceRepo := attendance.NewRepository(db)
 	attendancePolicy := attendance.NewAttendancePolicy(db)
 	attendanceService := attendance.NewService(attendanceRepo, deviceService, attendancePolicy)
-	attendanceHandler := attendance.NewHandler(attendanceService)
+	attendanceHandler := attendance.NewHandler(attendanceService, attendanceRepo)
+
+	// Initialize Real-Time Module
+	// Requirements: 4.1, 4.2, 4.3 - Real-time attendance dashboard with WebSocket
+	realtimeHub := realtime.NewHub()
+	go realtimeHub.Run() // Start the hub in a goroutine
+	realtimeRepo := realtime.NewRepository(db)
+	realtimeService := realtime.NewService(realtimeRepo, realtimeHub)
+	realtimeHandler := realtime.NewHandler(realtimeService, jwtManager)
+
+	// Connect attendance service to real-time broadcaster
+	// Requirements: 4.2 - Broadcast attendance updates in real-time
+	attendanceService.SetRealtimeBroadcaster(realtimeService)
+
+	// Register WebSocket routes (before other routes to handle upgrade properly)
+	realtimeHandler.RegisterWebSocketRoutes(app)
 
 	// Public attendance routes (for ESP32 RFID devices)
 	attendanceHandler.RegisterPublicRoutes(api)
 
 	// Attendance routes for admin sekolah and wali kelas
-	attendanceRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
-		models.RoleAdminSekolah,
-		models.RoleWaliKelas,
-		models.RoleSuperAdmin,
-	))
-	attendanceHandler.RegisterRoutes(attendanceRoutes)
+	attendanceRoutes := tenantScoped.Group("/attendance")
+	attendanceHandler.RegisterRoutesWithoutGroup(attendanceRoutes)
+
+	// Real-time routes for authenticated users
+	// Requirements: 4.1 - Live attendance dashboard
+	realtimeRoutes := tenantScoped.Group("/realtime")
+	realtimeHandler.RegisterRoutes(realtimeRoutes)
+
+	// Initialize Public Display Module
+	// Requirements: 5.3, 5.4, 5.5, 5.6 - Public display for LCD screens without login
+	publicDisplayRepo := publicdisplay.NewRepository(db)
+	publicDisplayService := publicdisplay.NewService(publicDisplayRepo, displayTokenService)
+	publicDisplayHandler := publicdisplay.NewHandler(publicDisplayService, realtimeHub, realtimeRepo)
+
+	// Public display routes (no auth required - uses display token)
+	publicDisplayHandler.RegisterPublicRoutes(api)
 
 	// Initialize BK Module
 	bkRepo := bk.NewRepository(db)
@@ -187,18 +240,8 @@ func main() {
 
 	// BK routes for Guru BK (full access)
 	// Requirements: 6.1-6.5, 7.1-7.5, 8.1-8.5, 9.1-9.5
-	guruBKRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
-		models.RoleGuruBK,
-		models.RoleSuperAdmin,
-	))
-	bkHandler.RegisterRoutes(guruBKRoutes)
-
-	// BK read-only routes for Wali Kelas
-	// Requirements: 6.5 - WHEN a Wali_Kelas views BK data, THE System SHALL provide read-only access
-	waliKelasRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
-		models.RoleWaliKelas,
-	))
-	bkHandler.RegisterReadOnlyRoutes(waliKelasRoutes)
+	bkRoutes := tenantScoped.Group("/bk")
+	bkHandler.RegisterRoutesWithoutGroup(bkRoutes)
 
 	// Initialize Grade Module
 	// Requirements: 10.1, 10.2, 10.4, 10.5
@@ -207,12 +250,8 @@ func main() {
 	gradeHandler := grade.NewHandler(gradeService)
 
 	// Grade routes for Wali Kelas (full access to their class)
-	gradeRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
-		models.RoleWaliKelas,
-		models.RoleAdminSekolah,
-		models.RoleSuperAdmin,
-	))
-	gradeHandler.RegisterRoutes(gradeRoutes)
+	gradeRoutes := tenantScoped.Group("/grades")
+	gradeHandler.RegisterRoutesWithoutGroup(gradeRoutes)
 
 	// Initialize Homeroom Module
 	// Requirements: 11.1, 11.3, 11.4, 11.5
@@ -221,25 +260,8 @@ func main() {
 	homeroomHandler := homeroom.NewHandler(homeroomService)
 
 	// Homeroom routes for Wali Kelas (full access to their class)
-	homeroomRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
-		models.RoleWaliKelas,
-		models.RoleAdminSekolah,
-		models.RoleSuperAdmin,
-	))
-	homeroomHandler.RegisterRoutes(homeroomRoutes)
-
-	// Initialize Settings Module
-	// Requirements: School Settings - attendance time, notification toggles, academic year
-	settingsRepo := settings.NewRepository(db)
-	settingsService := settings.NewService(settingsRepo)
-	settingsHandler := settings.NewHandler(settingsService)
-
-	// Settings routes for Admin Sekolah (full access to school settings)
-	settingsRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
-		models.RoleAdminSekolah,
-		models.RoleSuperAdmin,
-	))
-	settingsHandler.RegisterRoutes(settingsRoutes)
+	homeroomRoutes := tenantScoped.Group("/homeroom")
+	homeroomHandler.RegisterRoutesWithoutGroup(homeroomRoutes)
 
 	// Initialize FCM Client
 	// Requirements: 13.1, 13.2 - Firebase Cloud Messaging integration

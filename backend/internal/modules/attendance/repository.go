@@ -41,6 +41,23 @@ type Repository interface {
 	GetAttendanceSummary(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, error)
 	GetAttendanceSummaryByClass(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, []ClassSummaryItem, error)
 	GetClassAttendanceSummary(ctx context.Context, classID uint, date time.Time) (*ClassAttendanceSummaryResponse, error)
+
+	// Schedule operations
+	// Requirements: 3.4, 3.5 - Find and associate active schedule with attendance
+	FindActiveSchedule(ctx context.Context, schoolID uint, timestamp time.Time) (*models.AttendanceSchedule, error)
+	FindDefaultSchedule(ctx context.Context, schoolID uint) (*models.AttendanceSchedule, error)
+
+	// Export operations
+	// Requirements: 1.2, 1.3 - Get attendance for export with filters
+	GetAttendanceForExport(ctx context.Context, schoolID uint, filter ExportFilter) ([]ExportAttendanceRecord, error)
+	// Requirements: 2.1 - Get monthly recap with aggregation
+	GetMonthlyRecap(ctx context.Context, schoolID uint, filter MonthlyRecapFilter) (*MonthlyRecapResponse, error)
+	// Get students by school for monthly recap calculation
+	GetStudentsBySchool(ctx context.Context, schoolID uint, classID *uint) ([]models.Student, error)
+
+	// Wali Kelas operations
+	// Requirements: 2.7 - Find class assigned to wali_kelas
+	FindClassByHomeroomTeacher(ctx context.Context, schoolID uint, teacherID uint) (*models.Class, error)
 }
 
 // repository implements the Repository interface
@@ -65,6 +82,7 @@ func (r *repository) FindByID(ctx context.Context, id uint) (*models.Attendance,
 	err := r.db.WithContext(ctx).
 		Preload("Student").
 		Preload("Student.Class").
+		Preload("Schedule").
 		Where("id = ?", id).
 		First(&attendance).Error
 
@@ -89,6 +107,7 @@ func (r *repository) FindByStudentAndDate(ctx context.Context, studentID uint, d
 	err := r.db.WithContext(ctx).
 		Preload("Student").
 		Preload("Student.Class").
+		Preload("Schedule").
 		Where("student_id = ? AND date = ?", studentID, dateOnly).
 		First(&attendance).Error
 
@@ -144,6 +163,7 @@ func (r *repository) FindByStudent(ctx context.Context, studentID uint, startDat
 	query := r.db.WithContext(ctx).
 		Preload("Student").
 		Preload("Student.Class").
+		Preload("Schedule").
 		Where("student_id = ?", studentID)
 
 	if !startDate.IsZero() {
@@ -167,6 +187,7 @@ func (r *repository) FindByClassAndDate(ctx context.Context, classID uint, date 
 	err := r.db.WithContext(ctx).
 		Preload("Student").
 		Preload("Student.Class").
+		Preload("Schedule").
 		Joins("JOIN students ON students.id = attendances.student_id").
 		Where("students.class_id = ? AND attendances.date = ?", classID, dateOnly).
 		Order("students.name ASC").
@@ -185,6 +206,7 @@ func (r *repository) FindBySchoolAndDate(ctx context.Context, schoolID uint, dat
 	err := r.db.WithContext(ctx).
 		Preload("Student").
 		Preload("Student.Class").
+		Preload("Schedule").
 		Joins("JOIN students ON students.id = attendances.student_id").
 		Where("students.school_id = ? AND attendances.date = ?", schoolID, dateOnly).
 		Order("students.name ASC").
@@ -247,6 +269,7 @@ func (r *repository) FindAll(ctx context.Context, schoolID uint, filter Attendan
 	err := r.db.WithContext(ctx).
 		Preload("Student").
 		Preload("Student.Class").
+		Preload("Schedule").
 		Joins("JOIN students ON students.id = attendances.student_id").
 		Where("students.school_id = ?", schoolID).
 		Order("attendances.date DESC, students.name ASC").
@@ -527,13 +550,14 @@ func (r *repository) GetClassAttendanceSummary(ctx context.Context, classID uint
 // toAttendanceResponse converts an Attendance model to AttendanceResponse DTO
 func toAttendanceResponse(attendance *models.Attendance) *AttendanceResponse {
 	response := &AttendanceResponse{
-		ID:        attendance.ID,
-		StudentID: attendance.StudentID,
-		Date:      attendance.Date.Format("2006-01-02"),
-		Status:    attendance.Status,
-		Method:    attendance.Method,
-		CreatedAt: attendance.CreatedAt,
-		UpdatedAt: attendance.UpdatedAt,
+		ID:         attendance.ID,
+		StudentID:  attendance.StudentID,
+		ScheduleID: attendance.ScheduleID,
+		Date:       attendance.Date.Format("2006-01-02"),
+		Status:     attendance.Status,
+		Method:     attendance.Method,
+		CreatedAt:  attendance.CreatedAt,
+		UpdatedAt:  attendance.UpdatedAt,
 	}
 
 	if attendance.CheckInTime != nil {
@@ -555,5 +579,320 @@ func toAttendanceResponse(attendance *models.Attendance) *AttendanceResponse {
 		}
 	}
 
+	// Include schedule info if loaded
+	// Requirements: 3.10 - Show which schedule the attendance belongs to
+	if attendance.Schedule != nil && attendance.Schedule.ID != 0 {
+		response.ScheduleName = attendance.Schedule.Name
+	}
+
 	return response
+}
+
+// FindActiveSchedule finds the active schedule for a given time and day
+// Requirements: 3.4, 3.5 - Determine which schedule is currently active based on current time
+func (r *repository) FindActiveSchedule(ctx context.Context, schoolID uint, timestamp time.Time) (*models.AttendanceSchedule, error) {
+	var schedules []models.AttendanceSchedule
+	
+	// Get current time in HH:MM:SS format
+	currentTime := timestamp.Format("15:04:05")
+	
+	// Find all active schedules for this school
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND is_active = ?", schoolID, true).
+		Find(&schedules).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the schedule that matches the current time and day
+	for _, schedule := range schedules {
+		// Check if schedule is active on this day
+		if !schedule.IsActiveOnDay(timestamp.Weekday()) {
+			continue
+		}
+
+		// Normalize times for comparison
+		startTime := schedule.StartTime
+		if len(startTime) == 5 {
+			startTime += ":00"
+		}
+		endTime := schedule.EndTime
+		if len(endTime) == 5 {
+			endTime += ":00"
+		}
+
+		// Check if current time is within schedule range
+		if currentTime >= startTime && currentTime <= endTime {
+			return &schedule, nil
+		}
+	}
+
+	// No active schedule found for current time, try to find default
+	defaultSchedule, err := r.FindDefaultSchedule(ctx, schoolID)
+	if err == nil && defaultSchedule != nil {
+		// Check if default schedule is active on this day
+		if defaultSchedule.IsActive && defaultSchedule.IsActiveOnDay(timestamp.Weekday()) {
+			return defaultSchedule, nil
+		}
+	}
+
+	// Return nil if no schedule matches
+	return nil, nil
+}
+
+// FindDefaultSchedule finds the default schedule for a school
+func (r *repository) FindDefaultSchedule(ctx context.Context, schoolID uint) (*models.AttendanceSchedule, error) {
+	var schedule models.AttendanceSchedule
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND is_default = ?", schoolID, true).
+		First(&schedule).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // No default schedule is not an error
+		}
+		return nil, err
+	}
+
+	return &schedule, nil
+}
+
+// GetAttendanceForExport retrieves attendance records for export with filters
+// Requirements: 1.2, 1.3 - Allow filtering by date range and class
+func (r *repository) GetAttendanceForExport(ctx context.Context, schoolID uint, filter ExportFilter) ([]ExportAttendanceRecord, error) {
+	var records []ExportAttendanceRecord
+
+	// Parse dates
+	startDate, err := time.Parse("2006-01-02", filter.StartDate)
+	if err != nil {
+		return nil, errors.New("invalid start_date format, expected YYYY-MM-DD")
+	}
+	endDate, err := time.Parse("2006-01-02", filter.EndDate)
+	if err != nil {
+		return nil, errors.New("invalid end_date format, expected YYYY-MM-DD")
+	}
+
+	// Build query
+	query := r.db.WithContext(ctx).
+		Table("attendances").
+		Select(`
+			students.nis as student_nis,
+			students.nisn as student_nisn,
+			students.name as student_name,
+			classes.name as class_name,
+			attendances.date,
+			attendances.check_in_time,
+			attendances.check_out_time,
+			attendances.status,
+			COALESCE(attendance_schedules.name, '') as schedule_name
+		`).
+		Joins("JOIN students ON students.id = attendances.student_id").
+		Joins("JOIN classes ON classes.id = students.class_id").
+		Joins("LEFT JOIN attendance_schedules ON attendance_schedules.id = attendances.schedule_id").
+		Where("students.school_id = ?", schoolID).
+		Where("attendances.date >= ? AND attendances.date <= ?", startDate, endDate)
+
+	// Apply class filter if provided
+	if filter.ClassID != nil {
+		query = query.Where("students.class_id = ?", *filter.ClassID)
+	}
+
+	// Order by date and student name
+	query = query.Order("attendances.date ASC, students.name ASC")
+
+	// Execute query
+	rows, err := query.Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var record ExportAttendanceRecord
+		var date time.Time
+		var checkInTime, checkOutTime *time.Time
+
+		err := rows.Scan(
+			&record.StudentNIS,
+			&record.StudentNISN,
+			&record.StudentName,
+			&record.ClassName,
+			&date,
+			&checkInTime,
+			&checkOutTime,
+			&record.Status,
+			&record.ScheduleName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		record.Date = date.Format("2006-01-02")
+		if checkInTime != nil {
+			record.CheckInTime = checkInTime.Format("15:04")
+		}
+		if checkOutTime != nil {
+			record.CheckOutTime = checkOutTime.Format("15:04")
+		}
+
+		records = append(records, record)
+	}
+
+	return records, nil
+}
+
+// GetStudentsBySchool retrieves all active students in a school, optionally filtered by class
+func (r *repository) GetStudentsBySchool(ctx context.Context, schoolID uint, classID *uint) ([]models.Student, error) {
+	var students []models.Student
+
+	query := r.db.WithContext(ctx).
+		Preload("Class").
+		Where("school_id = ? AND is_active = ?", schoolID, true)
+
+	if classID != nil {
+		query = query.Where("class_id = ?", *classID)
+	}
+
+	err := query.Order("name ASC").Find(&students).Error
+	return students, err
+}
+
+// GetMonthlyRecap retrieves monthly attendance recap with aggregation
+// Requirements: 2.1 - Display summary per student including total days present, late, very late, and absent
+func (r *repository) GetMonthlyRecap(ctx context.Context, schoolID uint, filter MonthlyRecapFilter) (*MonthlyRecapResponse, error) {
+	// Calculate date range for the month
+	startDate := time.Date(filter.Year, time.Month(filter.Month), 1, 0, 0, 0, 0, time.UTC)
+	endDate := startDate.AddDate(0, 1, -1) // Last day of the month
+
+	// Get all students in the school (optionally filtered by class)
+	students, err := r.GetStudentsBySchool(ctx, schoolID, filter.ClassID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate total school days (weekdays only, Mon-Fri)
+	totalDays := countWeekdays(startDate, endDate)
+
+	// Get class name if filtered by class
+	var className string
+	if filter.ClassID != nil {
+		var class models.Class
+		if err := r.db.WithContext(ctx).First(&class, *filter.ClassID).Error; err == nil {
+			className = class.Name
+		}
+	}
+
+	// Build response
+	response := &MonthlyRecapResponse{
+		Month:         filter.Month,
+		Year:          filter.Year,
+		TotalDays:     totalDays,
+		ClassID:       filter.ClassID,
+		ClassName:     className,
+		StudentRecaps: make([]StudentRecapSummary, 0, len(students)),
+	}
+
+	// Get attendance summary for each student
+	for _, student := range students {
+		// Query attendance counts by status for this student in the month
+		type StatusCount struct {
+			Status string
+			Count  int
+		}
+		var statusCounts []StatusCount
+
+		err := r.db.WithContext(ctx).
+			Model(&models.Attendance{}).
+			Select("status, COUNT(*) as count").
+			Where("student_id = ? AND date >= ? AND date <= ?", student.ID, startDate, endDate).
+			Group("status").
+			Scan(&statusCounts).Error
+
+		if err != nil {
+			continue
+		}
+
+		// Build student summary
+		summary := StudentRecapSummary{
+			StudentID:   student.ID,
+			StudentNIS:  student.NIS,
+			StudentNISN: student.NISN,
+			StudentName: student.Name,
+			ClassName:   student.Class.Name,
+		}
+
+		for _, sc := range statusCounts {
+			switch models.AttendanceStatus(sc.Status) {
+			case models.AttendanceStatusOnTime:
+				summary.TotalPresent += sc.Count
+			case models.AttendanceStatusLate:
+				summary.TotalLate += sc.Count
+			case models.AttendanceStatusVeryLate:
+				summary.TotalVeryLate += sc.Count
+			}
+		}
+
+		// Calculate absent days
+		totalAttended := summary.TotalPresent + summary.TotalLate + summary.TotalVeryLate
+		summary.TotalAbsent = totalDays - totalAttended
+		if summary.TotalAbsent < 0 {
+			summary.TotalAbsent = 0
+		}
+
+		// Calculate attendance percentage (present / total_days * 100)
+		// Requirements: 2.2 - Calculate and display attendance percentage
+		if totalDays > 0 {
+			summary.AttendancePercent = float64(summary.TotalPresent) / float64(totalDays) * 100
+		}
+
+		response.StudentRecaps = append(response.StudentRecaps, summary)
+	}
+
+	// Sort by attendance percentage descending
+	// Requirements: 2.6 - Sort students by attendance percentage (highest to lowest)
+	sortStudentRecapsByPercentage(response.StudentRecaps)
+
+	return response, nil
+}
+
+// countWeekdays counts the number of weekdays (Mon-Fri) between two dates
+func countWeekdays(start, end time.Time) int {
+	count := 0
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		weekday := d.Weekday()
+		if weekday != time.Saturday && weekday != time.Sunday {
+			count++
+		}
+	}
+	return count
+}
+
+// sortStudentRecapsByPercentage sorts student recaps by attendance percentage descending
+func sortStudentRecapsByPercentage(recaps []StudentRecapSummary) {
+	for i := 0; i < len(recaps)-1; i++ {
+		for j := i + 1; j < len(recaps); j++ {
+			if recaps[j].AttendancePercent > recaps[i].AttendancePercent {
+				recaps[i], recaps[j] = recaps[j], recaps[i]
+			}
+		}
+	}
+}
+
+// FindClassByHomeroomTeacher finds the class assigned to a wali_kelas (homeroom teacher)
+// Requirements: 2.7 - Wali_Kelas only sees students from their assigned class
+func (r *repository) FindClassByHomeroomTeacher(ctx context.Context, schoolID uint, teacherID uint) (*models.Class, error) {
+	var class models.Class
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND homeroom_teacher_id = ?", schoolID, teacherID).
+		First(&class).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // No class assigned is not an error
+		}
+		return nil, err
+	}
+
+	return &class, nil
 }

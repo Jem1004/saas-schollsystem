@@ -65,6 +65,47 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	bk.Get("/students/:studentId/counseling", h.GetStudentCounselingNotes)
 }
 
+// RegisterRoutesWithoutGroup registers BK routes without creating a sub-group
+func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
+	// Dashboard
+	router.Get("/dashboard", h.GetDashboard)
+
+	// Violations
+	router.Get("/violations", h.GetViolations)
+	router.Post("/violations", h.CreateViolation)
+	router.Get("/violations/:id", h.GetViolationByID)
+	router.Delete("/violations/:id", h.DeleteViolation)
+
+	// Achievements
+	router.Get("/achievements", h.GetAchievements)
+	router.Post("/achievements", h.CreateAchievement)
+	router.Get("/achievements/:id", h.GetAchievementByID)
+	router.Delete("/achievements/:id", h.DeleteAchievement)
+	router.Get("/achievements/student/:studentId/points", h.GetStudentAchievementPoints)
+
+	// Permits
+	router.Get("/permits", h.GetPermits)
+	router.Post("/permits", h.CreatePermit)
+	router.Get("/permits/:id", h.GetPermitByID)
+	router.Post("/permits/:id/return", h.RecordReturn)
+	router.Get("/permits/:id/document", h.GetPermitDocument)
+	router.Delete("/permits/:id", h.DeletePermit)
+
+	// Counseling Notes
+	router.Get("/counseling", h.GetCounselingNotes)
+	router.Post("/counseling", h.CreateCounselingNote)
+	router.Get("/counseling/:id", h.GetCounselingNoteByID)
+	router.Put("/counseling/:id", h.UpdateCounselingNote)
+	router.Delete("/counseling/:id", h.DeleteCounselingNote)
+
+	// Student BK Profile
+	router.Get("/students/:studentId/profile", h.GetStudentBKProfile)
+	router.Get("/students/:studentId/violations", h.GetStudentViolations)
+	router.Get("/students/:studentId/achievements", h.GetStudentAchievements)
+	router.Get("/students/:studentId/permits", h.GetStudentPermits)
+	router.Get("/students/:studentId/counseling", h.GetStudentCounselingNotes)
+}
+
 // RegisterReadOnlyRoutes registers read-only BK routes for Wali Kelas
 // Requirements: 6.5 - WHEN a Wali_Kelas views BK data, THE System SHALL provide read-only access
 func (h *Handler) RegisterReadOnlyRoutes(router fiber.Router) {

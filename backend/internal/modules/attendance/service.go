@@ -40,6 +40,24 @@ type Service interface {
 	
 	// Delete
 	DeleteAttendance(ctx context.Context, id uint) error
+
+	// Export operations
+	// Requirements: 1.1, 1.7 - Export attendance to Excel with filtering
+	ExportAttendanceToExcel(ctx context.Context, schoolID uint, schoolName string, filter ExportFilter) ([]byte, string, error)
+	// Requirements: 2.1 - Get monthly recap data
+	GetMonthlyRecap(ctx context.Context, schoolID uint, filter MonthlyRecapFilter) (*MonthlyRecapResponse, error)
+	// Requirements: 2.5 - Export monthly recap to Excel
+	ExportMonthlyRecapToExcel(ctx context.Context, schoolID uint, schoolName string, filter MonthlyRecapFilter) ([]byte, string, error)
+
+	// Real-time integration
+	// Requirements: 4.2 - Set broadcaster for real-time updates
+	SetRealtimeBroadcaster(broadcaster RealtimeBroadcaster)
+}
+
+// RealtimeBroadcaster defines the interface for broadcasting real-time attendance events
+// Requirements: 4.2 - WHEN a student taps RFID card, THE System SHALL update the dashboard within 3 seconds
+type RealtimeBroadcaster interface {
+	BroadcastAttendance(ctx context.Context, schoolID uint, attendance *models.Attendance, student *models.Student, attendanceType string)
 }
 
 // service implements the Service interface
@@ -47,6 +65,7 @@ type service struct {
 	repo          Repository
 	deviceService device.Service
 	policy        AttendancePolicy
+	realtime      RealtimeBroadcaster
 }
 
 // NewService creates a new attendance service
@@ -56,6 +75,12 @@ func NewService(repo Repository, deviceService device.Service, policy Attendance
 		deviceService: deviceService,
 		policy:        policy,
 	}
+}
+
+// SetRealtimeBroadcaster sets the real-time broadcaster for the service
+// This is called after initialization to avoid circular dependencies
+func (s *service) SetRealtimeBroadcaster(broadcaster RealtimeBroadcaster) {
+	s.realtime = broadcaster
 }
 
 // RecordRFIDAttendance records attendance from RFID device
@@ -112,13 +137,34 @@ func (s *service) RecordRFIDAttendance(ctx context.Context, req RFIDAttendanceRe
 	if existing == nil {
 		// First tap of the day - record check-in
 		// Requirements: 5.2 - First attendance record SHALL be recorded as check-in
-		status := s.policy.DetermineAttendanceStatus(timestamp, student.SchoolID)
+		
+		// Requirements: 3.4, 3.5 - Find and associate active schedule
+		activeSchedule, err := s.repo.FindActiveSchedule(ctx, student.SchoolID, timestamp)
+		if err != nil {
+			log.Printf("Warning: Failed to find active schedule: %v", err)
+			// Continue without schedule - will use default policy
+		}
+
+		var status models.AttendanceStatus
+		var scheduleID *uint
+
+		if activeSchedule != nil {
+			// Use schedule-based status determination
+			status = activeSchedule.GetLateStatus(timestamp)
+			scheduleID = &activeSchedule.ID
+			log.Printf("Using schedule '%s' (ID: %d) for attendance", activeSchedule.Name, activeSchedule.ID)
+		} else {
+			// Requirements: 3.6 - IF no schedule is active, use default policy
+			status = s.policy.DetermineAttendanceStatus(timestamp, student.SchoolID)
+			log.Printf("No active schedule found, using default policy")
+		}
 		
 		attendance := &models.Attendance{
-			StudentID: student.ID,
-			Date:      date,
-			Method:    models.AttendanceMethodRFID,
-			Status:    status,
+			StudentID:  student.ID,
+			ScheduleID: scheduleID,
+			Date:       date,
+			Method:     models.AttendanceMethodRFID,
+			Status:     status,
 		}
 		attendance.SetCheckIn(timestamp)
 
@@ -138,6 +184,11 @@ func (s *service) RecordRFIDAttendance(ctx context.Context, req RFIDAttendanceRe
 
 		log.Printf("RFID check-in recorded: student %s (%d) at %s, status: %s", 
 			student.Name, student.ID, timestamp.Format("15:04"), status)
+
+		// Requirements: 4.2 - Broadcast real-time update
+		if s.realtime != nil {
+			go s.realtime.BroadcastAttendance(ctx, student.SchoolID, attendance, student, "check_in")
+		}
 
 	} else if existing.CheckOutTime == nil {
 		// Second tap - record check-out
@@ -161,6 +212,11 @@ func (s *service) RecordRFIDAttendance(ctx context.Context, req RFIDAttendanceRe
 
 		log.Printf("RFID check-out recorded: student %s (%d) at %s", 
 			student.Name, student.ID, timestamp.Format("15:04"))
+
+		// Requirements: 4.2 - Broadcast real-time update
+		if s.realtime != nil {
+			go s.realtime.BroadcastAttendance(ctx, student.SchoolID, existing, student, "check_out")
+		}
 
 	} else {
 		// Already checked out
@@ -403,4 +459,97 @@ func (s *service) GetAllAttendance(ctx context.Context, schoolID uint, filter At
 // DeleteAttendance deletes an attendance record
 func (s *service) DeleteAttendance(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
+}
+
+// ExportAttendanceToExcel exports attendance data to Excel format
+// Requirements: 1.1, 1.7 - Generate Excel file with attendance records
+func (s *service) ExportAttendanceToExcel(ctx context.Context, schoolID uint, schoolName string, filter ExportFilter) ([]byte, string, error) {
+	// Validate date range
+	if err := validateExportFilter(filter); err != nil {
+		return nil, "", err
+	}
+
+	// Get attendance records
+	records, err := s.repo.GetAttendanceForExport(ctx, schoolID, filter)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Generate Excel file
+	excelData, err := generateAttendanceExcel(records)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Generate filename
+	// Requirements: 1.7 - Name the file with format attendance_{school}_{date_range}.xlsx
+	filename := generateExportFilename(schoolName, filter.StartDate, filter.EndDate)
+
+	return excelData, filename, nil
+}
+
+// GetMonthlyRecap retrieves monthly attendance recap
+// Requirements: 2.1 - Display summary per student
+func (s *service) GetMonthlyRecap(ctx context.Context, schoolID uint, filter MonthlyRecapFilter) (*MonthlyRecapResponse, error) {
+	// Validate filter
+	if filter.Month < 1 || filter.Month > 12 {
+		return nil, errors.New("month must be between 1 and 12")
+	}
+	if filter.Year < 2000 {
+		return nil, errors.New("year must be 2000 or later")
+	}
+
+	return s.repo.GetMonthlyRecap(ctx, schoolID, filter)
+}
+
+// ExportMonthlyRecapToExcel exports monthly recap to Excel format
+// Requirements: 2.5 - Export monthly recap to Excel
+func (s *service) ExportMonthlyRecapToExcel(ctx context.Context, schoolID uint, schoolName string, filter MonthlyRecapFilter) ([]byte, string, error) {
+	// Get monthly recap data
+	recap, err := s.GetMonthlyRecap(ctx, schoolID, filter)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Generate Excel file
+	excelData, err := generateMonthlyRecapExcel(recap)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Generate filename
+	filename := generateMonthlyRecapFilename(schoolName, filter.Month, filter.Year)
+
+	return excelData, filename, nil
+}
+
+// validateExportFilter validates the export filter
+func validateExportFilter(filter ExportFilter) error {
+	if filter.StartDate == "" {
+		return errors.New("start_date is required")
+	}
+	if filter.EndDate == "" {
+		return errors.New("end_date is required")
+	}
+
+	startDate, err := time.Parse("2006-01-02", filter.StartDate)
+	if err != nil {
+		return errors.New("invalid start_date format, expected YYYY-MM-DD")
+	}
+
+	endDate, err := time.Parse("2006-01-02", filter.EndDate)
+	if err != nil {
+		return errors.New("invalid end_date format, expected YYYY-MM-DD")
+	}
+
+	if endDate.Before(startDate) {
+		return errors.New("end_date cannot be before start_date")
+	}
+
+	// Check if date range is too large (max 1 year)
+	if endDate.Sub(startDate) > 365*24*time.Hour {
+		return errors.New("date range cannot exceed 1 year")
+	}
+
+	return nil
 }

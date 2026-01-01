@@ -1,0 +1,322 @@
+# Implementation Plan: Attendance System Enhancement
+
+## Overview
+
+Implementasi 5 fitur tambahan sistem absensi RFID menggunakan Go (Fiber) untuk backend dan Vue 3 (Ant Design Vue) untuk frontend. Implementasi dilakukan secara incremental dengan prioritas pada fitur yang memiliki dependensi paling sedikit.
+
+## Tasks
+
+- [x] 1. Database Schema Migration
+  - [x] 1.1 Create migration for attendance_schedules table
+    - Create table with columns: id, school_id, name, start_time, end_time, late_threshold, very_late_threshold, days_of_week, is_active, is_default, created_at, updated_at
+    - Add foreign key to schools table
+    - Add index on school_id
+    - _Requirements: 3.1, 3.2, 3.3_
+  - [x] 1.2 Create migration for display_tokens table
+    - Create table with columns: id, school_id, token, name, is_active, last_accessed_at, expires_at, created_at, updated_at
+    - Add foreign key to schools table
+    - Add unique index on token
+    - _Requirements: 5.1, 6.1_
+  - [x] 1.3 Add schedule_id column to attendances table
+    - Add nullable schedule_id column with foreign key to attendance_schedules
+    - Add index on schedule_id
+    - _Requirements: 3.5_
+
+- [x] 2. Attendance Schedule Module (Backend)
+  - [x] 2.1 Create AttendanceSchedule model in domain/models
+    - Define struct with GORM tags
+    - Add validation methods
+    - _Requirements: 3.1, 3.2, 3.3_
+  - [x] 2.2 Create schedule DTOs (request/response)
+    - CreateScheduleRequest, UpdateScheduleRequest
+    - ScheduleResponse, ScheduleListResponse
+    - _Requirements: 3.1_
+  - [x] 2.3 Implement schedule repository
+    - CRUD operations
+    - FindActiveSchedule by time and day
+    - CountBySchool for limit check
+    - _Requirements: 3.4, 3.9_
+  - [x] 2.4 Implement schedule service
+    - CreateSchedule with validation and limit check
+    - GetActiveSchedule logic
+    - SetDefaultSchedule
+    - _Requirements: 3.1, 3.4, 3.6, 3.9_
+  - [ ]* 2.5 Write property test for active schedule selection
+    - **Property 8: Active Schedule Selection**
+    - **Validates: Requirements 3.4, 3.5**
+  - [x] 2.6 Create schedule handler with routes
+    - Register routes under /api/v1/schedules
+    - Add RBAC middleware (admin_sekolah only)
+    - _Requirements: 3.1_
+  - [x] 2.7 Update attendance service to use schedules
+    - Modify RecordRFIDAttendance to find and associate active schedule
+    - Handle case when no schedule is active
+    - _Requirements: 3.4, 3.5, 3.6_
+  - [ ]* 2.8 Write property test for schedule data integrity
+    - **Property 9: Schedule Update Data Integrity**
+    - **Validates: Requirements 3.7**
+
+- [x] 3. Checkpoint - Schedule Module Complete
+  - Ensure all schedule tests pass, ask the user if questions arise.
+
+- [x] 4. Display Token Module (Backend)
+  - [x] 4.1 Create DisplayToken model in domain/models
+    - Define struct with GORM tags
+    - Add GenerateToken method using crypto/rand
+    - _Requirements: 5.1, 6.2_
+  - [x] 4.2 Create display token DTOs
+    - CreateDisplayTokenRequest
+    - DisplayTokenResponse, DisplayTokenWithSecretResponse
+    - DisplayTokenValidation
+    - _Requirements: 6.1, 6.3_
+  - [x] 4.3 Implement display token repository
+    - CRUD operations
+    - FindByToken for validation
+    - UpdateLastAccessed
+    - _Requirements: 6.1, 6.7_
+  - [x] 4.4 Implement display token service
+    - CreateToken with secure generation
+    - ValidateToken with expiry check
+    - RevokeToken, RegenerateToken
+    - _Requirements: 5.1, 5.10, 6.2, 6.4, 6.5_
+  - [ ]* 4.5 Write property test for token uniqueness
+    - **Property 12: Display Token Uniqueness**
+    - **Validates: Requirements 5.1, 6.2**
+  - [ ]* 4.6 Write property test for token lifecycle
+    - **Property 16: Token Lifecycle Round-Trip**
+    - **Validates: Requirements 6.5**
+  - [x] 4.7 Create display token handler with routes
+    - Register routes under /api/v1/display-tokens
+    - Add RBAC middleware (admin_sekolah only)
+    - _Requirements: 6.1_
+
+- [x] 5. Checkpoint - Display Token Module Complete
+  - Ensure all display token tests pass, ask the user if questions arise.
+
+- [x] 6. Export Module (Backend)
+  - [x] 6.1 Add excelize dependency for Excel generation
+    - Add github.com/xuri/excelize/v2 to go.mod
+    - _Requirements: 1.1_
+  - [x] 6.2 Create export DTOs
+    - ExportFilter (start_date, end_date, class_id)
+    - MonthlyRecapFilter (month, year, class_id)
+    - MonthlyRecapResponse with student summaries
+    - _Requirements: 1.2, 1.3, 2.1, 2.3, 2.4_
+  - [x] 6.3 Implement export repository methods
+    - GetAttendanceForExport with filters
+    - GetMonthlyRecap with aggregation
+    - _Requirements: 1.2, 1.3, 2.1_
+  - [x] 6.4 Implement export service
+    - ExportAttendanceToExcel with filtering
+    - ExportMonthlyRecap with calculations
+    - Generate proper filename format
+    - _Requirements: 1.1, 1.7, 2.5_
+  - [ ]* 6.5 Write property test for export filter correctness
+    - **Property 1: Export Filter Correctness**
+    - **Validates: Requirements 1.2, 1.3**
+  - [ ]* 6.6 Write property test for monthly recap calculation
+    - **Property 4: Monthly Recap Calculation Correctness**
+    - **Validates: Requirements 2.1, 2.2**
+  - [x] 6.7 Create export handler with routes
+    - GET /api/v1/attendance/export
+    - GET /api/v1/attendance/monthly-recap
+    - GET /api/v1/attendance/monthly-recap/export
+    - Add RBAC middleware (admin_sekolah, wali_kelas)
+    - _Requirements: 1.1, 2.1_
+  - [x] 6.8 Implement role-based filtering for wali_kelas
+    - Filter by assigned class automatically
+    - _Requirements: 2.7_
+  - [ ]* 6.9 Write property test for wali kelas data isolation
+    - **Property 6: Wali Kelas Data Isolation**
+    - **Validates: Requirements 2.7, 4.6**
+
+- [x] 7. Checkpoint - Export Module Complete
+  - Ensure all export tests pass, ask the user if questions arise.
+
+- [x] 8. Real-Time Module (Backend)
+  - [x] 8.1 Add WebSocket dependencies
+    - Add github.com/gofiber/websocket/v2 to go.mod
+    - _Requirements: 4.8_
+  - [x] 8.2 Create real-time DTOs
+    - AttendanceEvent (type, school_id, attendance, stats, leaderboard)
+    - LiveFeedEntry, LeaderboardEntry, AttendanceStats
+    - _Requirements: 4.1, 4.3_
+  - [x] 8.3 Implement WebSocket Hub
+    - Client registration/unregistration
+    - Broadcast to school-specific clients
+    - Filter by class_id if specified
+    - _Requirements: 4.2, 4.5_
+  - [x] 8.4 Implement real-time service
+    - GetLiveFeed (last 20 records)
+    - GetAttendanceStats
+    - GetLeaderboard (top 10 earliest)
+    - BroadcastAttendance
+    - _Requirements: 4.1, 4.3_
+  - [ ]* 8.5 Write property test for live feed limit and order
+    - **Property 10: Live Feed Limit and Order**
+    - **Validates: Requirements 4.3**
+  - [ ]* 8.6 Write property test for stats calculation
+    - **Property 11: Attendance Stats Calculation**
+    - **Validates: Requirements 4.1, 4.10**
+  - [x] 8.7 Create WebSocket handler
+    - /api/v1/ws/attendance for authenticated users
+    - Handle connection upgrade
+    - Implement reconnection support
+    - _Requirements: 4.8, 4.9_
+  - [x] 8.8 Integrate with attendance service
+    - Call BroadcastAttendance after recording attendance
+    - _Requirements: 4.2_
+
+- [x] 9. Checkpoint - Real-Time Module Complete
+  - Ensure all real-time tests pass, ask the user if questions arise.
+
+- [x] 10. Public Display Module (Backend)
+  - [x] 10.1 Create public display DTOs
+    - PublicDisplayData (school_name, current_time, stats, live_feed, leaderboard)
+    - Ensure no sensitive data (NIS, NISN) exposed
+    - _Requirements: 5.4, 5.5, 5.6, 5.7, 5.8, 5.14_
+  - [x] 10.2 Implement public display service
+    - GetPublicDisplayData using display token
+    - Validate token and update last_accessed
+    - _Requirements: 5.3, 5.4, 5.5, 5.6_
+  - [ ]* 10.3 Write property test for data privacy
+    - **Property 13: Public Display Data Privacy**
+    - **Validates: Requirements 5.14**
+  - [ ]* 10.4 Write property test for leaderboard correctness
+    - **Property 15: Leaderboard Correctness**
+    - **Validates: Requirements 5.6**
+  - [x] 10.5 Create public display handler
+    - GET /api/v1/public/display/:token (REST)
+    - GET /api/v1/public/display/:token/ws (WebSocket)
+    - No auth middleware required
+    - _Requirements: 5.3_
+  - [ ]* 10.6 Write property test for token access control
+    - **Property 14: Display Token Access Control**
+    - **Validates: Requirements 5.10, 5.13**
+
+- [x] 11. Checkpoint - Public Display Module Complete
+  - Ensure all public display tests pass, ask the user if questions arise.
+
+- [x] 12. Frontend - Schedule Management
+  - [x] 12.1 Create schedule TypeScript types
+    - AttendanceSchedule, CreateScheduleRequest, UpdateScheduleRequest
+    - _Requirements: 3.1_
+  - [x] 12.2 Create schedule API service
+    - CRUD methods for schedules
+    - _Requirements: 3.1_
+  - [x] 12.3 Create ScheduleManagement.vue page
+    - List schedules with table
+    - Create/Edit modal with form
+    - Delete confirmation
+    - Set default schedule button
+    - _Requirements: 3.1, 3.2, 3.3, 3.8_
+  - [x] 12.4 Add schedule menu item to admin sidebar
+    - Under "Pengaturan" section
+    - _Requirements: 3.1_
+
+- [x] 13. Frontend - Display Token Management
+  - [x] 13.1 Create display token TypeScript types
+    - DisplayToken, CreateDisplayTokenRequest
+    - _Requirements: 6.1_
+  - [x] 13.2 Create display token API service
+    - CRUD methods for tokens
+    - _Requirements: 6.1_
+  - [x] 13.3 Create DisplayTokenManagement.vue page
+    - List tokens with table
+    - Create modal with name input
+    - Show token only once modal (like API key)
+    - Revoke/Regenerate/Delete actions
+    - Copy display URL button
+    - _Requirements: 6.1, 6.3, 6.4, 6.5, 6.6_
+  - [x] 13.4 Add display token menu item to admin sidebar
+    - Under "Pengaturan" section
+    - _Requirements: 6.1_
+
+- [x] 14. Frontend - Export & Monthly Recap
+  - [x] 14.1 Create export TypeScript types
+    - ExportFilter, MonthlyRecapFilter, MonthlyRecapResponse
+    - _Requirements: 1.2, 2.1_
+  - [x] 14.2 Create export API service
+    - exportAttendance, getMonthlyRecap, exportMonthlyRecap
+    - Handle file download
+    - _Requirements: 1.1, 2.5_
+  - [x] 14.3 Add export button to AttendanceMonitoring.vue
+    - Date range picker
+    - Class filter
+    - Export button with loading state
+    - _Requirements: 1.1, 1.2, 1.3_
+  - [x] 14.4 Create MonthlyRecap.vue page
+    - Month/Year selector
+    - Class filter
+    - Summary table with student stats
+    - Export button
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+  - [x] 14.5 Add monthly recap menu item
+    - Under "Absensi" section
+    - _Requirements: 2.1_
+
+- [x] 15. Frontend - Live Attendance Dashboard
+  - [x] 15.1 Create real-time TypeScript types
+    - AttendanceEvent, LiveFeedEntry, AttendanceStats
+    - _Requirements: 4.1_
+  - [x] 15.2 Create WebSocket service
+    - Connect/disconnect methods
+    - Event handlers
+    - Auto-reconnect logic
+    - _Requirements: 4.8, 4.9_
+  - [x] 15.3 Create LiveAttendance.vue page
+    - Stats cards (present, late, absent, percentage)
+    - Live feed list with auto-scroll
+    - Class filter dropdown
+    - Connection status indicator
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.9, 4.10_
+  - [x] 15.4 Add live attendance menu item
+    - Under "Absensi" section with badge indicator
+    - _Requirements: 4.1_
+
+- [x] 16. Frontend - Public Display Page
+  - [x] 16.1 Create PublicDisplay.vue page
+    - Full-screen layout
+    - Large fonts optimized for LCD
+    - School name header
+    - Current date/time (auto-update)
+    - Stats section
+    - Live feed section (last 10)
+    - Leaderboard section (top 10)
+    - _Requirements: 5.4, 5.5, 5.6, 5.7, 5.8, 5.12_
+  - [x] 16.2 Create public display router
+    - Route: /display/:token
+    - No auth guard
+    - _Requirements: 5.3_
+  - [x] 16.3 Implement WebSocket connection for public display
+    - Connect using token
+    - Handle real-time updates
+    - _Requirements: 5.9_
+  - [x] 16.4 Create error page for invalid token
+    - Display friendly error message
+    - _Requirements: 5.13_
+
+- [x] 17. Final Integration & Testing
+  - [x] 17.1 Update attendance recording to broadcast events
+    - Modify RecordRFIDAttendance to call broadcast
+    - _Requirements: 4.2, 5.9_
+  - [x] 17.2 Add schedule info to attendance responses
+    - Include schedule_name in AttendanceResponse
+    - _Requirements: 3.10_
+  - [ ]* 17.3 Write integration tests for end-to-end flows
+    - Export flow
+    - Real-time update flow
+    - Public display access flow
+    - _Requirements: All_
+
+- [x] 18. Final Checkpoint
+  - Ensure all tests pass, ask the user if questions arise.
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for faster MVP
+- Each task references specific requirements for traceability
+- Checkpoints ensure incremental validation
+- Property tests validate universal correctness properties
+- Unit tests validate specific examples and edge cases
+

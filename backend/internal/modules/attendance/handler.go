@@ -13,11 +13,15 @@ import (
 // Handler handles HTTP requests for attendance management
 type Handler struct {
 	service Service
+	repo    Repository
 }
 
 // NewHandler creates a new attendance handler
-func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service Service, repo Repository) *Handler {
+	return &Handler{
+		service: service,
+		repo:    repo,
+	}
 }
 
 // RegisterRoutes registers attendance routes for admin/teachers
@@ -25,12 +29,30 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	attendance := router.Group("/attendance")
 	attendance.Get("", h.GetAttendance)
 	attendance.Get("/summary", h.GetSchoolSummary)
+	attendance.Get("/export", h.ExportAttendance)
+	attendance.Get("/monthly-recap", h.GetMonthlyRecap)
+	attendance.Get("/monthly-recap/export", h.ExportMonthlyRecap)
 	attendance.Get("/class/:classId", h.GetClassAttendance)
 	attendance.Get("/student/:studentId", h.GetStudentAttendance)
 	attendance.Get("/:id", h.GetAttendanceByID)
 	attendance.Post("/manual", h.RecordManualAttendance)
 	attendance.Post("/manual/bulk", h.RecordBulkManualAttendance)
 	attendance.Delete("/:id", h.DeleteAttendance)
+}
+
+// RegisterRoutesWithoutGroup registers attendance routes without creating a sub-group
+func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
+	router.Get("", h.GetAttendance)
+	router.Get("/summary", h.GetSchoolSummary)
+	router.Get("/export", h.ExportAttendance)
+	router.Get("/monthly-recap", h.GetMonthlyRecap)
+	router.Get("/monthly-recap/export", h.ExportMonthlyRecap)
+	router.Get("/class/:classId", h.GetClassAttendance)
+	router.Get("/student/:studentId", h.GetStudentAttendance)
+	router.Get("/:id", h.GetAttendanceByID)
+	router.Post("/manual", h.RecordManualAttendance)
+	router.Post("/manual/bulk", h.RecordBulkManualAttendance)
+	router.Delete("/:id", h.DeleteAttendance)
 }
 
 // RegisterPublicRoutes registers public routes for ESP32 devices
@@ -455,6 +477,258 @@ func (h *Handler) DeleteAttendance(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Data kehadiran berhasil dihapus",
 	})
+}
+
+// ExportAttendance handles exporting attendance data to Excel
+// @Summary Export attendance to Excel
+// @Description Export attendance records to Excel file with optional filters
+// @Tags Attendance
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Param start_date query string true "Start date (YYYY-MM-DD)"
+// @Param end_date query string true "End date (YYYY-MM-DD)"
+// @Param class_id query int false "Filter by class ID"
+// @Success 200 {file} file "Excel file"
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/attendance/export [get]
+func (h *Handler) ExportAttendance(c *fiber.Ctx) error {
+	schoolID, ok := c.Locals("school_id").(uint)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	// Get school name from context (set by auth middleware)
+	schoolName, _ := c.Locals("school_name").(string)
+	if schoolName == "" {
+		schoolName = "school"
+	}
+
+	// Parse filter parameters
+	filter := ExportFilter{
+		StartDate: c.Query("start_date"),
+		EndDate:   c.Query("end_date"),
+	}
+
+	// Parse class_id if provided
+	if classIDStr := c.Query("class_id"); classIDStr != "" {
+		if classID, err := strconv.ParseUint(classIDStr, 10, 32); err == nil {
+			id := uint(classID)
+			filter.ClassID = &id
+		}
+	}
+
+	// Requirements: 2.7 - Wali_Kelas only sees their assigned class
+	role, _ := c.Locals("role").(string)
+	if role == "wali_kelas" {
+		userID, _ := c.Locals("userID").(uint)
+		if userID > 0 {
+			class, err := h.repo.FindClassByHomeroomTeacher(c.Context(), schoolID, userID)
+			if err == nil && class != nil {
+				filter.ClassID = &class.ID
+			}
+		}
+	}
+
+	// Generate Excel file
+	excelData, filename, err := h.service.ExportAttendanceToExcel(c.Context(), schoolID, schoolName, filter)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	// Set response headers for file download
+	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Set("Content-Disposition", "attachment; filename="+filename)
+	c.Set("Content-Length", strconv.Itoa(len(excelData)))
+
+	return c.Send(excelData)
+}
+
+// GetMonthlyRecap handles getting monthly attendance recap
+// @Summary Get monthly attendance recap
+// @Description Get monthly attendance summary per student
+// @Tags Attendance
+// @Produce json
+// @Param month query int true "Month (1-12)"
+// @Param year query int true "Year (e.g., 2024)"
+// @Param class_id query int false "Filter by class ID"
+// @Success 200 {object} MonthlyRecapResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/attendance/monthly-recap [get]
+func (h *Handler) GetMonthlyRecap(c *fiber.Ctx) error {
+	schoolID, ok := c.Locals("school_id").(uint)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	// Parse filter parameters
+	month, err := strconv.Atoi(c.Query("month"))
+	if err != nil || month < 1 || month > 12 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Bulan harus antara 1-12",
+			},
+		})
+	}
+
+	year, err := strconv.Atoi(c.Query("year"))
+	if err != nil || year < 2000 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Tahun tidak valid",
+			},
+		})
+	}
+
+	filter := MonthlyRecapFilter{
+		Month: month,
+		Year:  year,
+	}
+
+	// Parse class_id if provided
+	if classIDStr := c.Query("class_id"); classIDStr != "" {
+		if classID, err := strconv.ParseUint(classIDStr, 10, 32); err == nil {
+			id := uint(classID)
+			filter.ClassID = &id
+		}
+	}
+
+	// Requirements: 2.7 - Wali_Kelas only sees their assigned class
+	role, _ := c.Locals("role").(string)
+	if role == "wali_kelas" {
+		userID, _ := c.Locals("userID").(uint)
+		if userID > 0 {
+			class, err := h.repo.FindClassByHomeroomTeacher(c.Context(), schoolID, userID)
+			if err == nil && class != nil {
+				filter.ClassID = &class.ID
+			}
+		}
+	}
+
+	// Get monthly recap
+	response, err := h.service.GetMonthlyRecap(c.Context(), schoolID, filter)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// ExportMonthlyRecap handles exporting monthly recap to Excel
+// @Summary Export monthly recap to Excel
+// @Description Export monthly attendance recap to Excel file
+// @Tags Attendance
+// @Produce application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+// @Param month query int true "Month (1-12)"
+// @Param year query int true "Year (e.g., 2024)"
+// @Param class_id query int false "Filter by class ID"
+// @Success 200 {file} file "Excel file"
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/attendance/monthly-recap/export [get]
+func (h *Handler) ExportMonthlyRecap(c *fiber.Ctx) error {
+	schoolID, ok := c.Locals("school_id").(uint)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	// Get school name from context
+	schoolName, _ := c.Locals("school_name").(string)
+	if schoolName == "" {
+		schoolName = "school"
+	}
+
+	// Parse filter parameters
+	month, err := strconv.Atoi(c.Query("month"))
+	if err != nil || month < 1 || month > 12 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Bulan harus antara 1-12",
+			},
+		})
+	}
+
+	year, err := strconv.Atoi(c.Query("year"))
+	if err != nil || year < 2000 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Tahun tidak valid",
+			},
+		})
+	}
+
+	filter := MonthlyRecapFilter{
+		Month: month,
+		Year:  year,
+	}
+
+	// Parse class_id if provided
+	if classIDStr := c.Query("class_id"); classIDStr != "" {
+		if classID, err := strconv.ParseUint(classIDStr, 10, 32); err == nil {
+			id := uint(classID)
+			filter.ClassID = &id
+		}
+	}
+
+	// Requirements: 2.7 - Wali_Kelas only sees their assigned class
+	role, _ := c.Locals("role").(string)
+	if role == "wali_kelas" {
+		userID, _ := c.Locals("userID").(uint)
+		if userID > 0 {
+			class, err := h.repo.FindClassByHomeroomTeacher(c.Context(), schoolID, userID)
+			if err == nil && class != nil {
+				filter.ClassID = &class.ID
+			}
+		}
+	}
+
+	// Generate Excel file
+	excelData, filename, err := h.service.ExportMonthlyRecapToExcel(c.Context(), schoolID, schoolName, filter)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	// Set response headers for file download
+	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Set("Content-Disposition", "attachment; filename="+filename)
+	c.Set("Content-Length", strconv.Itoa(len(excelData)))
+
+	return c.Send(excelData)
 }
 
 // handleError handles service errors and returns appropriate HTTP responses

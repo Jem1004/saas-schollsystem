@@ -16,9 +16,13 @@ func TenantMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role, _ := c.Locals("role").(string)
 		username, _ := c.Locals("username").(string)
+		userID, _ := c.Locals("userID").(uint)
 
-		// Super admin can access all tenants
+		// Super admin can access all tenants - but they need to specify which school
+		// For settings, super admin should not access without school context
 		if role == string(models.RoleSuperAdmin) {
+			// Check if there's a school_id in query or header for super admin
+			// For now, just pass through - handler will check for tenantID
 			return c.Next()
 		}
 
@@ -40,19 +44,16 @@ func TenantMiddleware() fiber.Handler {
 
 		// For non-super_admin users, school_id must be present
 		if schoolID == nil {
-			// Log for debugging
-			c.Append("X-Debug-User", username)
-			c.Append("X-Debug-Role", role)
-			
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_TENANT_REQUIRED",
 					"message": "Konteks sekolah diperlukan. Pastikan akun Anda terhubung dengan sekolah.",
 					"debug": fiber.Map{
+						"user_id":  userID,
 						"username": username,
 						"role":     role,
-						"hint":     "User tidak memiliki school_id di token JWT. Silakan login ulang dengan akun yang memiliki school_id.",
+						"hint":     "User tidak memiliki school_id di token JWT. Silakan login ulang atau hubungi administrator.",
 					},
 				},
 			})

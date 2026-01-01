@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/school-management/backend/internal/domain/models"
+	"github.com/school-management/backend/internal/middleware"
 )
 
 // Handler handles HTTP requests for SchoolSettings management
@@ -17,11 +19,43 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+// checkAdminRole checks if the user has admin_sekolah role
+// Settings page is only for admin_sekolah - super_admin and guru_bk don't need access
+func (h *Handler) checkAdminRole(c *fiber.Ctx) error {
+	role, ok := c.Locals("role").(string)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_ROLE_DENIED",
+				"message": "Role tidak ditemukan",
+			},
+		})
+	}
+
+	userRole := models.UserRole(role)
+	if userRole != models.RoleAdminSekolah {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_ROLE_DENIED",
+				"message": "Anda tidak memiliki izin untuk mengakses pengaturan sekolah",
+				"debug": fiber.Map{
+					"your_role":     role,
+					"allowed_roles": []string{"admin_sekolah"},
+				},
+			},
+		})
+	}
+
+	return nil
+}
+
 // RegisterRoutes registers Settings routes for Admin Sekolah
 func (h *Handler) RegisterRoutes(router fiber.Router) {
 	settings := router.Group("/settings")
 
-	// Settings CRUD
+	// Settings CRUD - with role check
 	settings.Get("", h.GetSettings)
 	settings.Put("", h.UpdateSettings)
 	settings.Post("/reset", h.ResetToDefaults)
@@ -48,7 +82,12 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 // @Security BearerAuth
 // @Router /api/v1/settings [get]
 func (h *Handler) GetSettings(c *fiber.Ctx) error {
-	schoolID, ok := c.Locals("school_id").(uint)
+	// Check role first
+	if err := h.checkAdminRole(c); err != nil {
+		return err
+	}
+
+	schoolID, ok := middleware.GetTenantID(c)
 	if !ok {
 		return h.tenantRequiredError(c)
 	}
@@ -78,7 +117,12 @@ func (h *Handler) GetSettings(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /api/v1/settings [put]
 func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
-	schoolID, ok := c.Locals("school_id").(uint)
+	// Check role first
+	if err := h.checkAdminRole(c); err != nil {
+		return err
+	}
+
+	schoolID, ok := middleware.GetTenantID(c)
 	if !ok {
 		return h.tenantRequiredError(c)
 	}
@@ -111,7 +155,12 @@ func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /api/v1/settings/reset [post]
 func (h *Handler) ResetToDefaults(c *fiber.Ctx) error {
-	schoolID, ok := c.Locals("school_id").(uint)
+	// Check role first
+	if err := h.checkAdminRole(c); err != nil {
+		return err
+	}
+
+	schoolID, ok := middleware.GetTenantID(c)
 	if !ok {
 		return h.tenantRequiredError(c)
 	}
@@ -142,7 +191,12 @@ func (h *Handler) ResetToDefaults(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /api/v1/settings/attendance [put]
 func (h *Handler) UpdateAttendanceSettings(c *fiber.Ctx) error {
-	schoolID, ok := c.Locals("school_id").(uint)
+	// Check role first
+	if err := h.checkAdminRole(c); err != nil {
+		return err
+	}
+
+	schoolID, ok := middleware.GetTenantID(c)
 	if !ok {
 		return h.tenantRequiredError(c)
 	}
@@ -179,7 +233,12 @@ func (h *Handler) UpdateAttendanceSettings(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /api/v1/settings/notifications [put]
 func (h *Handler) UpdateNotificationSettings(c *fiber.Ctx) error {
-	schoolID, ok := c.Locals("school_id").(uint)
+	// Check role first
+	if err := h.checkAdminRole(c); err != nil {
+		return err
+	}
+
+	schoolID, ok := middleware.GetTenantID(c)
 	if !ok {
 		return h.tenantRequiredError(c)
 	}
@@ -215,7 +274,12 @@ func (h *Handler) UpdateNotificationSettings(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /api/v1/settings/academic [put]
 func (h *Handler) UpdateAcademicSettings(c *fiber.Ctx) error {
-	schoolID, ok := c.Locals("school_id").(uint)
+	// Check role first
+	if err := h.checkAdminRole(c); err != nil {
+		return err
+	}
+
+	schoolID, ok := middleware.GetTenantID(c)
 	if !ok {
 		return h.tenantRequiredError(c)
 	}
@@ -250,7 +314,12 @@ func (h *Handler) UpdateAcademicSettings(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /api/v1/settings/attendance-window [get]
 func (h *Handler) GetAttendanceTimeWindow(c *fiber.Ctx) error {
-	schoolID, ok := c.Locals("school_id").(uint)
+	// Check role first
+	if err := h.checkAdminRole(c); err != nil {
+		return err
+	}
+
+	schoolID, ok := middleware.GetTenantID(c)
 	if !ok {
 		return h.tenantRequiredError(c)
 	}

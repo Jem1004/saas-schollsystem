@@ -25,6 +25,9 @@ func RoleMiddleware(allowedRoles ...models.UserRole) fiber.Handler {
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
 					"message": "Akses ditolak",
+					"debug": fiber.Map{
+						"reason": "role not found in context",
+					},
 				},
 			})
 		}
@@ -36,11 +39,21 @@ func RoleMiddleware(allowedRoles ...models.UserRole) fiber.Handler {
 			}
 		}
 
+		// Convert allowed roles to strings for debug output
+		allowedRoleStrings := make([]string, len(allowedRoles))
+		for i, r := range allowedRoles {
+			allowedRoleStrings[i] = string(r)
+		}
+
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_ROLE_DENIED",
 				"message": "Anda tidak memiliki izin untuk mengakses sumber daya ini",
+				"debug": fiber.Map{
+					"your_role":     role,
+					"allowed_roles": allowedRoleStrings,
+				},
 			},
 		})
 	}

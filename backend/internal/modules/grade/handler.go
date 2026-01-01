@@ -37,6 +37,23 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	grades.Get("/class/:classId", h.GetClassGrades)
 }
 
+// RegisterRoutesWithoutGroup registers Grade routes without creating a sub-group
+func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
+	// Grade CRUD
+	router.Get("", h.GetGrades)
+	router.Post("", h.CreateGrade)
+	router.Get("/:id", h.GetGradeByID)
+	router.Put("/:id", h.UpdateGrade)
+	router.Delete("/:id", h.DeleteGrade)
+
+	// Student grades
+	router.Get("/student/:studentId", h.GetStudentGrades)
+	router.Get("/student/:studentId/summary", h.GetStudentGradeSummary)
+
+	// Class grades
+	router.Get("/class/:classId", h.GetClassGrades)
+}
+
 // ==================== Grade Handlers ====================
 
 // CreateGrade handles creating a new grade

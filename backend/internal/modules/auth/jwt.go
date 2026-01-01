@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -25,12 +26,47 @@ type JWTManager struct {
 
 // jwtClaims represents the JWT claims structure
 type jwtClaims struct {
-	UserID   uint   `json:"user_id"`
-	SchoolID *uint  `json:"school_id"`
-	Role     string `json:"role"`
-	Username string `json:"username"`
-	Type     string `json:"type"` // "access" or "refresh"
+	UserID   uint    `json:"user_id"`
+	SchoolID *uint   `json:"school_id"`
+	Role     string  `json:"role"`
+	Username string  `json:"username"`
+	Type     string  `json:"type"` // "access" or "refresh"
 	jwt.RegisteredClaims
+}
+
+// Custom UnmarshalJSON to handle school_id properly
+func (c *jwtClaims) UnmarshalJSON(data []byte) error {
+	// Use a temporary struct with interface{} for school_id
+	type Alias jwtClaims
+	aux := &struct {
+		SchoolID interface{} `json:"school_id"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+	
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	
+	// Handle school_id conversion
+	if aux.SchoolID != nil {
+		switch v := aux.SchoolID.(type) {
+		case float64:
+			schoolID := uint(v)
+			c.SchoolID = &schoolID
+		case int:
+			schoolID := uint(v)
+			c.SchoolID = &schoolID
+		case int64:
+			schoolID := uint(v)
+			c.SchoolID = &schoolID
+		case uint:
+			c.SchoolID = &v
+		}
+	}
+	
+	return nil
 }
 
 // NewJWTManager creates a new JWT manager

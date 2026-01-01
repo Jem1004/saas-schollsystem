@@ -25,6 +25,13 @@ func (h *PairingHandler) RegisterRoutes(router fiber.Router) {
 	pairing.Get("/status/:deviceId", h.GetPairingStatus)
 }
 
+// RegisterRoutesWithoutGroup registers pairing routes without creating a sub-group
+func (h *PairingHandler) RegisterRoutesWithoutGroup(router fiber.Router) {
+	router.Post("/start", h.StartPairing)
+	router.Post("/cancel/:deviceId", h.CancelPairing)
+	router.Get("/status/:deviceId", h.GetPairingStatus)
+}
+
 // RegisterPublicRoutes registers public routes for ESP32 devices
 func (h *PairingHandler) RegisterPublicRoutes(router fiber.Router) {
 	router.Post("/pairing/rfid", h.ProcessRFIDPairing)

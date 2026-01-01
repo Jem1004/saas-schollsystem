@@ -37,6 +37,23 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	notes.Get("/class/:classId", h.GetClassNotes)
 }
 
+// RegisterRoutesWithoutGroup registers Homeroom routes without creating a sub-group
+func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
+	// Note CRUD
+	router.Get("", h.GetNotes)
+	router.Post("", h.CreateNote)
+	router.Get("/:id", h.GetNoteByID)
+	router.Put("/:id", h.UpdateNote)
+	router.Delete("/:id", h.DeleteNote)
+
+	// Student notes
+	router.Get("/student/:studentId", h.GetStudentNotes)
+	router.Get("/student/:studentId/summary", h.GetStudentNoteSummary)
+
+	// Class notes
+	router.Get("/class/:classId", h.GetClassNotes)
+}
+
 // ==================== Note Handlers ====================
 
 // CreateNote handles creating a new homeroom note

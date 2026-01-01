@@ -16,6 +16,7 @@ import "errors"
 //
 // Attendance:
 //   - attendance.go: Attendance record model
+//   - attendance_schedule.go: Attendance schedule model for multi-schedule support
 //
 // BK (Counseling) Models:
 //   - violation.go: Violation record model
@@ -30,6 +31,9 @@ import "errors"
 // Device & Notification:
 //   - device.go: RFID device (ESP32) model
 //   - notification.go: Notification and FCM token models
+//
+// Display:
+//   - display_token.go: Display token model for public display access
 //
 // Settings:
 //   - school_settings.go: School-specific settings model
@@ -59,6 +63,7 @@ func AllModels() []interface{} {
 
 		// Attendance
 		&Attendance{},
+		&AttendanceSchedule{},
 
 		// BK models
 		&Violation{},
@@ -77,6 +82,9 @@ func AllModels() []interface{} {
 
 		// Settings
 		&SchoolSettings{},
+
+		// Display
+		&DisplayToken{},
 
 		// Outbox
 		&OutboxEvent{},

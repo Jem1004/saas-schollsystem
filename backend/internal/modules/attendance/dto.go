@@ -48,6 +48,8 @@ type AttendanceResponse struct {
 	StudentNIS   string                  `json:"student_nis,omitempty"`
 	StudentNISN  string                  `json:"student_nisn,omitempty"`
 	ClassName    string                  `json:"class_name,omitempty"`
+	ScheduleID   *uint                   `json:"schedule_id,omitempty"`
+	ScheduleName string                  `json:"schedule_name,omitempty"` // Requirements: 3.10 - Show which schedule the attendance belongs to
 	Date         string                  `json:"date"` // Format: YYYY-MM-DD
 	CheckInTime  *string                 `json:"check_in_time,omitempty"`
 	CheckOutTime *string                 `json:"check_out_time,omitempty"`
@@ -141,4 +143,70 @@ func DefaultAttendanceFilter() AttendanceFilter {
 		Page:     1,
 		PageSize: 20,
 	}
+}
+
+// ==================== Export DTOs ====================
+
+// ExportFilter represents filter options for exporting attendance data
+// Requirements: 1.2, 1.3 - Allow filtering by date range and class
+type ExportFilter struct {
+	StartDate string `query:"start_date" validate:"required"` // Format: YYYY-MM-DD
+	EndDate   string `query:"end_date" validate:"required"`   // Format: YYYY-MM-DD
+	ClassID   *uint  `query:"class_id"`
+}
+
+// MonthlyRecapFilter represents filter options for monthly recap
+// Requirements: 2.3, 2.4 - Allow filtering by month, year, and class
+type MonthlyRecapFilter struct {
+	Month   int   `query:"month" validate:"required,min=1,max=12"` // 1-12
+	Year    int   `query:"year" validate:"required,min=2000"`      // e.g., 2024
+	ClassID *uint `query:"class_id"`
+}
+
+// MonthlyRecapResponse represents the monthly recap data
+// Requirements: 2.1 - Display summary per student including total days present, late, very late, and absent
+type MonthlyRecapResponse struct {
+	Month          int                       `json:"month"`
+	Year           int                       `json:"year"`
+	TotalDays      int                       `json:"total_days"`       // Total school days in the month
+	ClassID        *uint                     `json:"class_id,omitempty"`
+	ClassName      string                    `json:"class_name,omitempty"`
+	StudentRecaps  []StudentRecapSummary     `json:"student_recaps"`
+}
+
+// StudentRecapSummary represents attendance summary for a single student
+// Requirements: 2.1, 2.2 - Summary per student with attendance percentage
+type StudentRecapSummary struct {
+	StudentID         uint    `json:"student_id"`
+	StudentNIS        string  `json:"student_nis"`
+	StudentNISN       string  `json:"student_nisn"`
+	StudentName       string  `json:"student_name"`
+	ClassName         string  `json:"class_name"`
+	TotalPresent      int     `json:"total_present"`
+	TotalLate         int     `json:"total_late"`
+	TotalVeryLate     int     `json:"total_very_late"`
+	TotalAbsent       int     `json:"total_absent"`
+	AttendancePercent float64 `json:"attendance_percent"` // (present / total_days) * 100
+}
+
+// ExportAttendanceRecord represents a single attendance record for export
+// Requirements: 1.4, 1.5 - Include student info and attendance details
+type ExportAttendanceRecord struct {
+	StudentNIS   string `json:"student_nis"`
+	StudentNISN  string `json:"student_nisn"`
+	StudentName  string `json:"student_name"`
+	ClassName    string `json:"class_name"`
+	Date         string `json:"date"`
+	CheckInTime  string `json:"check_in_time"`
+	CheckOutTime string `json:"check_out_time"`
+	Status       string `json:"status"`
+	ScheduleName string `json:"schedule_name,omitempty"`
+}
+
+// DailyAttendanceDetail represents daily attendance detail for monthly recap export
+type DailyAttendanceDetail struct {
+	Date         string `json:"date"`
+	CheckInTime  string `json:"check_in_time"`
+	CheckOutTime string `json:"check_out_time"`
+	Status       string `json:"status"`
 }

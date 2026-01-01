@@ -45,6 +45,7 @@ func (s AttendanceStatus) IsValid() bool {
 type Attendance struct {
 	ID           uint             `gorm:"primaryKey" json:"id"`
 	StudentID    uint             `gorm:"index;not null" json:"student_id"`
+	ScheduleID   *uint            `gorm:"index" json:"schedule_id"`
 	Date         time.Time        `gorm:"type:date;index;not null" json:"date"`
 	CheckInTime  *time.Time       `json:"check_in_time"`
 	CheckOutTime *time.Time       `json:"check_out_time"`
@@ -54,7 +55,8 @@ type Attendance struct {
 	UpdatedAt    time.Time        `json:"updated_at"`
 
 	// Relations
-	Student Student `gorm:"foreignKey:StudentID" json:"student,omitempty"`
+	Student  Student             `gorm:"foreignKey:StudentID" json:"student,omitempty"`
+	Schedule *AttendanceSchedule `gorm:"foreignKey:ScheduleID" json:"schedule,omitempty"`
 }
 
 // TableName specifies the table name for Attendance
