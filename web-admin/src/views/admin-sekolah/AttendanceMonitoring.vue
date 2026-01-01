@@ -19,7 +19,6 @@ import {
 import type { TableProps } from 'ant-design-vue'
 import {
   ReloadOutlined,
-  DownloadOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -42,27 +41,8 @@ const filterClassId = ref<number | undefined>(undefined)
 const classes = ref<Class[]>([])
 const loadingClasses = ref(false)
 
-// Export state
-const exporting = ref(false)
-
-// Mock data for development
-const mockAttendance: AttendanceSummary[] = [
-  { date: dayjs().format('YYYY-MM-DD'), classId: 1, className: 'VII-A', totalStudents: 30, present: 28, absent: 1, late: 1, excused: 0 },
-  { date: dayjs().format('YYYY-MM-DD'), classId: 2, className: 'VII-B', totalStudents: 30, present: 29, absent: 0, late: 1, excused: 0 },
-  { date: dayjs().format('YYYY-MM-DD'), classId: 3, className: 'VIII-A', totalStudents: 32, present: 30, absent: 1, late: 1, excused: 0 },
-  { date: dayjs().format('YYYY-MM-DD'), classId: 4, className: 'VIII-B', totalStudents: 28, present: 27, absent: 0, late: 1, excused: 0 },
-  { date: dayjs().format('YYYY-MM-DD'), classId: 5, className: 'IX-A', totalStudents: 30, present: 28, absent: 2, late: 0, excused: 0 },
-  { date: dayjs().format('YYYY-MM-DD'), classId: 6, className: 'IX-B', totalStudents: 29, present: 27, absent: 1, late: 1, excused: 0 },
-]
-
-const mockClasses: Class[] = [
-  { id: 1, schoolId: 1, name: 'VII-A', grade: 7, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 2, schoolId: 1, name: 'VII-B', grade: 7, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 3, schoolId: 1, name: 'VIII-A', grade: 8, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 4, schoolId: 1, name: 'VIII-B', grade: 8, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 5, schoolId: 1, name: 'IX-A', grade: 9, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 6, schoolId: 1, name: 'IX-B', grade: 9, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-]
+// Export state - temporarily disabled
+// const exporting = ref(false)
 
 // Table columns
 const columns: TableProps['columns'] = [
@@ -144,12 +124,13 @@ const loadAttendance = async () => {
   try {
     const response = await schoolService.getAttendanceSummary({
       date: selectedDate.value.format('YYYY-MM-DD'),
-      classId: filterClassId.value,
+      class_id: filterClassId.value,
     })
     attendanceData.value = response.data
-  } catch {
-    // Use mock data on error
-    attendanceData.value = mockAttendance
+  } catch (err) {
+    console.error('Failed to load attendance:', err)
+    message.error('Gagal memuat data absensi')
+    attendanceData.value = []
   } finally {
     loading.value = false
   }
@@ -159,10 +140,11 @@ const loadAttendance = async () => {
 const loadClasses = async () => {
   loadingClasses.value = true
   try {
-    const response = await schoolService.getClasses({ pageSize: 100 })
-    classes.value = response.data
-  } catch {
-    classes.value = mockClasses
+    const response = await schoolService.getClasses({ page_size: 100 })
+    classes.value = response.classes
+  } catch (err) {
+    console.error('Failed to load classes:', err)
+    classes.value = []
   } finally {
     loadingClasses.value = false
   }
@@ -181,36 +163,36 @@ const handleClassFilterChange = () => {
   loadAttendance()
 }
 
-// Handle export
-const handleExport = async () => {
-  exporting.value = true
-  try {
-    const startDate = selectedDate.value.startOf('month').format('YYYY-MM-DD')
-    const endDate = selectedDate.value.endOf('month').format('YYYY-MM-DD')
-    
-    const blob = await schoolService.exportAttendance({
-      startDate,
-      endDate,
-      classId: filterClassId.value,
-    })
-    
-    // Create download link
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `attendance_${selectedDate.value.format('YYYY-MM')}.xlsx`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-    
-    message.success('Laporan berhasil diunduh')
-  } catch {
-    message.error('Gagal mengunduh laporan')
-  } finally {
-    exporting.value = false
-  }
-}
+// Handle export - temporarily disabled
+// const handleExport = async () => {
+//   exporting.value = true
+//   try {
+//     const startDate = selectedDate.value.startOf('month').format('YYYY-MM-DD')
+//     const endDate = selectedDate.value.endOf('month').format('YYYY-MM-DD')
+//     
+//     const blob = await schoolService.exportAttendance({
+//       start_date: startDate,
+//       end_date: endDate,
+//       class_id: filterClassId.value,
+//     })
+//     
+//     // Create download link
+//     const url = window.URL.createObjectURL(blob)
+//     const link = document.createElement('a')
+//     link.href = url
+//     link.download = `attendance_${selectedDate.value.format('YYYY-MM')}.xlsx`
+//     document.body.appendChild(link)
+//     link.click()
+//     document.body.removeChild(link)
+//     window.URL.revokeObjectURL(url)
+//     
+//     message.success('Laporan berhasil diunduh')
+//   } catch {
+//     message.error('Gagal mengunduh laporan')
+//   } finally {
+//     exporting.value = false
+//   }
+// }
 
 // Format date for display
 const formattedDate = computed(() => {
@@ -316,10 +298,13 @@ onMounted(() => {
               <template #icon><ReloadOutlined /></template>
               Refresh
             </Button>
+            <!-- Export feature temporarily disabled -->
+            <!--
             <Button type="primary" :loading="exporting" @click="handleExport">
               <template #icon><DownloadOutlined /></template>
               Export
             </Button>
+            -->
           </Space>
         </Col>
       </Row>

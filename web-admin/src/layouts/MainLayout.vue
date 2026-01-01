@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   Layout,
@@ -13,6 +13,12 @@ import {
   Button,
   Badge,
   Tag,
+  List,
+  ListItem,
+  ListItemMeta,
+  Empty,
+  Spin,
+  Typography,
 } from 'ant-design-vue'
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface'
 import {
@@ -34,10 +40,16 @@ import {
   SolutionOutlined,
   FormOutlined,
   EyeOutlined,
+  CheckOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePermissions, getRoleDisplayName, getRoleColor } from '@/composables/usePermissions'
+import { notificationService } from '@/services'
+import type { Notification } from '@/types/notification'
 import type { UserRole } from '@/types/user'
+
+const { Text } = Typography
 
 interface MenuItemConfig {
   key: string
@@ -57,6 +69,16 @@ usePermissions()
 const collapsed = ref(false)
 const selectedKeys = ref<string[]>(['dashboard'])
 const openKeys = ref<string[]>([])
+
+// Notification state
+const notificationDropdownVisible = ref(false)
+const notifications = ref<Notification[]>([])
+const unreadCount = ref(0)
+const notificationLoading = ref(false)
+let notificationInterval: ReturnType<typeof setInterval> | null = null
+
+// Check if user is super admin
+const isSuperAdmin = computed(() => authStore.userRole === 'super_admin')
 
 // Update selected keys based on current route
 watch(
@@ -207,7 +229,6 @@ const allMenuItems: MenuItemConfig[] = [
 const menuItems = computed(() => {
   const role = authStore.userRole as UserRole | null
   if (!role) {
-    // Return empty menu if no role (should redirect to login)
     return []
   }
   return allMenuItems.filter(item => item.roles.includes(role))
@@ -225,6 +246,94 @@ function handleLogout() {
   router.push('/login')
 }
 
+function goToProfile() {
+  router.push('/profile')
+}
+
+function goToSettings() {
+  router.push('/account-settings')
+}
+
+// Notification functions
+async function loadNotifications() {
+  if (isSuperAdmin.value) return
+  
+  notificationLoading.value = true
+  try {
+    const response = await notificationService.getNotifications({ pageSize: 10, unreadOnly: false })
+    notifications.value = response.data || []
+    unreadCount.value = response.unreadCount || 0
+  } catch {
+    // Silently fail - notifications are not critical
+    notifications.value = []
+    unreadCount.value = 0
+  } finally {
+    notificationLoading.value = false
+  }
+}
+
+async function loadUnreadCount() {
+  if (isSuperAdmin.value) return
+  
+  try {
+    unreadCount.value = await notificationService.getUnreadCount()
+  } catch {
+    // Silently fail
+  }
+}
+
+async function markAsRead(notification: Notification) {
+  if (notification.isRead) return
+  
+  try {
+    await notificationService.markAsRead(notification.id)
+    notification.isRead = true
+    unreadCount.value = Math.max(0, unreadCount.value - 1)
+  } catch {
+    // Silently fail
+  }
+}
+
+async function markAllAsRead() {
+  try {
+    await notificationService.markAllAsRead()
+    notifications.value.forEach(n => n.isRead = true)
+    unreadCount.value = 0
+  } catch {
+    // Silently fail
+  }
+}
+
+function formatNotificationTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  
+  if (diffMins < 1) return 'Baru saja'
+  if (diffMins < 60) return diffMins + ' menit lalu'
+  if (diffHours < 24) return diffHours + ' jam lalu'
+  if (diffDays < 7) return diffDays + ' hari lalu'
+  
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+}
+
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case 'attendance_checkin':
+    case 'attendance_checkout':
+      return ClockCircleOutlined
+    case 'violation':
+      return SafetyOutlined
+    case 'achievement':
+      return TrophyOutlined
+    default:
+      return BellOutlined
+  }
+}
+
 // Get role display name
 const roleDisplayName = computed(() => {
   return authStore.userRole ? getRoleDisplayName(authStore.userRole) : 'User'
@@ -233,6 +342,20 @@ const roleDisplayName = computed(() => {
 // Get role color
 const roleTagColor = computed(() => {
   return authStore.userRole ? getRoleColor(authStore.userRole) : 'default'
+})
+
+onMounted(() => {
+  if (!isSuperAdmin.value) {
+    loadNotifications()
+    // Poll for new notifications every 60 seconds
+    notificationInterval = setInterval(loadUnreadCount, 60000)
+  }
+})
+
+onUnmounted(() => {
+  if (notificationInterval) {
+    clearInterval(notificationInterval)
+  }
 })
 </script>
 
@@ -280,22 +403,72 @@ const roleTagColor = computed(() => {
         </div>
 
         <div class="header-right">
-          <Badge :count="0" class="notification-badge">
-            <Button type="text" class="icon-btn">
-              <BellOutlined />
-            </Button>
-          </Badge>
+          <!-- Notification Bell (hidden for super_admin) -->
+          <Dropdown 
+            v-if="!isSuperAdmin"
+            v-model:open="notificationDropdownVisible"
+            placement="bottomRight"
+            :trigger="['click']"
+            @openChange="(visible: boolean) => visible && loadNotifications()"
+          >
+            <template #overlay>
+              <div class="notification-dropdown">
+                <div class="notification-header">
+                  <Text strong>Notifikasi</Text>
+                  <Button v-if="unreadCount > 0" type="link" size="small" @click="markAllAsRead">
+                    <CheckOutlined /> Tandai semua dibaca
+                  </Button>
+                </div>
+                <div class="notification-content">
+                  <Spin v-if="notificationLoading" />
+                  <Empty v-else-if="notifications.length === 0" description="Tidak ada notifikasi" :image="Empty.PRESENTED_IMAGE_SIMPLE" />
+                  <List v-else item-layout="horizontal" :data-source="notifications" size="small">
+                    <template #renderItem="{ item }">
+                      <ListItem 
+                        :class="['notification-item', { unread: !item.isRead }]"
+                        @click="markAsRead(item)"
+                      >
+                        <ListItemMeta>
+                          <template #avatar>
+                            <Avatar :style="{ backgroundColor: item.isRead ? '#d9d9d9' : '#f97316' }" size="small">
+                              <template #icon><component :is="getNotificationIcon(item.type)" /></template>
+                            </Avatar>
+                          </template>
+                          <template #title>
+                            <Text :strong="!item.isRead" style="font-size: 13px">{{ item.title }}</Text>
+                          </template>
+                          <template #description>
+                            <div>
+                              <Text type="secondary" style="font-size: 12px">{{ item.message }}</Text>
+                              <br />
+                              <Text type="secondary" style="font-size: 11px">{{ formatNotificationTime(item.createdAt) }}</Text>
+                            </div>
+                          </template>
+                        </ListItemMeta>
+                      </ListItem>
+                    </template>
+                  </List>
+                </div>
+              </div>
+            </template>
+            <Badge :count="unreadCount" :overflow-count="99" class="notification-badge">
+              <Button type="text" class="icon-btn">
+                <BellOutlined />
+              </Button>
+            </Badge>
+          </Dropdown>
 
+          <!-- User Dropdown -->
           <Dropdown placement="bottomRight">
             <template #overlay>
               <Menu>
-                <MenuItem key="profile">
+                <MenuItem key="profile" @click="goToProfile">
                   <UserOutlined />
-                  <span style="margin-left: 8px">Profile</span>
+                  <span style="margin-left: 8px">Profil</span>
                 </MenuItem>
-                <MenuItem key="settings">
+                <MenuItem key="settings" @click="goToSettings">
                   <SettingOutlined />
-                  <span style="margin-left: 8px">Settings</span>
+                  <span style="margin-left: 8px">Pengaturan</span>
                 </MenuItem>
                 <Menu.Divider />
                 <MenuItem key="logout" @click="handleLogout">
@@ -411,6 +584,41 @@ const roleTagColor = computed(() => {
   font-size: 18px;
   width: 40px;
   height: 40px;
+}
+
+.notification-dropdown {
+  width: 360px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.notification-content {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.notification-item {
+  padding: 8px 16px !important;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.notification-item:hover {
+  background-color: #f5f5f5;
+}
+
+.notification-item.unread {
+  background-color: #fff7e6;
 }
 
 .user-info {

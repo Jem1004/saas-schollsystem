@@ -70,33 +70,15 @@ const formRules = {
   academicYear: [{ required: true, message: 'Tahun ajaran wajib diisi' }],
 }
 
-// Mock data for development
-const mockSettings: SchoolSettings = {
-  id: 1,
-  schoolId: 1,
-  attendanceStartTime: '07:00',
-  attendanceEndTime: '07:30',
-  attendanceLateThreshold: 30,
-  attendanceVeryLateThreshold: 60,
-  enableAttendanceNotification: true,
-  enableGradeNotification: true,
-  enableBKNotification: true,
-  enableHomeroomNotification: true,
-  academicYear: '2024/2025',
-  semester: 1,
-  createdAt: '2024-01-15T10:00:00Z',
-  updatedAt: '2024-01-15T10:00:00Z',
-}
-
 // Load settings
 const loadSettings = async () => {
   loading.value = true
   try {
     const settings = await schoolService.getSettings()
     applySettings(settings)
-  } catch {
-    // Use mock data on error
-    applySettings(mockSettings)
+  } catch (err) {
+    console.error('Failed to load settings:', err)
+    message.error('Gagal memuat pengaturan sekolah')
   } finally {
     loading.value = false
   }
@@ -131,23 +113,23 @@ const handleSave = async () => {
   saving.value = true
   try {
     const updateData: UpdateSchoolSettingsRequest = {
-      attendanceStartTime: formState.attendanceStartTime?.format('HH:mm'),
-      attendanceEndTime: formState.attendanceEndTime?.format('HH:mm'),
-      attendanceLateThreshold: formState.attendanceLateThreshold,
-      attendanceVeryLateThreshold: formState.attendanceVeryLateThreshold,
-      enableAttendanceNotification: formState.enableAttendanceNotification,
-      enableGradeNotification: formState.enableGradeNotification,
-      enableBKNotification: formState.enableBKNotification,
-      enableHomeroomNotification: formState.enableHomeroomNotification,
-      academicYear: formState.academicYear,
+      attendance_start_time: formState.attendanceStartTime?.format('HH:mm'),
+      attendance_end_time: formState.attendanceEndTime?.format('HH:mm'),
+      attendance_late_threshold: formState.attendanceLateThreshold,
+      attendance_very_late_threshold: formState.attendanceVeryLateThreshold,
+      enable_attendance_notification: formState.enableAttendanceNotification,
+      enable_grade_notification: formState.enableGradeNotification,
+      enable_bk_notification: formState.enableBKNotification,
+      enable_homeroom_notification: formState.enableHomeroomNotification,
+      academic_year: formState.academicYear,
       semester: formState.semester,
     }
     
     await schoolService.updateSettings(updateData)
     message.success('Pengaturan berhasil disimpan')
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal menyimpan pengaturan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menyimpan pengaturan')
   } finally {
     saving.value = false
   }
@@ -161,8 +143,8 @@ const handleReset = async () => {
     applySettings(settings)
     message.success('Pengaturan berhasil direset ke default')
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal mereset pengaturan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal mereset pengaturan')
   } finally {
     resetting.value = false
   }

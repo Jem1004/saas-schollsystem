@@ -33,39 +33,18 @@ const loading = ref(false)
 const students = ref<Student[]>([])
 const searchValue = ref('')
 
-// Mock data for development
-const mockStudents: Student[] = [
-  { id: 1, schoolId: 1, classId: 1, className: 'VII-A', nis: '2024001', nisn: '0012345678', name: 'Ahmad Fauzi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 2, schoolId: 1, classId: 1, className: 'VII-A', nis: '2024002', nisn: '0012345679', name: 'Budi Santoso', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 3, schoolId: 1, classId: 2, className: 'VII-B', nis: '2024003', nisn: '0012345680', name: 'Citra Dewi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 4, schoolId: 1, classId: 2, className: 'VII-B', nis: '2024004', nisn: '0012345681', name: 'Dian Pratama', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 5, schoolId: 1, classId: 3, className: 'VIII-A', nis: '2023001', nisn: '0012345682', name: 'Eka Putri', isActive: true, createdAt: '', updatedAt: '' },
-]
-
 const loadStudents = async (search?: string) => {
   loading.value = true
   try {
     const response = await schoolService.getStudents({
-      pageSize: 100,
+      page_size: 100,
       search,
-      classId: props.classId,
+      class_id: props.classId,
     })
-    students.value = response.data
-  } catch {
-    // Use mock data on error
-    let filtered = mockStudents
-    if (props.classId) {
-      filtered = filtered.filter(s => s.classId === props.classId)
-    }
-    if (search) {
-      const searchLower = search.toLowerCase()
-      filtered = filtered.filter(s => 
-        s.name.toLowerCase().includes(searchLower) ||
-        s.nis.includes(search) ||
-        s.nisn.includes(search)
-      )
-    }
-    students.value = filtered
+    students.value = response.students
+  } catch (err) {
+    console.error('Failed to load students:', err)
+    students.value = []
   } finally {
     loading.value = false
   }

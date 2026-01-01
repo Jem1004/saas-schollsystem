@@ -54,38 +54,6 @@ const attendancePercentage = computed(() => {
   return Math.round((present / total) * 100)
 })
 
-// Mock data for development
-const loadMockData = () => {
-  stats.value = {
-    totalStudents: 450,
-    totalClasses: 15,
-    totalTeachers: 32,
-    totalParents: 380,
-    todayAttendance: {
-      present: 420,
-      absent: 15,
-      late: 15,
-      total: 450,
-    },
-  }
-
-  recentClasses.value = [
-    { id: 1, schoolId: 1, name: 'VII-A', grade: 7, year: '2024/2025', studentCount: 30, homeroomTeacherName: 'Budi Santoso', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-    { id: 2, schoolId: 1, name: 'VII-B', grade: 7, year: '2024/2025', studentCount: 30, homeroomTeacherName: 'Siti Rahayu', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-    { id: 3, schoolId: 1, name: 'VIII-A', grade: 8, year: '2024/2025', studentCount: 32, homeroomTeacherName: 'Ahmad Wijaya', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-    { id: 4, schoolId: 1, name: 'VIII-B', grade: 8, year: '2024/2025', studentCount: 28, homeroomTeacherName: 'Dewi Lestari', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-    { id: 5, schoolId: 1, name: 'IX-A', grade: 9, year: '2024/2025', studentCount: 30, homeroomTeacherName: 'Eko Prasetyo', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  ]
-
-  todayAttendanceByClass.value = [
-    { date: new Date().toISOString().split('T')[0], classId: 1, className: 'VII-A', totalStudents: 30, present: 28, absent: 1, late: 1, excused: 0 },
-    { date: new Date().toISOString().split('T')[0], classId: 2, className: 'VII-B', totalStudents: 30, present: 29, absent: 0, late: 1, excused: 0 },
-    { date: new Date().toISOString().split('T')[0], classId: 3, className: 'VIII-A', totalStudents: 32, present: 30, absent: 1, late: 1, excused: 0 },
-    { date: new Date().toISOString().split('T')[0], classId: 4, className: 'VIII-B', totalStudents: 28, present: 27, absent: 0, late: 1, excused: 0 },
-    { date: new Date().toISOString().split('T')[0], classId: 5, className: 'IX-A', totalStudents: 30, present: 28, absent: 2, late: 0, excused: 0 },
-  ]
-}
-
 const loadData = async () => {
   loading.value = true
   error.value = null
@@ -93,30 +61,38 @@ const loadData = async () => {
   try {
     const [statsRes, classesRes, attendanceRes] = await Promise.allSettled([
       schoolService.getStats(),
-      schoolService.getClasses({ page: 1, pageSize: 5 }),
+      schoolService.getClasses({ page: 1, page_size: 5 }),
       schoolService.getAttendanceSummary({ date: new Date().toISOString().split('T')[0] }),
     ])
 
     if (statsRes.status === 'fulfilled') {
       stats.value = statsRes.value
+    } else {
+      error.value = 'Gagal memuat statistik sekolah'
     }
+    
     if (classesRes.status === 'fulfilled') {
-      recentClasses.value = classesRes.value.data
+      recentClasses.value = classesRes.value.classes
     }
+    
     if (attendanceRes.status === 'fulfilled') {
       todayAttendanceByClass.value = attendanceRes.value.data
+    } else if (classesRes.status === 'fulfilled') {
+      // Build attendance by class from classes data if attendance API fails
+      todayAttendanceByClass.value = classesRes.value.classes.map((cls: Class) => ({
+        date: new Date().toISOString().split('T')[0],
+        classId: cls.id,
+        className: cls.name,
+        totalStudents: cls.studentCount || 0,
+        present: 0,
+        absent: cls.studentCount || 0,
+        late: 0,
+        excused: 0,
+      }))
     }
-
-    // If all failed, use mock data
-    if (
-      statsRes.status === 'rejected' &&
-      classesRes.status === 'rejected' &&
-      attendanceRes.status === 'rejected'
-    ) {
-      loadMockData()
-    }
-  } catch {
-    loadMockData()
+  } catch (err) {
+    error.value = 'Gagal memuat data dashboard. Silakan coba lagi.'
+    console.error('Dashboard load error:', err)
   } finally {
     loading.value = false
   }

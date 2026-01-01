@@ -173,8 +173,8 @@ const loadCounselingNotes = async () => {
 const loadStudents = async () => {
   loadingStudents.value = true
   try {
-    const response = await schoolService.getStudents({ pageSize: 1000 })
-    students.value = response.data
+    const response = await schoolService.getStudents({ page_size: 1000 })
+    students.value = response.students
   } catch {
     students.value = mockStudents
   } finally {
@@ -231,8 +231,8 @@ const handleSubmit = async () => {
     resetForm()
     loadCounselingNotes()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Terjadi kesalahan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Terjadi kesalahan')
   } finally {
     modalLoading.value = false
   }
@@ -245,8 +245,8 @@ const handleDelete = async (note: CounselingNote) => {
     message.success('Catatan konseling berhasil dihapus')
     loadCounselingNotes()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal menghapus catatan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menghapus catatan')
   }
 }
 

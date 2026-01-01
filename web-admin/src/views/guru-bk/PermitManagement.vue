@@ -223,8 +223,8 @@ const loadPermits = async () => {
 const loadStudents = async () => {
   loadingStudents.value = true
   try {
-    const response = await schoolService.getStudents({ pageSize: 1000 })
-    students.value = response.data
+    const response = await schoolService.getStudents({ page_size: 1000 })
+    students.value = response.students
   } catch {
     students.value = mockStudents
   } finally {
@@ -236,8 +236,8 @@ const loadStudents = async () => {
 const loadTeachers = async () => {
   loadingTeachers.value = true
   try {
-    const response = await schoolService.getUsers({ pageSize: 1000 })
-    teachers.value = response.data
+    const response = await schoolService.getUsers({ page_size: 1000 })
+    teachers.value = response.users
   } catch {
     teachers.value = mockTeachers
   } finally {
@@ -316,8 +316,8 @@ const handleSubmit = async () => {
     resetForm()
     loadPermits()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Terjadi kesalahan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Terjadi kesalahan')
   } finally {
     modalLoading.value = false
   }
@@ -362,8 +362,8 @@ const handleRecordReturn = async () => {
     returnFormState.returnTimeValue = undefined
     loadPermits()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Terjadi kesalahan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Terjadi kesalahan')
   } finally {
     returnModalLoading.value = false
   }
@@ -396,8 +396,8 @@ const handleDelete = async (permit: Permit) => {
     message.success('Izin keluar berhasil dihapus')
     loadPermits()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal menghapus izin keluar')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menghapus izin keluar')
   }
 }
 

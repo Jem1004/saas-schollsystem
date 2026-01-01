@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import {
   Card,
   Row,
@@ -22,7 +22,6 @@ import {
   MailOutlined,
   CalendarOutlined,
   SafetyOutlined,
-  EditOutlined,
   LockOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'

@@ -54,8 +54,8 @@ const roleColors: Record<string, string> = {
 const loadTeachers = async () => {
   loading.value = true
   try {
-    const response = await schoolService.getUsers({ pageSize: 100 })
-    let data = response.data
+    const response = await schoolService.getUsers({ page_size: 100 })
+    let data = response.users
     if (props.roleFilter && props.roleFilter.length > 0) {
       data = data.filter(u => props.roleFilter!.includes(u.role))
     }

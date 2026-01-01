@@ -59,6 +59,18 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
     
+    // Handle 403 Forbidden - likely tenant/school_id issue
+    if (error.response?.status === 403) {
+      const errorData = error.response.data as { error?: { code?: string; message?: string; debug?: { hint?: string } } }
+      if (errorData?.error?.code === 'AUTHZ_TENANT_REQUIRED') {
+        console.error('Tenant context required. User may not have school_id in JWT token.')
+        console.error('Hint:', errorData?.error?.debug?.hint || 'Please re-login with an account that has school_id.')
+        // Clear auth and redirect to login
+        clearAuthAndRedirect()
+        return Promise.reject(error)
+      }
+    }
+    
     // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Don't retry for login or refresh endpoints
@@ -93,8 +105,8 @@ api.interceptors.response.use(
       }
 
       try {
-        const response = await axios.post('/api/v1/auth/refresh', { refreshToken })
-        const { accessToken, refreshToken: newRefreshToken } = response.data
+        const response = await axios.post(`${BASE_URL}/auth/refresh`, { refresh_token: refreshToken })
+        const { access_token: accessToken, refresh_token: newRefreshToken } = response.data.data
         
         localStorage.setItem('accessToken', accessToken)
         localStorage.setItem('refreshToken', newRefreshToken)

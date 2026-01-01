@@ -28,7 +28,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons-vue'
 import { schoolService } from '@/services'
-import type { Class, CreateClassRequest, UpdateClassRequest, SchoolUser } from '@/types/school'
+import type { Class, UpdateClassRequest, SchoolUser } from '@/types/school'
 
 const { Title } = Typography
 
@@ -54,11 +54,11 @@ const editingClass = ref<Class | null>(null)
 
 // Form state
 const formRef = ref()
-const formState = reactive<CreateClassRequest>({
+const formState = reactive({
   name: '',
   grade: 7,
   year: '',
-  homeroomTeacherId: undefined,
+  homeroom_teacher_id: undefined as number | undefined,
 })
 
 // Form rules
@@ -67,25 +67,6 @@ const formRules = {
   grade: [{ required: true, message: 'Tingkat kelas wajib diisi' }],
   year: [{ required: true, message: 'Tahun ajaran wajib diisi' }],
 }
-
-// Mock data for development
-const mockClasses: Class[] = [
-  { id: 1, schoolId: 1, name: 'VII-A', grade: 7, year: '2024/2025', homeroomTeacherId: 1, homeroomTeacherName: 'Budi Santoso', studentCount: 30, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 2, schoolId: 1, name: 'VII-B', grade: 7, year: '2024/2025', homeroomTeacherId: 2, homeroomTeacherName: 'Siti Rahayu', studentCount: 30, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 3, schoolId: 1, name: 'VIII-A', grade: 8, year: '2024/2025', homeroomTeacherId: 3, homeroomTeacherName: 'Ahmad Wijaya', studentCount: 32, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 4, schoolId: 1, name: 'VIII-B', grade: 8, year: '2024/2025', homeroomTeacherId: 4, homeroomTeacherName: 'Dewi Lestari', studentCount: 28, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 5, schoolId: 1, name: 'IX-A', grade: 9, year: '2024/2025', homeroomTeacherId: 5, homeroomTeacherName: 'Eko Prasetyo', studentCount: 30, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 6, schoolId: 1, name: 'IX-B', grade: 9, year: '2024/2025', studentCount: 29, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-]
-
-const mockTeachers: SchoolUser[] = [
-  { id: 1, schoolId: 1, role: 'wali_kelas', username: 'budi.santoso', name: 'Budi Santoso', isActive: true, mustResetPwd: false, createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 2, schoolId: 1, role: 'wali_kelas', username: 'siti.rahayu', name: 'Siti Rahayu', isActive: true, mustResetPwd: false, createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 3, schoolId: 1, role: 'wali_kelas', username: 'ahmad.wijaya', name: 'Ahmad Wijaya', isActive: true, mustResetPwd: false, createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 4, schoolId: 1, role: 'wali_kelas', username: 'dewi.lestari', name: 'Dewi Lestari', isActive: true, mustResetPwd: false, createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 5, schoolId: 1, role: 'wali_kelas', username: 'eko.prasetyo', name: 'Eko Prasetyo', isActive: true, mustResetPwd: false, createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 6, schoolId: 1, role: 'guru', username: 'rina.wati', name: 'Rina Wati', isActive: true, mustResetPwd: false, createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-]
 
 // Table columns
 const columns: TableProps['columns'] = [
@@ -157,15 +138,16 @@ const loadClasses = async () => {
   try {
     const response = await schoolService.getClasses({
       page: pagination.current,
-      pageSize: pagination.pageSize,
+      page_size: pagination.pageSize,
       search: searchText.value,
     })
-    classes.value = response.data
-    total.value = response.total
-  } catch {
-    // Use mock data on error
-    classes.value = mockClasses
-    total.value = mockClasses.length
+    classes.value = response.classes
+    total.value = response.pagination.total
+  } catch (err) {
+    console.error('Failed to load classes:', err)
+    message.error('Gagal memuat data kelas')
+    classes.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -175,10 +157,11 @@ const loadClasses = async () => {
 const loadTeachers = async () => {
   loadingTeachers.value = true
   try {
-    const response = await schoolService.getUsers({ pageSize: 100 })
-    teachers.value = response.data.filter(u => u.role === 'wali_kelas' || u.role === 'guru')
-  } catch {
-    teachers.value = mockTeachers
+    const response = await schoolService.getUsers({ page_size: 100 })
+    teachers.value = response.users.filter(u => u.role === 'wali_kelas' || u.role === 'guru')
+  } catch (err) {
+    console.error('Failed to load teachers:', err)
+    teachers.value = []
   } finally {
     loadingTeachers.value = false
   }
@@ -218,7 +201,7 @@ const openEditModal = (cls: Class) => {
   formState.name = cls.name
   formState.grade = cls.grade
   formState.year = cls.year
-  formState.homeroomTeacherId = cls.homeroomTeacherId
+  formState.homeroom_teacher_id = cls.homeroomTeacherId
   modalVisible.value = true
 }
 
@@ -227,7 +210,7 @@ const resetForm = () => {
   formState.name = ''
   formState.grade = 7
   formState.year = ''
-  formState.homeroomTeacherId = undefined
+  formState.homeroom_teacher_id = undefined
   formRef.value?.resetFields()
 }
 
@@ -252,20 +235,25 @@ const handleSubmit = async () => {
         name: formState.name,
         grade: formState.grade,
         year: formState.year,
-        homeroomTeacherId: formState.homeroomTeacherId,
+        homeroom_teacher_id: formState.homeroom_teacher_id,
       }
       await schoolService.updateClass(editingClass.value.id, updateData)
       message.success('Kelas berhasil diperbarui')
     } else {
-      await schoolService.createClass(formState)
+      await schoolService.createClass({
+        name: formState.name,
+        grade: formState.grade,
+        year: formState.year,
+        homeroom_teacher_id: formState.homeroom_teacher_id,
+      })
       message.success('Kelas berhasil ditambahkan')
     }
     modalVisible.value = false
     resetForm()
     loadClasses()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Terjadi kesalahan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Terjadi kesalahan')
   } finally {
     modalLoading.value = false
   }
@@ -278,8 +266,8 @@ const handleDelete = async (cls: Class) => {
     message.success(`Kelas ${cls.name} berhasil dihapus`)
     loadClasses()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal menghapus kelas')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menghapus kelas')
   }
 }
 
@@ -425,9 +413,9 @@ onMounted(() => {
             </FormItem>
           </Col>
         </Row>
-        <FormItem label="Wali Kelas" name="homeroomTeacherId">
+        <FormItem label="Wali Kelas" name="homeroom_teacher_id">
           <Select
-            v-model:value="formState.homeroomTeacherId"
+            v-model:value="formState.homeroom_teacher_id"
             placeholder="Pilih wali kelas (opsional)"
             allow-clear
             show-search

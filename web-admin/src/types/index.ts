@@ -2,7 +2,29 @@ export * from './common'
 export * from './user'
 export * from './tenant'
 export * from './device'
-export * from './school'
+// Export school types but exclude SchoolStats to avoid conflict with tenant
+export type {
+  Class,
+  Student,
+  Parent,
+  SchoolUser,
+  SchoolSettings,
+  AttendanceSummary,
+  CreateClassRequest,
+  UpdateClassRequest,
+  CreateStudentRequest,
+  UpdateStudentRequest,
+  CreateParentRequest,
+  UpdateParentRequest,
+  CreateUserRequest,
+  UpdateUserRequest,
+  UpdateSchoolSettingsRequest,
+  ClassListResponse,
+  StudentListResponse,
+  ParentListResponse,
+  UserListResponse,
+  AttendanceListResponse,
+} from './school'
 // Note: student.ts types are more detailed versions, use school.ts Student for basic usage
 // Export specific types from student.ts that don't conflict
 export type { StudentProfile, StudentSearchResult, ImportStudentsRequest, ImportStudentsResponse, StudentSearchResponse } from './student'

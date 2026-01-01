@@ -45,8 +45,8 @@ const mockClasses: Class[] = [
 const loadClasses = async () => {
   loading.value = true
   try {
-    const response = await schoolService.getClasses({ pageSize: 100 })
-    let data = response.data
+    const response = await schoolService.getClasses({ page_size: 100 })
+    let data = response.classes
     if (props.gradeFilter) {
       data = data.filter(c => c.grade === props.gradeFilter)
     }

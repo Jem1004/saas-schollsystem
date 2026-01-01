@@ -18,8 +18,6 @@ import {
   BellOutlined,
   SecurityScanOutlined,
   GlobalOutlined,
-  MobileOutlined,
-  MailOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -34,22 +32,25 @@ const soundEnabled = ref(localStorage.getItem('soundEnabled') !== 'false')
 
 const isSuperAdmin = computed(() => authStore.userRole === 'super_admin')
 
-const handleNotificationToggle = (checked: boolean) => {
-  notificationEnabled.value = checked
-  localStorage.setItem('notificationEnabled', String(checked))
-  message.success(checked ? 'Notifikasi diaktifkan' : 'Notifikasi dinonaktifkan')
+const handleNotificationToggle = (checked: boolean | string | number) => {
+  const isChecked = Boolean(checked)
+  notificationEnabled.value = isChecked
+  localStorage.setItem('notificationEnabled', String(isChecked))
+  message.success(isChecked ? 'Notifikasi diaktifkan' : 'Notifikasi dinonaktifkan')
 }
 
-const handleEmailToggle = (checked: boolean) => {
-  emailNotification.value = checked
-  localStorage.setItem('emailNotification', String(checked))
-  message.success(checked ? 'Notifikasi email diaktifkan' : 'Notifikasi email dinonaktifkan')
+const handleEmailToggle = (checked: boolean | string | number) => {
+  const isChecked = Boolean(checked)
+  emailNotification.value = isChecked
+  localStorage.setItem('emailNotification', String(isChecked))
+  message.success(isChecked ? 'Notifikasi email diaktifkan' : 'Notifikasi email dinonaktifkan')
 }
 
-const handleSoundToggle = (checked: boolean) => {
-  soundEnabled.value = checked
-  localStorage.setItem('soundEnabled', String(checked))
-  message.success(checked ? 'Suara notifikasi diaktifkan' : 'Suara notifikasi dinonaktifkan')
+const handleSoundToggle = (checked: boolean | string | number) => {
+  const isChecked = Boolean(checked)
+  soundEnabled.value = isChecked
+  localStorage.setItem('soundEnabled', String(isChecked))
+  message.success(isChecked ? 'Suara notifikasi diaktifkan' : 'Suara notifikasi dinonaktifkan')
 }
 
 const handleClearCache = () => {

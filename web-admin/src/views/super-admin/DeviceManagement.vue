@@ -89,8 +89,9 @@ const formRules = {
 }
 
 // Filter option for school select
-const filterSchoolOption = (input: string, option: { label?: string }) => {
-  return option?.label?.toLowerCase().includes(input.toLowerCase()) ?? false
+const filterSchoolOption = (input: string, option: unknown) => {
+  const opt = option as { label?: string }
+  return opt?.label?.toLowerCase().includes(input.toLowerCase()) ?? false
 }
 
 // Check if device is online (last seen within 5 minutes)
@@ -217,7 +218,7 @@ const copyApiKey = async () => {
 const handleRevokeApiKey = async (device: Device) => {
   try {
     await deviceService.revokeApiKey(device.id)
-    message.success('API Key device ' + device.deviceCode + ' berhasil dicabut')
+    message.success(`API Key device ${device.deviceCode} berhasil dicabut`)
     loadDevices()
   } catch (error: unknown) {
     const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } }
@@ -228,7 +229,7 @@ const handleRevokeApiKey = async (device: Device) => {
 const handleRegenerateApiKey = async (device: Device) => {
   try {
     const updatedDevice = await deviceService.regenerateApiKey(device.id)
-    message.success('API Key device ' + device.deviceCode + ' berhasil di-regenerate')
+    message.success(`API Key device ${device.deviceCode} berhasil di-regenerate`)
     selectedDevice.value = updatedDevice
     showApiKey.value = true
     apiKeyModalVisible.value = true
@@ -249,7 +250,7 @@ const handleDelete = async () => {
   deleteLoading.value = true
   try {
     await deviceService.deleteDevice(deviceToDelete.value.id)
-    message.success('Device ' + deviceToDelete.value.deviceCode + ' berhasil dihapus')
+    message.success(`Device ${deviceToDelete.value.deviceCode} berhasil dihapus`)
     deleteModalVisible.value = false
     deviceToDelete.value = null
     loadDevices()

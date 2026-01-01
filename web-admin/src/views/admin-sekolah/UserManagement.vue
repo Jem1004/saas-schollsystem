@@ -30,7 +30,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons-vue'
 import { schoolService } from '@/services'
-import type { SchoolUser, Class, CreateUserRequest, UpdateUserRequest } from '@/types/school'
+import type { SchoolUser, Class, UpdateUserRequest } from '@/types/school'
 
 const { Title, Text } = Typography
 
@@ -61,14 +61,15 @@ const newPassword = ref('')
 
 // Form state
 const formRef = ref()
-const formState = reactive<CreateUserRequest & { isActive?: boolean }>({
-  role: 'guru',
+const formState = reactive({
+  role: 'guru' as 'guru' | 'wali_kelas' | 'guru_bk',
   username: '',
   email: '',
   name: '',
   password: '',
-  assignedClassId: undefined,
-  isActive: true,
+  assigned_class_id: undefined as number | undefined,  // For wali_kelas
+  assigned_class_ids: [] as number[],  // For guru_bk
+  is_active: true,
 })
 
 // Form rules
@@ -78,7 +79,7 @@ const formRules = {
   name: [{ required: true, message: 'Nama wajib diisi' }],
   password: [
     { required: true, message: 'Password wajib diisi' },
-    { min: 6, message: 'Password minimal 6 karakter' },
+    { min: 8, message: 'Password minimal 8 karakter' },
   ],
 }
 
@@ -87,23 +88,6 @@ const roleOptions = [
   { value: 'guru', label: 'Guru', color: 'blue' },
   { value: 'wali_kelas', label: 'Wali Kelas', color: 'green' },
   { value: 'guru_bk', label: 'Guru BK', color: 'purple' },
-]
-
-// Mock data for development
-const mockUsers: SchoolUser[] = [
-  { id: 1, schoolId: 1, role: 'wali_kelas', username: 'budi.santoso', name: 'Budi Santoso', email: 'budi@sekolah.id', isActive: true, mustResetPwd: false, assignedClassId: 1, assignedClassName: 'VII-A', lastLoginAt: '2024-01-20T08:00:00Z', createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 2, schoolId: 1, role: 'wali_kelas', username: 'siti.rahayu', name: 'Siti Rahayu', email: 'siti@sekolah.id', isActive: true, mustResetPwd: false, assignedClassId: 2, assignedClassName: 'VII-B', lastLoginAt: '2024-01-19T09:00:00Z', createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 3, schoolId: 1, role: 'guru_bk', username: 'ahmad.wijaya', name: 'Ahmad Wijaya', email: 'ahmad@sekolah.id', isActive: true, mustResetPwd: false, lastLoginAt: '2024-01-20T07:30:00Z', createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 4, schoolId: 1, role: 'guru', username: 'dewi.lestari', name: 'Dewi Lestari', email: 'dewi@sekolah.id', isActive: true, mustResetPwd: true, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-  { id: 5, schoolId: 1, role: 'guru', username: 'eko.prasetyo', name: 'Eko Prasetyo', isActive: false, mustResetPwd: false, createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z' },
-]
-
-const mockClasses: Class[] = [
-  { id: 1, schoolId: 1, name: 'VII-A', grade: 7, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 2, schoolId: 1, name: 'VII-B', grade: 7, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 3, schoolId: 1, name: 'VIII-A', grade: 8, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 4, schoolId: 1, name: 'VIII-B', grade: 8, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: 5, schoolId: 1, name: 'IX-A', grade: 9, year: '2024/2025', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
 ]
 
 // Table columns
@@ -179,15 +163,16 @@ const loadUsers = async () => {
   try {
     const response = await schoolService.getUsers({
       page: pagination.current,
-      pageSize: pagination.pageSize,
+      page_size: pagination.pageSize,
       search: searchText.value,
     })
-    users.value = response.data
-    total.value = response.total
-  } catch {
-    // Use mock data on error
-    users.value = mockUsers
-    total.value = mockUsers.length
+    users.value = response.users
+    total.value = response.pagination.total
+  } catch (err) {
+    console.error('Failed to load users:', err)
+    message.error('Gagal memuat data user')
+    users.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -197,10 +182,11 @@ const loadUsers = async () => {
 const loadClasses = async () => {
   loadingClasses.value = true
   try {
-    const response = await schoolService.getClasses({ pageSize: 100 })
-    classes.value = response.data
-  } catch {
-    classes.value = mockClasses
+    const response = await schoolService.getClasses({ page_size: 100 })
+    classes.value = response.classes
+  } catch (err) {
+    console.error('Failed to load classes:', err)
+    classes.value = []
   } finally {
     loadingClasses.value = false
   }
@@ -242,8 +228,9 @@ const openEditModal = (user: SchoolUser) => {
   formState.email = user.email || ''
   formState.name = user.name || ''
   formState.password = ''
-  formState.assignedClassId = user.assignedClassId
-  formState.isActive = user.isActive
+  formState.assigned_class_id = user.assignedClassId
+  formState.assigned_class_ids = user.assignedClasses?.map(c => c.id) || []
+  formState.is_active = user.isActive
   modalVisible.value = true
 }
 
@@ -254,8 +241,9 @@ const resetForm = () => {
   formState.email = ''
   formState.name = ''
   formState.password = ''
-  formState.assignedClassId = undefined
-  formState.isActive = true
+  formState.assigned_class_id = undefined
+  formState.assigned_class_ids = []
+  formState.is_active = true
   formRef.value?.resetFields()
 }
 
@@ -284,8 +272,9 @@ const handleSubmit = async () => {
       const updateData: UpdateUserRequest = {
         email: formState.email || undefined,
         name: formState.name || undefined,
-        isActive: formState.isActive,
-        assignedClassId: formState.role === 'wali_kelas' ? formState.assignedClassId : undefined,
+        is_active: formState.is_active,
+        assigned_class_id: formState.role === 'wali_kelas' ? formState.assigned_class_id : undefined,
+        assigned_class_ids: formState.role === 'guru_bk' ? formState.assigned_class_ids : undefined,
       }
       await schoolService.updateUser(editingUser.value.id, updateData)
       message.success('User berhasil diperbarui')
@@ -296,7 +285,8 @@ const handleSubmit = async () => {
         email: formState.email || undefined,
         name: formState.name || undefined,
         password: formState.password,
-        assignedClassId: formState.role === 'wali_kelas' ? formState.assignedClassId : undefined,
+        assigned_class_id: formState.role === 'wali_kelas' ? formState.assigned_class_id : undefined,
+        assigned_class_ids: formState.role === 'guru_bk' ? formState.assigned_class_ids : undefined,
       })
       message.success('User berhasil ditambahkan')
     }
@@ -304,11 +294,17 @@ const handleSubmit = async () => {
     resetForm()
     loadUsers()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Terjadi kesalahan')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Terjadi kesalahan')
   } finally {
     modalLoading.value = false
   }
+}
+
+// Filter option for class select
+const filterClassOption = (input: string, option: unknown) => {
+  const opt = option as { children?: string }
+  return opt.children?.toLowerCase().includes(input.toLowerCase()) ?? false
 }
 
 // Handle delete user
@@ -318,8 +314,8 @@ const handleDelete = async (user: SchoolUser) => {
     message.success(`User ${user.username} berhasil dihapus`)
     loadUsers()
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal menghapus user')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menghapus user')
   }
 }
 
@@ -331,8 +327,8 @@ const handleResetPassword = async (user: SchoolUser) => {
     passwordModalVisible.value = true
     message.success('Password berhasil direset')
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { message?: string } } }
-    message.error(err.response?.data?.message || 'Gagal mereset password')
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal mereset password')
   }
 }
 
@@ -436,9 +432,16 @@ onMounted(() => {
             </Tag>
           </template>
           <template v-else-if="column.key === 'assignedClassName'">
+            <!-- For wali_kelas: single class -->
             <Tag v-if="(record as SchoolUser).assignedClassName" color="blue">
               {{ (record as SchoolUser).assignedClassName }}
             </Tag>
+            <!-- For guru_bk: multiple classes -->
+            <template v-else-if="(record as SchoolUser).assignedClasses?.length">
+              <Tag v-for="cls in (record as SchoolUser).assignedClasses" :key="cls.id" color="purple" style="margin-bottom: 2px;">
+                {{ cls.name }}
+              </Tag>
+            </template>
             <span v-else>-</span>
           </template>
           <template v-else-if="column.key === 'isActive'">
@@ -531,16 +534,16 @@ onMounted(() => {
           required
           extra="User akan diminta mengganti password saat login pertama"
         >
-          <Input.Password v-model:value="formState.password" placeholder="Minimal 6 karakter" />
+          <Input.Password v-model:value="formState.password" placeholder="Minimal 8 karakter" />
         </FormItem>
         <FormItem
           v-if="formState.role === 'wali_kelas'"
           label="Kelas yang Diampu"
-          name="assignedClassId"
+          name="assigned_class_id"
           extra="Pilih kelas yang akan diampu sebagai wali kelas"
         >
           <Select
-            v-model:value="formState.assignedClassId"
+            v-model:value="formState.assigned_class_id"
             placeholder="Pilih kelas"
             allow-clear
             :loading="loadingClasses"
@@ -550,8 +553,27 @@ onMounted(() => {
             </SelectOption>
           </Select>
         </FormItem>
-        <FormItem v-if="isEditing" label="Status" name="isActive">
-          <Switch v-model:checked="formState.isActive" checked-children="Aktif" un-checked-children="Nonaktif" />
+        <FormItem
+          v-if="formState.role === 'guru_bk'"
+          label="Kelas yang Ditangani"
+          name="assigned_class_ids"
+          extra="Pilih satu atau lebih kelas yang akan ditangani oleh guru BK"
+        >
+          <Select
+            v-model:value="formState.assigned_class_ids"
+            mode="multiple"
+            placeholder="Pilih kelas"
+            allow-clear
+            :loading="loadingClasses"
+            :filter-option="filterClassOption"
+          >
+            <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
+              {{ cls.name }}
+            </SelectOption>
+          </Select>
+        </FormItem>
+        <FormItem v-if="isEditing" label="Status" name="is_active">
+          <Switch v-model:checked="formState.is_active" checked-children="Aktif" un-checked-children="Nonaktif" />
         </FormItem>
       </Form>
     </Modal>
