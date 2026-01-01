@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Card,
   Form,
@@ -31,6 +32,7 @@ import { schoolService } from '@/services'
 import type { SchoolSettings, UpdateSchoolSettingsRequest } from '@/types/school'
 
 const { Title, Text } = Typography
+const router = useRouter()
 
 // State
 const loading = ref(false)
@@ -70,6 +72,42 @@ const formRules = {
   academicYear: [{ required: true, message: 'Tahun ajaran wajib diisi' }],
 }
 
+// Handle authorization error
+const handleAuthError = (error: unknown) => {
+  const err = error as { response?: { data?: { error?: { code?: string; message?: string; debug?: Record<string, unknown> }; message?: string }; status?: number } }
+  const errorCode = err.response?.data?.error?.code
+  const errorMessage = err.response?.data?.error?.message || err.response?.data?.message
+  const debugInfo = err.response?.data?.error?.debug
+  
+  // Log debug info for troubleshooting
+  if (debugInfo) {
+    console.error('Authorization Error Debug Info:', debugInfo)
+  }
+  
+  if (errorCode === 'AUTHZ_ROLE_DENIED' || err.response?.status === 403) {
+    const yourRole = debugInfo?.your_role as string | undefined
+    const allowedRoles = debugInfo?.allowed_roles as string[] | undefined
+    
+    let errorMsg = 'Anda tidak memiliki akses ke halaman ini.'
+    if (yourRole && allowedRoles) {
+      errorMsg = `Role Anda (${yourRole}) tidak diizinkan. Halaman ini hanya untuk: ${allowedRoles.join(', ')}`
+    }
+    
+    message.error(errorMsg)
+    router.push('/access-denied')
+    return true
+  }
+  
+  if (errorCode === 'AUTHZ_TENANT_REQUIRED') {
+    message.error('Konteks sekolah tidak ditemukan. Silakan login ulang.')
+    router.push('/login')
+    return true
+  }
+  
+  message.error(errorMessage || 'Terjadi kesalahan')
+  return false
+}
+
 // Load settings
 const loadSettings = async () => {
   loading.value = true
@@ -78,7 +116,9 @@ const loadSettings = async () => {
     applySettings(settings)
   } catch (err) {
     console.error('Failed to load settings:', err)
-    message.error('Gagal memuat pengaturan sekolah')
+    if (!handleAuthError(err)) {
+      message.error('Gagal memuat pengaturan sekolah')
+    }
   } finally {
     loading.value = false
   }
@@ -128,8 +168,10 @@ const handleSave = async () => {
     await schoolService.updateSettings(updateData)
     message.success('Pengaturan berhasil disimpan')
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
-    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menyimpan pengaturan')
+    if (!handleAuthError(error)) {
+      const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+      message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal menyimpan pengaturan')
+    }
   } finally {
     saving.value = false
   }
@@ -143,8 +185,10 @@ const handleReset = async () => {
     applySettings(settings)
     message.success('Pengaturan berhasil direset ke default')
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
-    message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal mereset pengaturan')
+    if (!handleAuthError(error)) {
+      const err = error as { response?: { data?: { error?: { message?: string }; message?: string } } }
+      message.error(err.response?.data?.error?.message || err.response?.data?.message || 'Gagal mereset pengaturan')
+    }
   } finally {
     resetting.value = false
   }

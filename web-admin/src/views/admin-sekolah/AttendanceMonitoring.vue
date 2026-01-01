@@ -14,6 +14,7 @@ import {
   SelectOption,
   Progress,
   Statistic,
+  Modal,
   message,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
@@ -23,13 +24,15 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
-import { schoolService } from '@/services'
+import { schoolService, exportService } from '@/services'
 import type { AttendanceSummary, Class } from '@/types/school'
 
 const { Title, Text } = Typography
+const { RangePicker } = DatePicker
 
 // State
 const loading = ref(false)
@@ -41,8 +44,11 @@ const filterClassId = ref<number | undefined>(undefined)
 const classes = ref<Class[]>([])
 const loadingClasses = ref(false)
 
-// Export state - temporarily disabled
-// const exporting = ref(false)
+// Export state
+const exporting = ref(false)
+const exportModalVisible = ref(false)
+const exportDateRange = ref<[Dayjs, Dayjs]>([dayjs().startOf('month'), dayjs()])
+const exportClassId = ref<number | undefined>(undefined)
 
 // Table columns
 const columns: TableProps['columns'] = [
@@ -163,36 +169,40 @@ const handleClassFilterChange = () => {
   loadAttendance()
 }
 
-// Handle export - temporarily disabled
-// const handleExport = async () => {
-//   exporting.value = true
-//   try {
-//     const startDate = selectedDate.value.startOf('month').format('YYYY-MM-DD')
-//     const endDate = selectedDate.value.endOf('month').format('YYYY-MM-DD')
-//     
-//     const blob = await schoolService.exportAttendance({
-//       start_date: startDate,
-//       end_date: endDate,
-//       class_id: filterClassId.value,
-//     })
-//     
-//     // Create download link
-//     const url = window.URL.createObjectURL(blob)
-//     const link = document.createElement('a')
-//     link.href = url
-//     link.download = `attendance_${selectedDate.value.format('YYYY-MM')}.xlsx`
-//     document.body.appendChild(link)
-//     link.click()
-//     document.body.removeChild(link)
-//     window.URL.revokeObjectURL(url)
-//     
-//     message.success('Laporan berhasil diunduh')
-//   } catch {
-//     message.error('Gagal mengunduh laporan')
-//   } finally {
-//     exporting.value = false
-//   }
-// }
+// Open export modal
+const openExportModal = () => {
+  // Set default date range to current month
+  exportDateRange.value = [dayjs().startOf('month'), dayjs()]
+  exportClassId.value = filterClassId.value
+  exportModalVisible.value = true
+}
+
+// Handle export
+// Requirements: 1.1 - Export attendance to Excel
+// Requirements: 1.2, 1.3 - Allow filtering by date range and class
+const handleExport = async () => {
+  if (!exportDateRange.value || exportDateRange.value.length !== 2) {
+    message.error('Pilih rentang tanggal terlebih dahulu')
+    return
+  }
+
+  exporting.value = true
+  try {
+    await exportService.exportAttendance({
+      startDate: exportDateRange.value[0].format('YYYY-MM-DD'),
+      endDate: exportDateRange.value[1].format('YYYY-MM-DD'),
+      classId: exportClassId.value,
+    })
+    
+    message.success('Laporan berhasil diunduh')
+    exportModalVisible.value = false
+  } catch (err) {
+    console.error('Failed to export attendance:', err)
+    message.error('Gagal mengunduh laporan')
+  } finally {
+    exporting.value = false
+  }
+}
 
 // Format date for display
 const formattedDate = computed(() => {
@@ -298,13 +308,10 @@ onMounted(() => {
               <template #icon><ReloadOutlined /></template>
               Refresh
             </Button>
-            <!-- Export feature temporarily disabled -->
-            <!--
-            <Button type="primary" :loading="exporting" @click="handleExport">
+            <Button type="primary" @click="openExportModal">
               <template #icon><DownloadOutlined /></template>
               Export
             </Button>
-            -->
           </Space>
         </Col>
       </Row>
@@ -384,6 +391,42 @@ onMounted(() => {
         </template>
       </Table>
     </Card>
+
+    <!-- Export Modal -->
+    <Modal
+      v-model:open="exportModalVisible"
+      title="Export Absensi ke Excel"
+      :confirm-loading="exporting"
+      ok-text="Export"
+      cancel-text="Batal"
+      @ok="handleExport"
+    >
+      <div class="export-form">
+        <div class="form-item">
+          <label>Rentang Tanggal <span class="required">*</span></label>
+          <RangePicker
+            v-model:value="exportDateRange"
+            format="DD MMMM YYYY"
+            :placeholder="['Tanggal Mulai', 'Tanggal Akhir']"
+            style="width: 100%"
+          />
+        </div>
+        <div class="form-item">
+          <label>Kelas (Opsional)</label>
+          <Select
+            v-model:value="exportClassId"
+            placeholder="Semua Kelas"
+            allow-clear
+            style="width: 100%"
+            :loading="loadingClasses"
+          >
+            <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
+              {{ cls.name }}
+            </SelectOption>
+          </Select>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -440,5 +483,26 @@ onMounted(() => {
     margin-top: 16px;
     justify-content: flex-start;
   }
+}
+
+.export-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.export-form .form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-form .form-item label {
+  font-weight: 500;
+  color: #333;
+}
+
+.export-form .form-item .required {
+  color: #ff4d4f;
 }
 </style>

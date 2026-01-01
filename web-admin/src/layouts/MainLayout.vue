@@ -42,6 +42,7 @@ import {
   EyeOutlined,
   CheckOutlined,
   ClockCircleOutlined,
+  SyncOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePermissions, getRoleDisplayName, getRoleColor } from '@/composables/usePermissions'
@@ -151,10 +152,40 @@ const allMenuItems: MenuItemConfig[] = [
     roles: ['admin_sekolah'],
   },
   {
+    key: 'live-attendance',
+    icon: SyncOutlined,
+    label: 'Absensi Real-Time',
+    path: '/attendance/live',
+    roles: ['admin_sekolah', 'wali_kelas', 'guru_bk'],
+  },
+  {
+    key: 'monthly-recap',
+    icon: FileTextOutlined,
+    label: 'Rekap Bulanan',
+    path: '/attendance/monthly-recap',
+    roles: ['admin_sekolah', 'wali_kelas'],
+  },
+  // Note: School settings removed from super_admin menu as they don't have school context
+  // Super admin should manage school settings through tenant management
+  {
     key: 'school-settings',
     icon: SettingOutlined,
     label: 'Pengaturan Sekolah',
     path: '/settings',
+    roles: ['admin_sekolah'],
+  },
+  {
+    key: 'schedules',
+    icon: ClockCircleOutlined,
+    label: 'Jadwal Absensi',
+    path: '/schedules',
+    roles: ['admin_sekolah'],
+  },
+  {
+    key: 'display-tokens',
+    icon: DesktopOutlined,
+    label: 'Display Token',
+    path: '/display-tokens',
     roles: ['admin_sekolah'],
   },
   // Guru BK menus

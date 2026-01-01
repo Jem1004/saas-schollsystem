@@ -12,6 +12,14 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
+  // Public Display Route (no auth required)
+  // Requirements: 5.3 - Accessing public display URL with valid token SHALL show attendance data without login
+  {
+    path: '/display/:token',
+    name: 'PublicDisplay',
+    component: () => import('@/views/public/PublicDisplay.vue'),
+    meta: { requiresAuth: false, title: 'Public Display' },
+  },
   {
     path: '/login',
     name: 'Login',
@@ -90,10 +98,34 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Monitoring Absensi', roles: ['admin_sekolah'] },
       },
       {
+        path: 'attendance/live',
+        name: 'LiveAttendance',
+        component: () => import('@/views/admin-sekolah/LiveAttendance.vue'),
+        meta: { title: 'Absensi Real-Time', roles: ['admin_sekolah', 'wali_kelas', 'guru_bk'] },
+      },
+      {
+        path: 'attendance/monthly-recap',
+        name: 'MonthlyRecap',
+        component: () => import('@/views/admin-sekolah/MonthlyRecap.vue'),
+        meta: { title: 'Rekap Bulanan', roles: ['admin_sekolah', 'wali_kelas'] },
+      },
+      {
         path: 'settings',
         name: 'SchoolSettings',
         component: () => import('@/views/admin-sekolah/SchoolSettings.vue'),
-        meta: { title: 'Pengaturan Sekolah', roles: ['admin_sekolah'] },
+        meta: { title: 'Pengaturan Sekolah', roles: ['admin_sekolah'], requiresAuth: true },
+      },
+      {
+        path: 'schedules',
+        name: 'ScheduleManagement',
+        component: () => import('@/views/admin-sekolah/ScheduleManagement.vue'),
+        meta: { title: 'Jadwal Absensi', roles: ['admin_sekolah'] },
+      },
+      {
+        path: 'display-tokens',
+        name: 'DisplayTokenManagement',
+        component: () => import('@/views/admin-sekolah/DisplayTokenManagement.vue'),
+        meta: { title: 'Display Token', roles: ['admin_sekolah'] },
       },
       // Guru BK Routes
       {

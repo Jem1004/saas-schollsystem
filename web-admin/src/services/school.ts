@@ -246,6 +246,44 @@ interface DeviceApiResponse {
   updated_at: string
 }
 
+// Backend response types for Settings (snake_case)
+interface SettingsApiResponse {
+  id: number
+  school_id: number
+  attendance_start_time: string
+  attendance_end_time: string
+  attendance_late_threshold: number
+  attendance_very_late_threshold: number
+  enable_attendance_notification: boolean
+  enable_grade_notification: boolean
+  enable_bk_notification: boolean
+  enable_homeroom_notification: boolean
+  academic_year: string
+  semester: number
+  created_at: string
+  updated_at: string
+}
+
+// Transform settings from API response to frontend format
+function transformSettings(apiSettings: SettingsApiResponse): SchoolSettings {
+  return {
+    id: apiSettings.id,
+    schoolId: apiSettings.school_id,
+    attendanceStartTime: apiSettings.attendance_start_time,
+    attendanceEndTime: apiSettings.attendance_end_time,
+    attendanceLateThreshold: apiSettings.attendance_late_threshold,
+    attendanceVeryLateThreshold: apiSettings.attendance_very_late_threshold,
+    enableAttendanceNotification: apiSettings.enable_attendance_notification,
+    enableGradeNotification: apiSettings.enable_grade_notification,
+    enableBKNotification: apiSettings.enable_bk_notification,
+    enableHomeroomNotification: apiSettings.enable_homeroom_notification,
+    academicYear: apiSettings.academic_year,
+    semester: apiSettings.semester,
+    createdAt: apiSettings.created_at,
+    updatedAt: apiSettings.updated_at,
+  }
+}
+
 // Transform device from API response to frontend format
 function transformDevice(apiDevice: DeviceApiResponse): Device {
   return {
@@ -522,18 +560,18 @@ export const schoolService = {
 
   // Settings
   async getSettings(): Promise<SchoolSettings> {
-    const response = await api.get<ApiResponse<SchoolSettings>>('/settings')
-    return response.data.data
+    const response = await api.get<ApiResponse<SettingsApiResponse>>('/settings')
+    return transformSettings(response.data.data)
   },
 
   async updateSettings(data: UpdateSchoolSettingsRequest): Promise<SchoolSettings> {
-    const response = await api.put<ApiResponse<SchoolSettings>>('/settings', data)
-    return response.data.data
+    const response = await api.put<ApiResponse<SettingsApiResponse>>('/settings', data)
+    return transformSettings(response.data.data)
   },
 
   async resetSettings(): Promise<SchoolSettings> {
-    const response = await api.post<ApiResponse<SchoolSettings>>('/settings/reset')
-    return response.data.data
+    const response = await api.post<ApiResponse<SettingsApiResponse>>('/settings/reset')
+    return transformSettings(response.data.data)
   },
 
   // Devices

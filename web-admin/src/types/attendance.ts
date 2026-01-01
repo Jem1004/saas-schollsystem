@@ -6,6 +6,8 @@ export interface Attendance {
   studentName?: string
   studentNis?: string
   studentClass?: string
+  scheduleId?: number
+  scheduleName?: string // Requirements: 3.10 - Show which schedule the attendance belongs to
   date: string
   checkInTime?: string
   checkOutTime?: string
