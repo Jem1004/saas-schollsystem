@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	ErrNoteNotFound    = errors.New("homeroom note not found")
-	ErrStudentNotFound = errors.New("student not found")
-	ErrUserNotFound    = errors.New("user not found")
+	ErrNoteNotFound    = errors.New("catatan wali kelas tidak ditemukan")
+	ErrStudentNotFound = errors.New("siswa tidak ditemukan")
+	ErrUserNotFound    = errors.New("user tidak ditemukan")
 )
 
 // Repository defines the interface for Homeroom Note data operations

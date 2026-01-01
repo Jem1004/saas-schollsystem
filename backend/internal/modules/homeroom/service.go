@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	ErrStudentIDRequired  = errors.New("student_id is required")
-	ErrContentRequired    = errors.New("content is required")
-	ErrStudentNotInSchool = errors.New("student does not belong to this school")
-	ErrStudentNotInClass  = errors.New("student does not belong to your assigned class")
-	ErrNotAuthorized      = errors.New("not authorized to perform this action")
-	ErrNoClassAssigned    = errors.New("no class assigned to this teacher")
+	ErrStudentIDRequired  = errors.New("ID siswa wajib diisi")
+	ErrContentRequired    = errors.New("konten wajib diisi")
+	ErrStudentNotInSchool = errors.New("siswa bukan dari sekolah ini")
+	ErrStudentNotInClass  = errors.New("siswa bukan dari kelas yang Anda ampu")
+	ErrNotAuthorized      = errors.New("tidak memiliki izin untuk melakukan aksi ini")
+	ErrNoClassAssigned    = errors.New("tidak ada kelas yang ditugaskan untuk guru ini")
 )
 
 // Service defines the interface for Homeroom Note business logic

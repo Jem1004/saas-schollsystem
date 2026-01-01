@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	ErrStudentIDRequired   = errors.New("student_id is required")
-	ErrTitleRequired       = errors.New("title is required")
-	ErrScoreInvalid        = errors.New("score must be between 0 and 100")
+	ErrStudentIDRequired   = errors.New("ID siswa wajib diisi")
+	ErrTitleRequired       = errors.New("judul wajib diisi")
+	ErrScoreInvalid        = errors.New("nilai harus antara 0 dan 100")
 	ErrStudentNotInSchool  = errors.New("student does not belong to this school")
 	ErrStudentNotInClass   = errors.New("student does not belong to your assigned class")
 	ErrNotAuthorized       = errors.New("not authorized to perform this action")

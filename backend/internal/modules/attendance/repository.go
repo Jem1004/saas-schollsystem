@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	ErrAttendanceNotFound = errors.New("attendance record not found")
-	ErrStudentNotFound    = errors.New("student not found")
-	ErrInvalidRFIDCode    = errors.New("invalid RFID code")
-	ErrDuplicateAttendance = errors.New("attendance record already exists for this date")
+	ErrAttendanceNotFound = errors.New("data kehadiran tidak ditemukan")
+	ErrStudentNotFound    = errors.New("siswa tidak ditemukan")
+	ErrInvalidRFIDCode    = errors.New("kode RFID tidak valid")
+	ErrDuplicateAttendance = errors.New("data kehadiran untuk tanggal ini sudah ada")
 )
 
 // Repository defines the interface for attendance data operations
@@ -39,6 +39,7 @@ type Repository interface {
 
 	// Summary operations
 	GetAttendanceSummary(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, error)
+	GetAttendanceSummaryByClass(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, []ClassSummaryItem, error)
 	GetClassAttendanceSummary(ctx context.Context, classID uint, date time.Time) (*ClassAttendanceSummaryResponse, error)
 }
 
@@ -371,6 +372,95 @@ func (r *repository) GetAttendanceSummary(ctx context.Context, schoolID uint, da
 	summary.Absent = int(totalStudents - presentCount)
 
 	return summary, nil
+}
+
+// GetAttendanceSummaryByClass retrieves attendance summary grouped by class
+func (r *repository) GetAttendanceSummaryByClass(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, []ClassSummaryItem, error) {
+	// Normalize date to start of day
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+
+	// Get all classes in the school
+	var classes []models.Class
+	if err := r.db.WithContext(ctx).
+		Where("school_id = ?", schoolID).
+		Order("name ASC").
+		Find(&classes).Error; err != nil {
+		return nil, nil, err
+	}
+
+	// Build summary per class
+	classSummaries := make([]ClassSummaryItem, 0, len(classes))
+	totalSummary := &AttendanceSummaryResponse{
+		Date: dateOnly.Format("2006-01-02"),
+	}
+
+	for _, class := range classes {
+		// Get total students in class
+		var totalStudents int64
+		if err := r.db.WithContext(ctx).
+			Model(&models.Student{}).
+			Where("class_id = ? AND is_active = ?", class.ID, true).
+			Count(&totalStudents).Error; err != nil {
+			continue
+		}
+
+		if totalStudents == 0 {
+			continue // Skip empty classes
+		}
+
+		// Get attendance counts by status for this class
+		type StatusCount struct {
+			Status string
+			Count  int64
+		}
+		var statusCounts []StatusCount
+
+		err := r.db.WithContext(ctx).
+			Model(&models.Attendance{}).
+			Select("status, COUNT(*) as count").
+			Joins("JOIN students ON students.id = attendances.student_id").
+			Where("students.class_id = ? AND attendances.date = ?", class.ID, dateOnly).
+			Group("status").
+			Scan(&statusCounts).Error
+
+		if err != nil {
+			continue
+		}
+
+		// Build class summary
+		classSummary := ClassSummaryItem{
+			ClassID:       class.ID,
+			ClassName:     class.Name,
+			TotalStudents: int(totalStudents),
+		}
+
+		var presentCount int64
+		for _, sc := range statusCounts {
+			switch models.AttendanceStatus(sc.Status) {
+			case models.AttendanceStatusOnTime:
+				classSummary.Present += int(sc.Count)
+				presentCount += sc.Count
+			case models.AttendanceStatusLate:
+				classSummary.Late += int(sc.Count)
+				presentCount += sc.Count
+			case models.AttendanceStatusVeryLate:
+				classSummary.Late += int(sc.Count) // Count very_late as late for simplicity
+				presentCount += sc.Count
+			}
+		}
+
+		classSummary.Absent = int(totalStudents) - int(presentCount)
+
+		classSummaries = append(classSummaries, classSummary)
+
+		// Add to total summary
+		totalSummary.TotalCount += int(totalStudents)
+		totalSummary.Present += classSummary.Present
+		totalSummary.Late += classSummary.Late
+		totalSummary.Absent += classSummary.Absent
+	}
+
+	return totalSummary, classSummaries, nil
 }
 
 // GetClassAttendanceSummary retrieves attendance summary for a class on a specific date

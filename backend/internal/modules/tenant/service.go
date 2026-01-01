@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	ErrNameRequired       = errors.New("school name is required")
-	ErrSchoolInactive     = errors.New("school is already inactive")
-	ErrSchoolActive       = errors.New("school is already active")
-	ErrUsernameExists     = errors.New("username already exists")
-	ErrInvalidUsername    = errors.New("username can only contain letters, numbers, and underscores")
+	ErrNameRequired       = errors.New("nama sekolah wajib diisi")
+	ErrSchoolInactive     = errors.New("sekolah sudah nonaktif")
+	ErrSchoolActive       = errors.New("sekolah sudah aktif")
+	ErrUsernameExists     = errors.New("Username sudah digunakan")
+	ErrInvalidUsername    = errors.New("username hanya boleh berisi huruf, angka, dan underscore")
 )
 
 // Service defines the interface for tenant business logic

@@ -10,14 +10,14 @@ import (
 )
 
 var (
-	ErrClassNotFound    = errors.New("class not found")
-	ErrStudentNotFound  = errors.New("student not found")
-	ErrParentNotFound   = errors.New("parent not found")
-	ErrDuplicateNISN    = errors.New("student with this NISN already exists")
-	ErrDuplicateNIS     = errors.New("student with this NIS already exists in this school")
-	ErrDuplicateClass   = errors.New("class with this name already exists for this grade and year")
-	ErrTeacherNotFound  = errors.New("teacher not found")
-	ErrInvalidTeacher   = errors.New("user is not a valid teacher for homeroom assignment")
+	ErrClassNotFound    = errors.New("kelas tidak ditemukan")
+	ErrStudentNotFound  = errors.New("siswa tidak ditemukan")
+	ErrParentNotFound   = errors.New("orang tua tidak ditemukan")
+	ErrDuplicateNISN    = errors.New("siswa dengan NISN ini sudah terdaftar")
+	ErrDuplicateNIS     = errors.New("siswa dengan NIS ini sudah terdaftar di sekolah ini")
+	ErrDuplicateClass   = errors.New("kelas dengan nama ini sudah ada untuk tingkat dan tahun yang sama")
+	ErrTeacherNotFound  = errors.New("guru tidak ditemukan")
+	ErrInvalidTeacher   = errors.New("user bukan guru yang valid untuk ditugaskan sebagai wali kelas")
 )
 
 // Repository defines the interface for school data operations
@@ -65,9 +65,24 @@ type Repository interface {
 	// User operations (for school staff management)
 	FindAllUsers(ctx context.Context, schoolID uint, filter UserFilter) ([]models.User, int64, error)
 	FindUserByID(ctx context.Context, schoolID uint, id uint) (*models.User, error)
+	FindClassByHomeroomTeacher(ctx context.Context, schoolID uint, teacherID uint) (*models.Class, error)
 	CreateUser(ctx context.Context, user *models.User) error
 	UpdateUser(ctx context.Context, user *models.User) error
 	DeleteUser(ctx context.Context, schoolID uint, id uint) error
+
+	// Class Counselor operations
+	FindClassCounselorsByClass(ctx context.Context, schoolID uint, classID uint) ([]models.ClassCounselor, error)
+	FindClassesByCounselor(ctx context.Context, schoolID uint, counselorID uint) ([]models.Class, error)
+	AssignCounselorToClass(ctx context.Context, schoolID uint, classID uint, counselorID uint) error
+	RemoveCounselorFromClass(ctx context.Context, schoolID uint, classID uint, counselorID uint) error
+	RemoveAllCounselorsFromClass(ctx context.Context, schoolID uint, classID uint) error
+	RemoveCounselorFromAllClasses(ctx context.Context, schoolID uint, counselorID uint) error
+
+	// Device operations
+	FindDevicesBySchool(ctx context.Context, schoolID uint) ([]models.Device, error)
+
+	// RFID operations
+	ClearStudentRFID(ctx context.Context, studentID uint) error
 }
 
 // repository implements the Repository interface
@@ -365,6 +380,18 @@ func (r *repository) UpdateStudent(ctx context.Context, student *models.Student)
 	return nil
 }
 
+// UpdateStudentUserID links a user account to a student
+func (r *repository) UpdateStudentUserID(ctx context.Context, studentID uint, userID uint) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.Student{}).
+		Where("id = ?", studentID).
+		Update("user_id", userID)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
 // DeleteStudent deletes a student
 func (r *repository) DeleteStudent(ctx context.Context, schoolID uint, id uint) error {
 	result := r.db.WithContext(ctx).
@@ -496,6 +523,21 @@ func (r *repository) UpdateParentUserEmail(ctx context.Context, userID uint, ema
 		Model(&models.User{}).
 		Where("id = ?", userID).
 		Update("email", email)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+// ResetUserPassword resets a user's password and sets must_reset_pwd to true
+func (r *repository) ResetUserPassword(ctx context.Context, userID uint, passwordHash string) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"password_hash":  passwordHash,
+			"must_reset_pwd": true,
+		})
 	if result.Error != nil {
 		return result.Error
 	}
@@ -775,9 +817,11 @@ func (r *repository) UpdateUser(ctx context.Context, user *models.User) error {
 		Model(&models.User{}).
 		Where("id = ?", user.ID).
 		Updates(map[string]interface{}{
-			"email":     user.Email,
-			"name":      user.Name,
-			"is_active": user.IsActive,
+			"email":         user.Email,
+			"name":          user.Name,
+			"is_active":     user.IsActive,
+			"password_hash": user.PasswordHash,
+			"must_reset_pwd": user.MustResetPwd,
 		})
 	if result.Error != nil {
 		return result.Error
@@ -799,6 +843,138 @@ func (r *repository) DeleteUser(ctx context.Context, schoolID uint, id uint) err
 	}
 	if result.RowsAffected == 0 {
 		return ErrUserNotFound
+	}
+	return nil
+}
+
+// FindClassByHomeroomTeacher finds the class assigned to a homeroom teacher
+func (r *repository) FindClassByHomeroomTeacher(ctx context.Context, schoolID uint, teacherID uint) (*models.Class, error) {
+	var class models.Class
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND homeroom_teacher_id = ?", schoolID, teacherID).
+		First(&class).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // No class assigned, not an error
+		}
+		return nil, err
+	}
+
+	return &class, nil
+}
+
+// ==================== Class Counselor Repository Methods ====================
+
+// FindClassCounselorsByClass retrieves all counselors assigned to a class
+func (r *repository) FindClassCounselorsByClass(ctx context.Context, schoolID uint, classID uint) ([]models.ClassCounselor, error) {
+	var counselors []models.ClassCounselor
+	err := r.db.WithContext(ctx).
+		Preload("Counselor").
+		Where("school_id = ? AND class_id = ?", schoolID, classID).
+		Find(&counselors).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return counselors, nil
+}
+
+// FindClassesByCounselor retrieves all classes assigned to a counselor
+func (r *repository) FindClassesByCounselor(ctx context.Context, schoolID uint, counselorID uint) ([]models.Class, error) {
+	var classes []models.Class
+	err := r.db.WithContext(ctx).
+		Joins("JOIN class_counselors ON class_counselors.class_id = classes.id").
+		Where("class_counselors.school_id = ? AND class_counselors.counselor_id = ?", schoolID, counselorID).
+		Find(&classes).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return classes, nil
+}
+
+// AssignCounselorToClass assigns a counselor to a class
+func (r *repository) AssignCounselorToClass(ctx context.Context, schoolID uint, classID uint, counselorID uint) error {
+	// Check if already assigned
+	var existing models.ClassCounselor
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND class_id = ? AND counselor_id = ?", schoolID, classID, counselorID).
+		First(&existing).Error
+
+	if err == nil {
+		// Already assigned
+		return nil
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+
+	// Create new assignment
+	assignment := &models.ClassCounselor{
+		SchoolID:    schoolID,
+		ClassID:     classID,
+		CounselorID: counselorID,
+	}
+
+	return r.db.WithContext(ctx).Create(assignment).Error
+}
+
+// RemoveCounselorFromClass removes a counselor from a class
+func (r *repository) RemoveCounselorFromClass(ctx context.Context, schoolID uint, classID uint, counselorID uint) error {
+	return r.db.WithContext(ctx).
+		Where("school_id = ? AND class_id = ? AND counselor_id = ?", schoolID, classID, counselorID).
+		Delete(&models.ClassCounselor{}).Error
+}
+
+// RemoveAllCounselorsFromClass removes all counselors from a class
+func (r *repository) RemoveAllCounselorsFromClass(ctx context.Context, schoolID uint, classID uint) error {
+	return r.db.WithContext(ctx).
+		Where("school_id = ? AND class_id = ?", schoolID, classID).
+		Delete(&models.ClassCounselor{}).Error
+}
+
+// RemoveCounselorFromAllClasses removes a counselor from all classes
+func (r *repository) RemoveCounselorFromAllClasses(ctx context.Context, schoolID uint, counselorID uint) error {
+	return r.db.WithContext(ctx).
+		Where("school_id = ? AND counselor_id = ?", schoolID, counselorID).
+		Delete(&models.ClassCounselor{}).Error
+}
+
+// ==================== Device Repository Methods ====================
+
+// FindDevicesBySchool retrieves all devices for a school
+func (r *repository) FindDevicesBySchool(ctx context.Context, schoolID uint) ([]models.Device, error) {
+	var devices []models.Device
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND is_active = ?", schoolID, true).
+		Order("device_code ASC").
+		Find(&devices).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return devices, nil
+}
+
+// ==================== RFID Repository Methods ====================
+
+// ClearStudentRFID clears the RFID code from a student
+func (r *repository) ClearStudentRFID(ctx context.Context, studentID uint) error {
+	result := r.db.WithContext(ctx).
+		Model(&models.Student{}).
+		Where("id = ?", studentID).
+		Update("rf_id_code", "")
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrStudentNotFound
 	}
 	return nil
 }

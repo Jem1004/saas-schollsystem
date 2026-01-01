@@ -24,7 +24,7 @@ func RoleMiddleware(allowedRoles ...models.UserRole) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "Access denied",
+					"message": "Akses ditolak",
 				},
 			})
 		}
@@ -40,7 +40,7 @@ func RoleMiddleware(allowedRoles ...models.UserRole) fiber.Handler {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_ROLE_DENIED",
-				"message": "You do not have permission to access this resource",
+				"message": "Anda tidak memiliki izin untuk mengakses sumber daya ini",
 			},
 		})
 	}
@@ -99,7 +99,7 @@ func StudentAccessMiddleware(accessPolicy policy.AccessPolicy) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "VAL_INVALID_FORMAT",
-					"message": "Invalid student ID format",
+					"message": "Format ID siswa tidak valid",
 				},
 			})
 		}
@@ -111,7 +111,7 @@ func StudentAccessMiddleware(accessPolicy policy.AccessPolicy) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "INTERNAL_ERROR",
-					"message": "Failed to validate access",
+					"message": "Gagal memvalidasi akses",
 				},
 			})
 		}
@@ -121,7 +121,7 @@ func StudentAccessMiddleware(accessPolicy policy.AccessPolicy) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_STUDENT_ACCESS_DENIED",
-					"message": "You do not have permission to access this student's data",
+					"message": "Anda tidak memiliki izin untuk mengakses data siswa ini",
 				},
 			})
 		}
@@ -139,7 +139,7 @@ func SuperAdminOnly() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "Access denied",
+					"message": "Akses ditolak",
 				},
 			})
 		}
@@ -152,7 +152,7 @@ func SuperAdminOnly() fiber.Handler {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_ROLE_DENIED",
-				"message": "Super admin access required",
+				"message": "Akses super admin diperlukan",
 			},
 		})
 	}
@@ -242,7 +242,7 @@ func BKAccessMiddleware() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "Access denied",
+					"message": "Akses ditolak",
 				},
 			})
 		}
@@ -275,7 +275,7 @@ func BKAccessMiddleware() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "You do not have permission to access BK data",
+					"message": "Anda tidak memiliki izin untuk mengakses data BK",
 				},
 			})
 		}
@@ -295,7 +295,7 @@ func BKAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fiber.Handle
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "You do not have permission to access BK data",
+					"message": "Anda tidak memiliki izin untuk mengakses data BK",
 				},
 			})
 		}
@@ -318,7 +318,7 @@ func GradeAccessMiddleware() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "Access denied",
+					"message": "Akses ditolak",
 				},
 			})
 		}
@@ -338,7 +338,7 @@ func GradeAccessMiddleware() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "You do not have permission to access grade data",
+					"message": "Anda tidak memiliki izin untuk mengakses data nilai",
 				},
 			})
 		}
@@ -366,7 +366,7 @@ func GradeAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fiber.Han
 					"success": false,
 					"error": fiber.Map{
 						"code":    "AUTHZ_ROLE_DENIED",
-						"message": "You do not have permission to access grade data",
+						"message": "Anda tidak memiliki izin untuk mengakses data nilai",
 					},
 				})
 			}
@@ -379,7 +379,7 @@ func GradeAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fiber.Han
 				"success": false,
 				"error": fiber.Map{
 					"code":    "VAL_INVALID_FORMAT",
-					"message": "Invalid student ID format",
+					"message": "Format ID siswa tidak valid",
 				},
 			})
 		}
@@ -391,7 +391,7 @@ func GradeAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fiber.Han
 				"success": false,
 				"error": fiber.Map{
 					"code":    "INTERNAL_ERROR",
-					"message": "Failed to validate access",
+					"message": "Gagal memvalidasi akses",
 				},
 			})
 		}
@@ -401,7 +401,7 @@ func GradeAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fiber.Han
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_GRADE_ACCESS_DENIED",
-					"message": "You do not have permission to access this student's grades",
+					"message": "Anda tidak memiliki izin untuk mengakses nilai siswa ini",
 				},
 			})
 		}
@@ -421,7 +421,7 @@ func HomeroomNoteAccessMiddleware() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "Access denied",
+					"message": "Akses ditolak",
 				},
 			})
 		}
@@ -442,7 +442,7 @@ func HomeroomNoteAccessMiddleware() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_ROLE_DENIED",
-					"message": "You do not have permission to access homeroom notes",
+					"message": "Anda tidak memiliki izin untuk mengakses catatan wali kelas",
 				},
 			})
 		}
@@ -470,7 +470,7 @@ func HomeroomNoteAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fi
 					"success": false,
 					"error": fiber.Map{
 						"code":    "AUTHZ_ROLE_DENIED",
-						"message": "You do not have permission to access homeroom notes",
+						"message": "Anda tidak memiliki izin untuk mengakses catatan wali kelas",
 					},
 				})
 			}
@@ -483,7 +483,7 @@ func HomeroomNoteAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fi
 				"success": false,
 				"error": fiber.Map{
 					"code":    "VAL_INVALID_FORMAT",
-					"message": "Invalid student ID format",
+					"message": "Format ID siswa tidak valid",
 				},
 			})
 		}
@@ -495,7 +495,7 @@ func HomeroomNoteAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fi
 				"success": false,
 				"error": fiber.Map{
 					"code":    "INTERNAL_ERROR",
-					"message": "Failed to validate access",
+					"message": "Gagal memvalidasi akses",
 				},
 			})
 		}
@@ -505,7 +505,7 @@ func HomeroomNoteAccessMiddlewareWithPolicy(accessPolicy policy.AccessPolicy) fi
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_HOMEROOM_ACCESS_DENIED",
-					"message": "You do not have permission to access this student's homeroom notes",
+					"message": "Anda tidak memiliki izin untuk mengakses catatan wali kelas siswa ini",
 				},
 			})
 		}
@@ -537,7 +537,7 @@ func ValidateClassAccess(accessPolicy policy.AccessPolicy) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "VAL_INVALID_FORMAT",
-					"message": "Invalid student ID format",
+					"message": "Format ID siswa tidak valid",
 				},
 			})
 		}
@@ -549,7 +549,7 @@ func ValidateClassAccess(accessPolicy policy.AccessPolicy) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "INTERNAL_ERROR",
-					"message": "Failed to validate class access",
+					"message": "Gagal memvalidasi akses kelas",
 				},
 			})
 		}
@@ -559,7 +559,7 @@ func ValidateClassAccess(accessPolicy policy.AccessPolicy) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_CLASS_ACCESS_DENIED",
-					"message": "You can only access students in your assigned class",
+					"message": "Anda hanya dapat mengakses siswa di kelas yang Anda ampu",
 				},
 			})
 		}

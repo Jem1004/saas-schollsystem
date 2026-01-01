@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrStudentNotFound = errors.New("student not found")
-	ErrUserNotStudent  = errors.New("user is not a student")
+	ErrStudentNotFound = errors.New("siswa tidak ditemukan")
+	ErrUserNotStudent  = errors.New("user bukan siswa")
 )
 
 // Repository defines the interface for student data operations

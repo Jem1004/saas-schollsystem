@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	ErrUserIDRequired    = errors.New("user_id is required")
-	ErrTypeRequired      = errors.New("notification type is required")
-	ErrTitleRequired     = errors.New("title is required")
-	ErrMessageRequired   = errors.New("message is required")
-	ErrTokenRequired     = errors.New("token is required")
-	ErrPlatformRequired  = errors.New("platform is required")
-	ErrInvalidPlatform   = errors.New("platform must be android or ios")
-	ErrNotificationIDsRequired = errors.New("notification_ids is required")
+	ErrUserIDRequired    = errors.New("ID user wajib diisi")
+	ErrTypeRequired      = errors.New("tipe notifikasi wajib diisi")
+	ErrTitleRequired     = errors.New("judul wajib diisi")
+	ErrMessageRequired   = errors.New("pesan wajib diisi")
+	ErrTokenRequired     = errors.New("token wajib diisi")
+	ErrPlatformRequired  = errors.New("platform wajib diisi")
+	ErrInvalidPlatform   = errors.New("platform harus android atau ios")
+	ErrNotificationIDsRequired = errors.New("ID notifikasi wajib diisi")
 )
 
 // Service defines the interface for notification business logic

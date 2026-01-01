@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	ErrDeviceNotFound      = errors.New("device not found")
-	ErrDuplicateDeviceCode = errors.New("device with this code already exists")
-	ErrDuplicateAPIKey     = errors.New("API key already exists")
-	ErrInvalidAPIKey       = errors.New("invalid API key")
+	ErrDeviceNotFound      = errors.New("perangkat tidak ditemukan")
+	ErrDuplicateDeviceCode = errors.New("perangkat dengan kode ini sudah terdaftar")
+	ErrDuplicateAPIKey     = errors.New("API key sudah ada")
+	ErrInvalidAPIKey       = errors.New("API key tidak valid")
 )
 
 // Repository defines the interface for device data operations

@@ -68,7 +68,7 @@ func (h *Handler) CreateSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -79,7 +79,7 @@ func (h *Handler) CreateSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "School name is required",
+				"message": "Nama sekolah wajib diisi",
 			},
 		})
 	}
@@ -92,7 +92,7 @@ func (h *Handler) CreateSchool(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "School created successfully",
+		"message": "Sekolah berhasil dibuat",
 	})
 }
 
@@ -159,7 +159,7 @@ func (h *Handler) GetSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid school ID",
+				"message": "ID sekolah tidak valid",
 			},
 		})
 	}
@@ -194,7 +194,7 @@ func (h *Handler) GetSchoolDetail(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid school ID",
+				"message": "ID sekolah tidak valid",
 			},
 		})
 	}
@@ -232,7 +232,7 @@ func (h *Handler) UpdateSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid school ID",
+				"message": "ID sekolah tidak valid",
 			},
 		})
 	}
@@ -243,7 +243,7 @@ func (h *Handler) UpdateSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -256,7 +256,7 @@ func (h *Handler) UpdateSchool(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "School updated successfully",
+		"message": "Sekolah berhasil diperbarui",
 	})
 }
 
@@ -280,7 +280,7 @@ func (h *Handler) DeactivateSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid school ID",
+				"message": "ID sekolah tidak valid",
 			},
 		})
 	}
@@ -316,7 +316,7 @@ func (h *Handler) ActivateSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid school ID",
+				"message": "ID sekolah tidak valid",
 			},
 		})
 	}
@@ -352,7 +352,7 @@ func (h *Handler) DeleteSchool(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid school ID",
+				"message": "ID sekolah tidak valid",
 			},
 		})
 	}
@@ -376,7 +376,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_SCHOOL",
-				"message": "School not found",
+				"message": "Sekolah tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrDuplicateSchool):
@@ -384,7 +384,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_DUPLICATE_ENTRY",
-				"message": "A school with this name already exists",
+				"message": "Sekolah dengan nama ini sudah terdaftar",
 			},
 		})
 	case errors.Is(err, ErrNameRequired):
@@ -392,7 +392,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "School name is required",
+				"message": "Nama sekolah wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrSchoolInactive):
@@ -400,7 +400,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_STATE",
-				"message": "School is already inactive",
+				"message": "Sekolah sudah nonaktif",
 			},
 		})
 	case errors.Is(err, ErrSchoolActive):
@@ -408,7 +408,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_STATE",
-				"message": "School is already active",
+				"message": "Sekolah sudah aktif",
 			},
 		})
 	case errors.Is(err, ErrUsernameExists):
@@ -416,7 +416,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_DUPLICATE_ENTRY",
-				"message": "Username already exists",
+				"message": "Username sudah digunakan",
 			},
 		})
 	case errors.Is(err, ErrInvalidUsername):
@@ -424,15 +424,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Username can only contain letters, numbers, and underscores",
+				"message": "Username hanya boleh berisi huruf, angka, dan underscore",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

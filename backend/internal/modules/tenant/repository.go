@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	ErrSchoolNotFound    = errors.New("school not found")
-	ErrDuplicateSchool   = errors.New("school with this name already exists")
-	ErrDuplicateUsername = errors.New("username already exists")
-	ErrSchoolHasData     = errors.New("school has associated data")
+	ErrSchoolNotFound    = errors.New("sekolah tidak ditemukan")
+	ErrDuplicateSchool   = errors.New("sekolah dengan nama ini sudah terdaftar")
+	ErrDuplicateUsername = errors.New("username sudah digunakan")
+	ErrSchoolHasData     = errors.New("sekolah memiliki data terkait")
 )
 
 // Repository defines the interface for tenant data operations

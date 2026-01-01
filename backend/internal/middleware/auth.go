@@ -19,7 +19,7 @@ func AuthMiddleware(jwtManager *auth.JWTManager) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTH_TOKEN_MISSING",
-					"message": "Authorization header is required",
+					"message": "Header otorisasi diperlukan",
 				},
 			})
 		}
@@ -31,7 +31,7 @@ func AuthMiddleware(jwtManager *auth.JWTManager) fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTH_TOKEN_INVALID",
-					"message": "Invalid authorization header format",
+					"message": "Format header otorisasi tidak valid",
 				},
 			})
 		}
@@ -103,7 +103,7 @@ func handleTokenError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_TOKEN_EXPIRED",
-				"message": "Token has expired",
+				"message": "Token sudah kedaluwarsa",
 			},
 		})
 	case auth.ErrTokenMalformed:
@@ -111,7 +111,7 @@ func handleTokenError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_TOKEN_MALFORMED",
-				"message": "Token is malformed",
+				"message": "Format token tidak valid",
 			},
 		})
 	default:
@@ -119,7 +119,7 @@ func handleTokenError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_TOKEN_INVALID",
-				"message": "Invalid token",
+				"message": "Token tidak valid",
 			},
 		})
 	}

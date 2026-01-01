@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	ErrNotificationNotFound = errors.New("notification not found")
-	ErrFCMTokenNotFound     = errors.New("FCM token not found")
-	ErrUserNotFound         = errors.New("user not found")
+	ErrNotificationNotFound = errors.New("notifikasi tidak ditemukan")
+	ErrFCMTokenNotFound     = errors.New("token FCM tidak ditemukan")
+	ErrUserNotFound         = errors.New("user tidak ditemukan")
 )
 
 // Repository defines the interface for notification data operations

@@ -108,7 +108,17 @@ type SchoolAttendanceSummaryResponse struct {
 	SchoolName  string                      `json:"school_name,omitempty"`
 	Date        string                      `json:"date"`
 	Summary     AttendanceSummaryResponse   `json:"summary"`
-	ByClass     []ClassAttendanceSummaryResponse `json:"by_class,omitempty"`
+	ByClass     []ClassSummaryItem          `json:"by_class,omitempty"`
+}
+
+// ClassSummaryItem represents attendance summary for a single class (for list view)
+type ClassSummaryItem struct {
+	ClassID       uint   `json:"class_id"`
+	ClassName     string `json:"class_name"`
+	TotalStudents int    `json:"total_students"`
+	Present       int    `json:"present"`
+	Late          int    `json:"late"`
+	Absent        int    `json:"absent"`
 }
 
 // ==================== Filter DTOs ====================

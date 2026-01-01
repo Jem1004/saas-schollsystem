@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	ErrGradeNotFound   = errors.New("grade not found")
-	ErrStudentNotFound = errors.New("student not found")
-	ErrUserNotFound    = errors.New("user not found")
+	ErrGradeNotFound   = errors.New("nilai tidak ditemukan")
+	ErrStudentNotFound = errors.New("siswa tidak ditemukan")
+	ErrUserNotFound    = errors.New("user tidak ditemukan")
 )
 
 // Repository defines the interface for Grade data operations

@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	ErrFCMNotInitialized = errors.New("FCM client not initialized")
-	ErrInvalidToken      = errors.New("invalid FCM token")
-	ErrSendFailed        = errors.New("failed to send notification")
+	ErrFCMNotInitialized = errors.New("klien FCM belum diinisialisasi")
+	ErrInvalidToken      = errors.New("token FCM tidak valid")
+	ErrSendFailed        = errors.New("gagal mengirim notifikasi")
 )
 
 // Client wraps the Firebase Cloud Messaging client

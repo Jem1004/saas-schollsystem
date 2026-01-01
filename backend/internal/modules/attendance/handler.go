@@ -56,7 +56,7 @@ func (h *Handler) RecordRFIDAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -93,7 +93,7 @@ func (h *Handler) RecordManualAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "School context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -104,7 +104,7 @@ func (h *Handler) RecordManualAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -117,7 +117,7 @@ func (h *Handler) RecordManualAttendance(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Attendance recorded successfully",
+		"message": "Kehadiran berhasil dicatat",
 	})
 }
 
@@ -141,7 +141,7 @@ func (h *Handler) RecordBulkManualAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "School context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -152,7 +152,7 @@ func (h *Handler) RecordBulkManualAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -165,7 +165,7 @@ func (h *Handler) RecordBulkManualAttendance(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    responses,
-		"message": "Bulk attendance recorded successfully",
+		"message": "Kehadiran massal berhasil dicatat",
 	})
 }
 
@@ -195,7 +195,7 @@ func (h *Handler) GetAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "School context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -271,7 +271,7 @@ func (h *Handler) GetAttendanceByID(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid attendance ID",
+				"message": "ID kehadiran tidak valid",
 			},
 		})
 	}
@@ -308,7 +308,7 @@ func (h *Handler) GetStudentAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -358,7 +358,7 @@ func (h *Handler) GetClassAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid class ID",
+				"message": "ID kelas tidak valid",
 			},
 		})
 	}
@@ -399,7 +399,7 @@ func (h *Handler) GetSchoolSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "School context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -442,7 +442,7 @@ func (h *Handler) DeleteAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid attendance ID",
+				"message": "ID kehadiran tidak valid",
 			},
 		})
 	}
@@ -453,7 +453,7 @@ func (h *Handler) DeleteAttendance(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Attendance record deleted successfully",
+		"message": "Data kehadiran berhasil dihapus",
 	})
 }
 
@@ -465,7 +465,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_ATTENDANCE",
-				"message": "Attendance record not found",
+				"message": "Data kehadiran tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrStudentNotFound):
@@ -473,7 +473,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_STUDENT",
-				"message": "Student not found",
+				"message": "Siswa tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrInvalidRFIDCode):
@@ -481,7 +481,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_RFID",
-				"message": "Invalid RFID code or student not found",
+				"message": "Kode RFID tidak valid atau siswa tidak ditemukan",
 			},
 		})
 	case errors.Is(err, device.ErrInvalidAPIKey):
@@ -489,7 +489,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_INVALID_API_KEY",
-				"message": "Invalid API key",
+				"message": "API key tidak valid",
 			},
 		})
 	case errors.Is(err, ErrAPIKeyRequired):
@@ -497,7 +497,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "API key is required",
+				"message": "API key wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrRFIDCodeRequired):
@@ -505,7 +505,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "RFID code is required",
+				"message": "Kode RFID wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrStudentIDRequired):
@@ -513,7 +513,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Student ID is required",
+				"message": "ID siswa wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrDateRequired):
@@ -521,7 +521,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Date is required",
+				"message": "Tanggal wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrInvalidDate):
@@ -529,7 +529,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid date format. Use YYYY-MM-DD",
+				"message": "Format tanggal tidak valid. Gunakan YYYY-MM-DD",
 			},
 		})
 	case errors.Is(err, ErrInvalidTime):
@@ -537,7 +537,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid time format. Use HH:MM",
+				"message": "Format waktu tidak valid. Gunakan HH:MM",
 			},
 		})
 	case errors.Is(err, ErrCheckOutBeforeIn):
@@ -545,7 +545,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_TIME",
-				"message": "Check-out time cannot be before check-in time",
+				"message": "Waktu check-out tidak boleh sebelum waktu check-in",
 			},
 		})
 	case errors.Is(err, ErrAlreadyCheckedOut):
@@ -553,15 +553,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_ALREADY_CHECKED_OUT",
-				"message": "Student has already checked out today",
+				"message": "Siswa sudah melakukan check-out hari ini",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

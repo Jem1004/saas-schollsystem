@@ -69,7 +69,7 @@ func (h *Handler) RegisterDevice(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -80,7 +80,7 @@ func (h *Handler) RegisterDevice(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "School ID is required",
+				"message": "ID sekolah wajib diisi",
 			},
 		})
 	}
@@ -89,7 +89,7 @@ func (h *Handler) RegisterDevice(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Device code is required",
+				"message": "Kode perangkat wajib diisi",
 			},
 		})
 	}
@@ -102,7 +102,7 @@ func (h *Handler) RegisterDevice(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Device registered successfully. Please save the API key securely - it will not be shown again.",
+		"message": "Perangkat berhasil didaftarkan. Simpan API key dengan aman - tidak akan ditampilkan lagi.",
 	})
 }
 
@@ -200,7 +200,7 @@ func (h *Handler) GetDevice(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid device ID",
+				"message": "ID perangkat tidak valid",
 			},
 		})
 	}
@@ -238,7 +238,7 @@ func (h *Handler) UpdateDevice(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid device ID",
+				"message": "ID perangkat tidak valid",
 			},
 		})
 	}
@@ -249,7 +249,7 @@ func (h *Handler) UpdateDevice(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -262,7 +262,7 @@ func (h *Handler) UpdateDevice(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Device updated successfully",
+		"message": "Perangkat berhasil diperbarui",
 	})
 }
 
@@ -286,7 +286,7 @@ func (h *Handler) RevokeAPIKey(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid device ID",
+				"message": "ID perangkat tidak valid",
 			},
 		})
 	}
@@ -322,7 +322,7 @@ func (h *Handler) RegenerateAPIKey(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid device ID",
+				"message": "ID perangkat tidak valid",
 			},
 		})
 	}
@@ -358,7 +358,7 @@ func (h *Handler) DeleteDevice(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid device ID",
+				"message": "ID perangkat tidak valid",
 			},
 		})
 	}
@@ -369,7 +369,7 @@ func (h *Handler) DeleteDevice(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Device deleted successfully",
+		"message": "Perangkat berhasil dihapus",
 	})
 }
 
@@ -392,7 +392,7 @@ func (h *Handler) ValidateAPIKey(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -416,7 +416,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_DEVICE",
-				"message": "Device not found",
+				"message": "Perangkat tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrDuplicateDeviceCode):
@@ -424,7 +424,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_DUPLICATE_ENTRY",
-				"message": "A device with this code already exists",
+				"message": "Perangkat dengan kode ini sudah terdaftar",
 			},
 		})
 	case errors.Is(err, ErrSchoolIDRequired):
@@ -432,7 +432,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "School ID is required",
+				"message": "ID sekolah wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrDeviceCodeRequired):
@@ -440,7 +440,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Device code is required",
+				"message": "Kode perangkat wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrDeviceInactive):
@@ -448,7 +448,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_STATE",
-				"message": "Device is already inactive",
+				"message": "Perangkat sudah nonaktif",
 			},
 		})
 	case errors.Is(err, ErrDeviceActive):
@@ -456,7 +456,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_STATE",
-				"message": "Device is already active",
+				"message": "Perangkat sudah aktif",
 			},
 		})
 	case errors.Is(err, ErrAPIKeyGeneration):
@@ -464,7 +464,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "INTERNAL_ERROR",
-				"message": "Failed to generate API key",
+				"message": "Gagal membuat API key",
 			},
 		})
 	case errors.Is(err, ErrInvalidAPIKey):
@@ -472,15 +472,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_INVALID_API_KEY",
-				"message": "Invalid API key",
+				"message": "API key tidak valid",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

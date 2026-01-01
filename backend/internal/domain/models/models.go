@@ -55,6 +55,7 @@ func AllModels() []interface{} {
 		&Student{},
 		&Parent{},
 		&StudentParent{},
+		&ClassCounselor{},
 
 		// Attendance
 		&Attendance{},

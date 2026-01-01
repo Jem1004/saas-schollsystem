@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ErrSettingsNotFound = errors.New("settings not found")
-	ErrSchoolNotFound   = errors.New("school not found")
+	ErrSettingsNotFound = errors.New("pengaturan tidak ditemukan")
+	ErrSchoolNotFound   = errors.New("sekolah tidak ditemukan")
 )
 
 // Repository defines the interface for SchoolSettings data operations

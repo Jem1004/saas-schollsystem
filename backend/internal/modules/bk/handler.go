@@ -160,7 +160,7 @@ func (h *Handler) CreateViolation(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Violation recorded successfully",
+		"message": "Pelanggaran berhasil dicatat",
 	})
 }
 
@@ -283,7 +283,7 @@ func (h *Handler) DeleteViolation(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Violation deleted successfully",
+		"message": "Pelanggaran berhasil dihapus",
 	})
 }
 
@@ -327,7 +327,7 @@ func (h *Handler) CreateAchievement(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Achievement recorded successfully",
+		"message": "Prestasi berhasil dicatat",
 	})
 }
 
@@ -477,7 +477,7 @@ func (h *Handler) DeleteAchievement(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Achievement deleted successfully",
+		"message": "Prestasi berhasil dihapus",
 	})
 }
 
@@ -520,7 +520,7 @@ func (h *Handler) CreatePermit(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Exit permit created successfully",
+		"message": "Izin keluar berhasil dibuat",
 	})
 }
 
@@ -658,7 +658,7 @@ func (h *Handler) RecordReturn(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Return time recorded successfully",
+		"message": "Waktu kembali berhasil dicatat",
 	})
 }
 
@@ -715,7 +715,7 @@ func (h *Handler) DeletePermit(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Permit deleted successfully",
+		"message": "Izin keluar berhasil dihapus",
 	})
 }
 
@@ -759,7 +759,7 @@ func (h *Handler) CreateCounselingNote(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Counseling note created successfully",
+		"message": "Catatan konseling berhasil dibuat",
 	})
 }
 
@@ -949,7 +949,7 @@ func (h *Handler) UpdateCounselingNote(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Counseling note updated successfully",
+		"message": "Catatan konseling berhasil diperbarui",
 	})
 }
 
@@ -977,7 +977,7 @@ func (h *Handler) DeleteCounselingNote(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Counseling note deleted successfully",
+		"message": "Catatan konseling berhasil dihapus",
 	})
 }
 
@@ -1217,7 +1217,7 @@ func (h *Handler) tenantRequiredError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "AUTHZ_TENANT_REQUIRED",
-			"message": "School context is required",
+			"message": "Konteks sekolah diperlukan",
 		},
 	})
 }
@@ -1227,7 +1227,7 @@ func (h *Handler) authRequiredError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "AUTH_REQUIRED",
-			"message": "Authentication is required",
+			"message": "Autentikasi diperlukan",
 		},
 	})
 }
@@ -1237,17 +1237,28 @@ func (h *Handler) invalidBodyError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "VAL_INVALID_FORMAT",
-			"message": "Invalid request body",
+			"message": "Format data tidak valid",
 		},
 	})
 }
 
 func (h *Handler) invalidIDError(c *fiber.Ctx, resource string) error {
+	resourceMap := map[string]string{
+		"violation":       "pelanggaran",
+		"achievement":     "prestasi",
+		"permit":          "izin keluar",
+		"counseling note": "catatan konseling",
+		"student":         "siswa",
+	}
+	resourceName := resourceMap[resource]
+	if resourceName == "" {
+		resourceName = resource
+	}
 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 		"success": false,
 		"error": fiber.Map{
 			"code":    "VAL_INVALID_FORMAT",
-			"message": "Invalid " + resource + " ID",
+			"message": "ID " + resourceName + " tidak valid",
 		},
 	})
 }
@@ -1259,7 +1270,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_VIOLATION",
-				"message": "Violation not found",
+				"message": "Pelanggaran tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrAchievementNotFound):
@@ -1267,7 +1278,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_ACHIEVEMENT",
-				"message": "Achievement not found",
+				"message": "Prestasi tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrPermitNotFound):
@@ -1275,7 +1286,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_PERMIT",
-				"message": "Permit not found",
+				"message": "Izin keluar tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrCounselingNoteNotFound):
@@ -1283,7 +1294,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_COUNSELING_NOTE",
-				"message": "Counseling note not found",
+				"message": "Catatan konseling tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrStudentNotFound):
@@ -1291,7 +1302,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_STUDENT",
-				"message": "Student not found",
+				"message": "Siswa tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrUserNotFound):
@@ -1299,7 +1310,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_USER",
-				"message": "User not found",
+				"message": "User tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrStudentIDRequired):
@@ -1307,7 +1318,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Student ID is required",
+				"message": "ID siswa wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrCategoryRequired):
@@ -1315,7 +1326,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Category is required",
+				"message": "Kategori wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrLevelRequired):
@@ -1323,7 +1334,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Level is required",
+				"message": "Level wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrDescriptionRequired):
@@ -1331,7 +1342,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Description is required",
+				"message": "Deskripsi wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrTitleRequired):
@@ -1339,7 +1350,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Title is required",
+				"message": "Judul wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrPointRequired):
@@ -1347,7 +1358,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_VALUE",
-				"message": "Point must be greater than 0",
+				"message": "Poin harus lebih dari 0",
 			},
 		})
 	case errors.Is(err, ErrReasonRequired):
@@ -1355,7 +1366,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Reason is required",
+				"message": "Alasan wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrExitTimeRequired):
@@ -1363,7 +1374,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Exit time is required",
+				"message": "Waktu keluar wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrResponsibleTeacherRequired):
@@ -1371,7 +1382,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Responsible teacher is required",
+				"message": "Guru penanggung jawab wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrInternalNoteRequired):
@@ -1379,7 +1390,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Internal note is required",
+				"message": "Catatan internal wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrReturnTimeRequired):
@@ -1387,7 +1398,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Return time is required",
+				"message": "Waktu kembali wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrAlreadyReturned):
@@ -1395,7 +1406,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_ALREADY_RETURNED",
-				"message": "Student has already returned",
+				"message": "Siswa sudah kembali",
 			},
 		})
 	case errors.Is(err, ErrStudentNotInSchool):
@@ -1403,7 +1414,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_MISMATCH",
-				"message": "Student does not belong to this school",
+				"message": "Siswa bukan dari sekolah ini",
 			},
 		})
 	case errors.Is(err, ErrTeacherNotInSchool):
@@ -1411,7 +1422,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_MISMATCH",
-				"message": "Teacher does not belong to this school",
+				"message": "Guru bukan dari sekolah ini",
 			},
 		})
 	case errors.Is(err, ErrInvalidViolationLevel):
@@ -1419,15 +1430,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_VALUE",
-				"message": "Invalid violation level. Must be one of: ringan, sedang, berat",
+				"message": "Level pelanggaran tidak valid. Harus salah satu dari: ringan, sedang, berat",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

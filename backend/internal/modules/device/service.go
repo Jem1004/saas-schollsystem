@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	ErrSchoolIDRequired    = errors.New("school_id is required")
-	ErrDeviceCodeRequired  = errors.New("device_code is required")
-	ErrDeviceInactive      = errors.New("device is already inactive")
-	ErrDeviceActive        = errors.New("device is already active")
-	ErrAPIKeyGeneration    = errors.New("failed to generate API key")
+	ErrSchoolIDRequired    = errors.New("ID sekolah wajib diisi")
+	ErrDeviceCodeRequired  = errors.New("kode perangkat wajib diisi")
+	ErrDeviceInactive      = errors.New("perangkat sudah nonaktif")
+	ErrDeviceActive        = errors.New("perangkat sudah aktif")
+	ErrAPIKeyGeneration    = errors.New("gagal membuat API key")
 )
 
 // Service defines the interface for device business logic
@@ -183,7 +183,7 @@ func (s *service) ValidateAPIKey(ctx context.Context, apiKey string) (*APIKeyVal
 		log.Printf("API key validation failed: empty API key")
 		return &APIKeyValidationResponse{
 			Valid:   false,
-			Message: "API key is required",
+			Message: "API key wajib diisi",
 		}, nil
 	}
 
@@ -194,7 +194,7 @@ func (s *service) ValidateAPIKey(ctx context.Context, apiKey string) (*APIKeyVal
 			log.Printf("API key validation failed: invalid API key attempted")
 			return &APIKeyValidationResponse{
 				Valid:   false,
-				Message: "Invalid API key",
+				Message: "API key tidak valid",
 			}, nil
 		}
 		return nil, err
@@ -210,7 +210,7 @@ func (s *service) ValidateAPIKey(ctx context.Context, apiKey string) (*APIKeyVal
 		Valid:    true,
 		DeviceID: device.ID,
 		SchoolID: device.SchoolID,
-		Message:  "API key is valid",
+		Message:  "API key valid",
 	}, nil
 }
 
@@ -236,7 +236,7 @@ func (s *service) RevokeAPIKey(ctx context.Context, id uint) (*RevokeAPIKeyRespo
 	return &RevokeAPIKeyResponse{
 		DeviceID:   device.ID,
 		DeviceCode: device.DeviceCode,
-		Message:    "API key revoked successfully. The device can no longer send attendance data.",
+		Message:    "API key berhasil dicabut. Perangkat tidak dapat lagi mengirim data kehadiran.",
 	}, nil
 }
 
@@ -264,7 +264,7 @@ func (s *service) RegenerateAPIKey(ctx context.Context, id uint) (*RegenerateAPI
 		DeviceID:   device.ID,
 		DeviceCode: device.DeviceCode,
 		APIKey:     device.APIKey,
-		Message:    "API key regenerated successfully. Please update the device with the new key.",
+		Message:    "API key berhasil dibuat ulang. Silakan perbarui perangkat dengan key baru.",
 	}, nil
 }
 

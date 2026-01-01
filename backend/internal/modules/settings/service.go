@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	ErrInvalidTimeFormat           = errors.New("time must be in HH:MM format")
-	ErrInvalidLateThreshold        = errors.New("late threshold must be non-negative")
-	ErrInvalidVeryLateThreshold    = errors.New("very late threshold must be greater than or equal to late threshold")
-	ErrInvalidSemester             = errors.New("semester must be 1 or 2")
-	ErrSchoolIDRequired            = errors.New("school_id is required")
+	ErrInvalidTimeFormat           = errors.New("waktu harus dalam format HH:MM")
+	ErrInvalidLateThreshold        = errors.New("batas terlambat tidak boleh negatif")
+	ErrInvalidVeryLateThreshold    = errors.New("batas sangat terlambat harus lebih besar atau sama dengan batas terlambat")
+	ErrInvalidSemester             = errors.New("semester harus 1 atau 2")
+	ErrSchoolIDRequired            = errors.New("ID sekolah wajib diisi")
 )
 
 // Service defines the interface for SchoolSettings business logic

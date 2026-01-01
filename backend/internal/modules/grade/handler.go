@@ -76,7 +76,7 @@ func (h *Handler) CreateGrade(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Grade recorded successfully",
+		"message": "Nilai berhasil dicatat",
 	})
 }
 
@@ -271,7 +271,7 @@ func (h *Handler) UpdateGrade(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Grade updated successfully",
+		"message": "Nilai berhasil diperbarui",
 	})
 }
 
@@ -299,7 +299,7 @@ func (h *Handler) DeleteGrade(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Grade deleted successfully",
+		"message": "Nilai berhasil dihapus",
 	})
 }
 
@@ -351,7 +351,7 @@ func (h *Handler) tenantRequiredError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "AUTHZ_TENANT_REQUIRED",
-			"message": "School context is required",
+			"message": "Konteks sekolah diperlukan",
 		},
 	})
 }
@@ -361,7 +361,7 @@ func (h *Handler) authRequiredError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "AUTH_REQUIRED",
-			"message": "Authentication is required",
+			"message": "Autentikasi diperlukan",
 		},
 	})
 }
@@ -371,7 +371,7 @@ func (h *Handler) invalidBodyError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "VAL_INVALID_FORMAT",
-			"message": "Invalid request body",
+			"message": "Format data tidak valid",
 		},
 	})
 }
@@ -393,7 +393,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_GRADE",
-				"message": "Grade not found",
+				"message": "Nilai tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrStudentNotFound):
@@ -401,7 +401,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_STUDENT",
-				"message": "Student not found",
+				"message": "Siswa tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrStudentIDRequired):
@@ -409,7 +409,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Student ID is required",
+				"message": "ID siswa wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrTitleRequired):
@@ -417,7 +417,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Title is required",
+				"message": "Judul wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrScoreInvalid):
@@ -425,7 +425,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_VALUE",
-				"message": "Score must be between 0 and 100",
+				"message": "Nilai harus antara 0 dan 100",
 			},
 		})
 	case errors.Is(err, ErrStudentNotInSchool):
@@ -433,7 +433,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_MISMATCH",
-				"message": "Student does not belong to this school",
+				"message": "Siswa bukan dari sekolah ini",
 			},
 		})
 	case errors.Is(err, ErrStudentNotInClass):
@@ -441,7 +441,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_CLASS_MISMATCH",
-				"message": "Student does not belong to your assigned class",
+				"message": "Siswa bukan dari kelas yang Anda ampu",
 			},
 		})
 	case errors.Is(err, ErrNoClassAssigned):
@@ -449,7 +449,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_NO_CLASS",
-				"message": "No class assigned to this teacher",
+				"message": "Tidak ada kelas yang ditugaskan untuk guru ini",
 			},
 		})
 	case errors.Is(err, ErrNotAuthorized):
@@ -457,15 +457,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_NOT_AUTHORIZED",
-				"message": "Not authorized to perform this action",
+				"message": "Tidak memiliki izin untuk melakukan aksi ini",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

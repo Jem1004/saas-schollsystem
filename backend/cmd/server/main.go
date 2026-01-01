@@ -120,6 +120,11 @@ func main() {
 	deviceService := device.NewService(deviceRepo)
 	deviceHandler := device.NewHandler(deviceService)
 
+	// Initialize Pairing Module (for RFID card pairing)
+	deviceStudentRepo := device.NewStudentRepository(db)
+	pairingService := device.NewPairingService(deviceRepo, deviceStudentRepo)
+	pairingHandler := device.NewPairingHandler(pairingService)
+
 	// Super Admin routes - use specific path prefixes to avoid middleware conflicts
 	// Schools management (Super Admin only)
 	schoolsAdmin := protected.Group("/schools", middleware.SuperAdminOnly())
@@ -132,8 +137,18 @@ func main() {
 	// Public device routes (for ESP32 API key validation)
 	deviceHandler.RegisterPublicRoutes(api)
 
+	// Public pairing routes (for ESP32 RFID pairing)
+	pairingHandler.RegisterPublicRoutes(api)
+
 	// Tenant-scoped routes (for non-super_admin users)
 	tenantScoped := protected.Group("", middleware.TenantMiddleware())
+
+	// Pairing routes for admin sekolah (start/cancel/status pairing)
+	pairingRoutes := tenantScoped.Group("", middleware.RoleMiddleware(
+		models.RoleAdminSekolah,
+		models.RoleSuperAdmin,
+	))
+	pairingHandler.RegisterRoutes(pairingRoutes)
 
 	// Initialize School Module (Admin Sekolah)
 	schoolRepo := school.NewRepository(db)

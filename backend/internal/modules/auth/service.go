@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	ErrAccountInactive    = errors.New("account is inactive")
-	ErrSchoolInactive     = errors.New("school is inactive")
-	ErrPasswordMismatch   = errors.New("old password is incorrect")
-	ErrSamePassword       = errors.New("new password must be different from old password")
-	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
+	ErrAccountInactive    = errors.New("akun tidak aktif")
+	ErrSchoolInactive     = errors.New("sekolah tidak aktif")
+	ErrPasswordMismatch   = errors.New("password lama salah")
+	ErrSamePassword       = errors.New("password baru harus berbeda dari password lama")
+	ErrPasswordTooShort   = errors.New("password minimal 8 karakter")
 )
 
 // Service defines the interface for auth business logic

@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserNotFound = errors.New("user tidak ditemukan")
+	ErrInvalidCredentials = errors.New("username atau password salah")
 )
 
 // Repository defines the interface for auth data operations

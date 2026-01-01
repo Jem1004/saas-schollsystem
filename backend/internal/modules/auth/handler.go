@@ -49,7 +49,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -60,7 +60,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Username and password are required",
+				"message": "Username dan password wajib diisi",
 			},
 		})
 	}
@@ -95,7 +95,7 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -105,7 +105,7 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Refresh token is required",
+				"message": "Refresh token wajib diisi",
 			},
 		})
 	}
@@ -133,7 +133,7 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	// Server-side token revocation can be implemented using Redis blacklist if needed
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Logged out successfully",
+		"message": "Berhasil keluar",
 	})
 }
 
@@ -157,7 +157,7 @@ func (h *Handler) ChangePassword(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_TOKEN_INVALID",
-				"message": "Invalid authentication",
+				"message": "Autentikasi tidak valid",
 			},
 		})
 	}
@@ -168,7 +168,7 @@ func (h *Handler) ChangePassword(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -178,7 +178,7 @@ func (h *Handler) ChangePassword(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Old password and new password are required",
+				"message": "Password lama dan password baru wajib diisi",
 			},
 		})
 	}
@@ -188,7 +188,7 @@ func (h *Handler) ChangePassword(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "New password must be at least 8 characters",
+				"message": "Password baru minimal 8 karakter",
 			},
 		})
 	}
@@ -200,7 +200,7 @@ func (h *Handler) ChangePassword(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Password changed successfully",
+		"message": "Password berhasil diubah",
 	})
 }
 
@@ -220,7 +220,7 @@ func (h *Handler) GetCurrentUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_TOKEN_INVALID",
-				"message": "Invalid authentication",
+				"message": "Autentikasi tidak valid",
 			},
 		})
 	}
@@ -242,7 +242,7 @@ func (h *Handler) GetCurrentUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_USER",
-				"message": "User not found",
+				"message": "User tidak ditemukan",
 			},
 		})
 	}
@@ -266,7 +266,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_INVALID_CREDENTIALS",
-				"message": "Invalid username or password",
+				"message": "Username atau password salah",
 			},
 		})
 	case errors.Is(err, ErrAccountInactive):
@@ -274,7 +274,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_ACCOUNT_INACTIVE",
-				"message": "Account is inactive",
+				"message": "Akun tidak aktif",
 			},
 		})
 	case errors.Is(err, ErrSchoolInactive):
@@ -282,7 +282,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_SCHOOL_INACTIVE",
-				"message": "School is inactive",
+				"message": "Sekolah tidak aktif",
 			},
 		})
 	case errors.Is(err, ErrTokenExpired):
@@ -290,7 +290,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_TOKEN_EXPIRED",
-				"message": "Token has expired",
+				"message": "Token sudah kedaluwarsa",
 			},
 		})
 	case errors.Is(err, ErrTokenInvalid), errors.Is(err, ErrTokenMalformed):
@@ -298,7 +298,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_TOKEN_INVALID",
-				"message": "Invalid token",
+				"message": "Token tidak valid",
 			},
 		})
 	case errors.Is(err, ErrPasswordMismatch):
@@ -306,7 +306,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_PASSWORD_MISMATCH",
-				"message": "Old password is incorrect",
+				"message": "Password lama salah",
 			},
 		})
 	case errors.Is(err, ErrSamePassword):
@@ -314,7 +314,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_SAME_PASSWORD",
-				"message": "New password must be different from old password",
+				"message": "Password baru harus berbeda dari password lama",
 			},
 		})
 	case errors.Is(err, ErrPasswordTooShort):
@@ -322,7 +322,7 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Password must be at least 8 characters",
+				"message": "Password minimal 8 karakter",
 			},
 		})
 	case errors.Is(err, ErrUserNotFound):
@@ -330,15 +330,17 @@ func (h *Handler) handleAuthError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_USER",
-				"message": "User not found",
+				"message": "User tidak ditemukan",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

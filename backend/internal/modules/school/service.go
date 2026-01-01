@@ -11,17 +11,23 @@ import (
 )
 
 var (
-	ErrNameRequired       = errors.New("name is required")
-	ErrNISRequired        = errors.New("NIS is required")
-	ErrNISNRequired       = errors.New("NISN is required")
-	ErrClassIDRequired    = errors.New("class_id is required")
-	ErrGradeRequired      = errors.New("grade is required")
-	ErrYearRequired       = errors.New("year is required")
-	ErrPasswordRequired   = errors.New("password is required")
-	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
-	ErrStudentIDsRequired = errors.New("at least one student_id is required")
-	ErrClassHasStudents   = errors.New("cannot delete class with students")
+	ErrNameRequired        = errors.New("nama wajib diisi")
+	ErrNISRequired         = errors.New("NIS wajib diisi")
+	ErrNISNRequired        = errors.New("NISN wajib diisi")
+	ErrClassIDRequired     = errors.New("kelas wajib dipilih")
+	ErrGradeRequired       = errors.New("tingkat wajib diisi")
+	ErrYearRequired        = errors.New("tahun ajaran wajib diisi")
+	ErrPasswordRequired    = errors.New("password wajib diisi")
+	ErrPasswordTooShort    = errors.New("password minimal 8 karakter")
+	ErrStudentIDsRequired  = errors.New("minimal satu siswa wajib dipilih")
+	ErrClassHasStudents    = errors.New("tidak dapat menghapus kelas yang masih memiliki siswa")
+	ErrPhoneRequired       = errors.New("nomor HP wajib diisi")
+	ErrStudentHasAccount   = errors.New("siswa sudah memiliki akun")
+	ErrStudentNoAccount    = errors.New("siswa belum memiliki akun")
 )
+
+// Default password for parent and student accounts
+const DefaultPassword = "password123"
 
 // Service defines the interface for school business logic
 type Service interface {
@@ -41,6 +47,7 @@ type Service interface {
 	GetStudentsByClass(ctx context.Context, schoolID uint, classID uint) ([]StudentResponse, error)
 	UpdateStudent(ctx context.Context, schoolID uint, id uint, req UpdateStudentRequest) (*StudentResponse, error)
 	DeleteStudent(ctx context.Context, schoolID uint, id uint) error
+	ClearStudentRFID(ctx context.Context, schoolID uint, studentID uint) error
 
 	// Parent operations
 	CreateParent(ctx context.Context, schoolID uint, req CreateParentRequest) (*ParentResponse, error)
@@ -64,6 +71,10 @@ type Service interface {
 	CreateUser(ctx context.Context, schoolID uint, req CreateUserRequest) (*UserResponse, error)
 	UpdateUser(ctx context.Context, schoolID uint, id uint, req UpdateUserRequest) (*UserResponse, error)
 	DeleteUser(ctx context.Context, schoolID uint, id uint) error
+	ResetUserPassword(ctx context.Context, schoolID uint, id uint) (*ResetPasswordResponse, error)
+
+	// Device operations
+	GetSchoolDevices(ctx context.Context, schoolID uint) ([]DeviceResponse, error)
 }
 
 // service implements the Service interface
@@ -333,6 +344,7 @@ func (s *service) toClassResponse(ctx context.Context, class *models.Class) *Cla
 // CreateStudent creates a new student
 // Requirements: 3.2 - WHEN an Admin_Sekolah registers a student, THE System SHALL require NIS, NISN, name, and class assignment
 // Requirements: 3.5 - IF duplicate NISN is detected within the system, THEN THE System SHALL reject the registration with an error message
+// If CreateAccount is true, also creates a user account with NIS as username
 func (s *service) CreateStudent(ctx context.Context, schoolID uint, req CreateStudentRequest) (*StudentResponse, error) {
 	// Validate required fields
 	nis := strings.TrimSpace(req.NIS)
@@ -375,6 +387,42 @@ func (s *service) CreateStudent(ctx context.Context, schoolID uint, req CreateSt
 		return nil, ErrDuplicateNIS
 	}
 
+	// Create user account if requested
+	var userID *uint
+	var tempPassword string
+	if req.CreateAccount {
+		// Check if username already exists
+		_, err := s.userRepo.FindByUsername(ctx, nis)
+		if err == nil {
+			return nil, errors.New("NIS sudah digunakan sebagai username siswa lain")
+		}
+
+		// Use default password
+		tempPassword = DefaultPassword
+
+		// Hash password
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(tempPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+
+		// Create user account
+		user := &models.User{
+			SchoolID:     &schoolID,
+			Role:         models.RoleStudent,
+			Username:     nis,
+			PasswordHash: string(passwordHash),
+			Name:         name,
+			IsActive:     true,
+			MustResetPwd: true,
+		}
+
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			return nil, err
+		}
+		userID = &user.ID
+	}
+
 	// Create student
 	student := &models.Student{
 		SchoolID: schoolID,
@@ -384,6 +432,7 @@ func (s *service) CreateStudent(ctx context.Context, schoolID uint, req CreateSt
 		Name:     name,
 		RFIDCode: strings.TrimSpace(req.RFIDCode),
 		IsActive: true,
+		UserID:   userID,
 	}
 
 	if err := s.repo.CreateStudent(ctx, student); err != nil {
@@ -396,7 +445,13 @@ func (s *service) CreateStudent(ctx context.Context, schoolID uint, req CreateSt
 		return nil, err
 	}
 
-	return s.toStudentResponse(student), nil
+	response := s.toStudentResponse(student)
+	if req.CreateAccount {
+		response.Username = nis
+		response.TemporaryPassword = tempPassword
+	}
+
+	return response, nil
 }
 
 // GetAllStudents retrieves all students for a school
@@ -550,16 +605,22 @@ func (s *service) DeleteStudent(ctx context.Context, schoolID uint, id uint) err
 // toStudentResponse converts a Student model to StudentResponse DTO
 func (s *service) toStudentResponse(student *models.Student) *StudentResponse {
 	response := &StudentResponse{
-		ID:        student.ID,
-		SchoolID:  student.SchoolID,
-		ClassID:   student.ClassID,
-		NIS:       student.NIS,
-		NISN:      student.NISN,
-		Name:      student.Name,
-		RFIDCode:  student.RFIDCode,
-		IsActive:  student.IsActive,
-		CreatedAt: student.CreatedAt,
-		UpdatedAt: student.UpdatedAt,
+		ID:         student.ID,
+		SchoolID:   student.SchoolID,
+		ClassID:    student.ClassID,
+		NIS:        student.NIS,
+		NISN:       student.NISN,
+		Name:       student.Name,
+		RFIDCode:   student.RFIDCode,
+		IsActive:   student.IsActive,
+		HasAccount: student.UserID != nil,
+		CreatedAt:  student.CreatedAt,
+		UpdatedAt:  student.UpdatedAt,
+	}
+
+	// Add username if student has account
+	if student.UserID != nil {
+		response.Username = student.NIS // Username is NIS
 	}
 
 	// Add class info if available
@@ -580,11 +641,9 @@ func (s *service) toStudentResponse(student *models.Student) *StudentResponse {
 
 // ==================== Parent Service Methods ====================
 
-// Default password for new accounts
-const DefaultPassword = "password123"
-
 // CreateParent creates a new parent with a user account
 // Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
+// Username: Phone number (primary), Password: Auto-generated or manual input
 func (s *service) CreateParent(ctx context.Context, schoolID uint, req CreateParentRequest) (*ParentResponse, error) {
 	// Validate required fields
 	name := strings.TrimSpace(req.Name)
@@ -595,21 +654,18 @@ func (s *service) CreateParent(ctx context.Context, schoolID uint, req CreatePar
 	// Phone is required for parent (used as primary username)
 	phone := strings.TrimSpace(req.Phone)
 	if phone == "" {
-		return nil, errors.New("phone number is required for parent account")
+		return nil, ErrPhoneRequired
 	}
 	
 	email := strings.TrimSpace(req.Email)
 
-	// Username priority: Phone first, then Email
+	// Username is phone number
 	username := phone
-	if username == "" {
-		username = email
-	}
 
-	// Check if username already exists
-	existingUser, err := s.userRepo.FindByUsername(ctx, username)
-	if err == nil && existingUser != nil {
-		return nil, errors.New("user with this phone number already exists")
+	// Check if username (phone) already exists
+	_, err := s.userRepo.FindByUsername(ctx, username)
+	if err == nil {
+		return nil, errors.New("nomor HP sudah digunakan oleh orang tua lain")
 	}
 
 	// Use default password if not provided
@@ -777,7 +833,7 @@ func (s *service) DeleteParent(ctx context.Context, schoolID uint, id uint) erro
 	return s.repo.DeleteParent(ctx, schoolID, id)
 }
 
-// ResetParentPassword resets a parent's password to default
+// ResetParentPassword resets a parent's password to default password
 func (s *service) ResetParentPassword(ctx context.Context, schoolID uint, parentID uint) (*ResetPasswordResponse, error) {
 	// Get parent
 	parent, err := s.repo.FindParentByID(ctx, schoolID, parentID)
@@ -785,8 +841,11 @@ func (s *service) ResetParentPassword(ctx context.Context, schoolID uint, parent
 		return nil, err
 	}
 
-	// Hash default password
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(DefaultPassword), bcrypt.DefaultCost)
+	// Use default password
+	newPassword := DefaultPassword
+
+	// Hash password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
@@ -798,8 +857,8 @@ func (s *service) ResetParentPassword(ctx context.Context, schoolID uint, parent
 
 	return &ResetPasswordResponse{
 		Username:          parent.Phone,
-		TemporaryPassword: DefaultPassword,
-		Message:           "Password berhasil direset. User wajib mengganti password saat login pertama.",
+		TemporaryPassword: newPassword,
+		Message:           "Password berhasil direset ke default. User wajib mengganti password saat login pertama.",
 	}, nil
 }
 
@@ -813,20 +872,23 @@ func (s *service) CreateStudentAccount(ctx context.Context, schoolID uint, stude
 
 	// Check if student already has an account
 	if student.UserID != nil {
-		return nil, errors.New("student already has an account")
+		return nil, ErrStudentHasAccount
 	}
 
 	// Username is NIS
 	username := student.NIS
 
 	// Check if username already exists
-	existingUser, err := s.userRepo.FindByUsername(ctx, username)
-	if err == nil && existingUser != nil {
-		return nil, errors.New("user with this NIS already exists")
+	_, err = s.userRepo.FindByUsername(ctx, username)
+	if err == nil {
+		return nil, errors.New("NIS sudah digunakan sebagai username siswa lain")
 	}
 
-	// Hash default password
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(DefaultPassword), bcrypt.DefaultCost)
+	// Use default password
+	password := DefaultPassword
+
+	// Hash password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
@@ -859,12 +921,12 @@ func (s *service) CreateStudentAccount(ctx context.Context, schoolID uint, stude
 
 	response := s.toStudentResponse(student)
 	response.Username = username
-	response.TemporaryPassword = DefaultPassword
+	response.TemporaryPassword = password
 
 	return response, nil
 }
 
-// ResetStudentPassword resets a student's password to default
+// ResetStudentPassword resets a student's password to a new generated password
 func (s *service) ResetStudentPassword(ctx context.Context, schoolID uint, studentID uint) (*ResetPasswordResponse, error) {
 	// Get student
 	student, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
@@ -874,11 +936,14 @@ func (s *service) ResetStudentPassword(ctx context.Context, schoolID uint, stude
 
 	// Check if student has an account
 	if student.UserID == nil {
-		return nil, errors.New("student does not have an account")
+		return nil, ErrStudentNoAccount
 	}
 
-	// Hash default password
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(DefaultPassword), bcrypt.DefaultCost)
+	// Use default password
+	newPassword := DefaultPassword
+
+	// Hash password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
@@ -890,7 +955,7 @@ func (s *service) ResetStudentPassword(ctx context.Context, schoolID uint, stude
 
 	return &ResetPasswordResponse{
 		Username:          student.NIS,
-		TemporaryPassword: DefaultPassword,
+		TemporaryPassword: newPassword,
 		Message:           "Password berhasil direset. User wajib mengganti password saat login pertama.",
 	}, nil
 }
@@ -983,10 +1048,35 @@ func (s *service) GetAllUsers(ctx context.Context, schoolID uint, filter UserFil
 		return nil, err
 	}
 
-	// Convert to response
+	// Convert to response with assigned class info
 	userResponses := make([]UserResponse, len(users))
 	for i, user := range users {
-		userResponses[i] = *s.toUserResponse(&user)
+		response := s.toUserResponse(&user)
+		
+		// Get assigned class for wali_kelas
+		if user.Role == models.RoleWaliKelas {
+			class, err := s.repo.FindClassByHomeroomTeacher(ctx, schoolID, user.ID)
+			if err == nil && class != nil {
+				response.AssignedClassID = &class.ID
+				response.AssignedClassName = class.Name
+			}
+		}
+
+		// Get assigned classes for guru_bk
+		if user.Role == models.RoleGuruBK {
+			classes, err := s.repo.FindClassesByCounselor(ctx, schoolID, user.ID)
+			if err == nil && len(classes) > 0 {
+				response.AssignedClasses = make([]AssignedClassInfo, len(classes))
+				for j, class := range classes {
+					response.AssignedClasses[j] = AssignedClassInfo{
+						ID:   class.ID,
+						Name: class.Name,
+					}
+				}
+			}
+		}
+		
+		userResponses[i] = *response
 	}
 
 	// Calculate total pages
@@ -1012,7 +1102,33 @@ func (s *service) GetUserByID(ctx context.Context, schoolID uint, id uint) (*Use
 	if err != nil {
 		return nil, err
 	}
-	return s.toUserResponse(user), nil
+	
+	response := s.toUserResponse(user)
+	
+	// Get assigned class for wali_kelas
+	if user.Role == models.RoleWaliKelas {
+		class, err := s.repo.FindClassByHomeroomTeacher(ctx, *user.SchoolID, user.ID)
+		if err == nil && class != nil {
+			response.AssignedClassID = &class.ID
+			response.AssignedClassName = class.Name
+		}
+	}
+
+	// Get assigned classes for guru_bk
+	if user.Role == models.RoleGuruBK {
+		classes, err := s.repo.FindClassesByCounselor(ctx, *user.SchoolID, user.ID)
+		if err == nil && len(classes) > 0 {
+			response.AssignedClasses = make([]AssignedClassInfo, len(classes))
+			for i, class := range classes {
+				response.AssignedClasses[i] = AssignedClassInfo{
+					ID:   class.ID,
+					Name: class.Name,
+				}
+			}
+		}
+	}
+	
+	return response, nil
 }
 
 // CreateUser creates a new user
@@ -1020,7 +1136,7 @@ func (s *service) CreateUser(ctx context.Context, schoolID uint, req CreateUserR
 	// Validate required fields
 	username := strings.TrimSpace(req.Username)
 	if username == "" {
-		return nil, errors.New("username is required")
+		return nil, errors.New("Username wajib diisi")
 	}
 	password := strings.TrimSpace(req.Password)
 	if password == "" {
@@ -1033,7 +1149,7 @@ func (s *service) CreateUser(ctx context.Context, schoolID uint, req CreateUserR
 	// Check if username already exists
 	existingUser, err := s.userRepo.FindByUsername(ctx, username)
 	if err == nil && existingUser != nil {
-		return nil, errors.New("username already exists")
+		return nil, errors.New("Username sudah digunakan")
 	}
 
 	// Hash password
@@ -1058,13 +1174,57 @@ func (s *service) CreateUser(ctx context.Context, schoolID uint, req CreateUserR
 		return nil, err
 	}
 
+	// If wali_kelas and assigned_class_id is provided, update the class
+	if req.Role == "wali_kelas" && req.AssignedClassID != nil {
+		class, err := s.repo.FindClassByID(ctx, schoolID, *req.AssignedClassID)
+		if err == nil && class != nil {
+			class.HomeroomTeacherID = &user.ID
+			if err := s.repo.UpdateClass(ctx, class); err != nil {
+				// Log error but don't fail the user creation
+				// The class assignment can be done later
+			}
+		}
+	}
+
+	// If guru_bk and assigned_class_ids is provided, assign to classes
+	if req.Role == "guru_bk" && len(req.AssignedClassIDs) > 0 {
+		for _, classID := range req.AssignedClassIDs {
+			s.repo.AssignCounselorToClass(ctx, schoolID, classID, user.ID)
+		}
+	}
+
 	// Reload user
 	user, err = s.repo.FindUserByID(ctx, schoolID, user.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.toUserResponse(user), nil
+	response := s.toUserResponse(user)
+	
+	// Get assigned class for wali_kelas
+	if user.Role == models.RoleWaliKelas {
+		class, err := s.repo.FindClassByHomeroomTeacher(ctx, schoolID, user.ID)
+		if err == nil && class != nil {
+			response.AssignedClassID = &class.ID
+			response.AssignedClassName = class.Name
+		}
+	}
+
+	// Get assigned classes for guru_bk
+	if user.Role == models.RoleGuruBK {
+		classes, err := s.repo.FindClassesByCounselor(ctx, schoolID, user.ID)
+		if err == nil && len(classes) > 0 {
+			response.AssignedClasses = make([]AssignedClassInfo, len(classes))
+			for i, class := range classes {
+				response.AssignedClasses[i] = AssignedClassInfo{
+					ID:   class.ID,
+					Name: class.Name,
+				}
+			}
+		}
+	}
+
+	return response, nil
 }
 
 // UpdateUser updates a user
@@ -1090,18 +1250,125 @@ func (s *service) UpdateUser(ctx context.Context, schoolID uint, id uint, req Up
 		return nil, err
 	}
 
+	// Handle assigned_class_id for wali_kelas
+	if user.Role == models.RoleWaliKelas && req.AssignedClassID != nil {
+		// First, remove this teacher from any existing class
+		existingClass, _ := s.repo.FindClassByHomeroomTeacher(ctx, schoolID, user.ID)
+		if existingClass != nil && existingClass.ID != *req.AssignedClassID {
+			existingClass.HomeroomTeacherID = nil
+			s.repo.UpdateClass(ctx, existingClass)
+		}
+
+		// Then assign to the new class
+		if *req.AssignedClassID > 0 {
+			newClass, err := s.repo.FindClassByID(ctx, schoolID, *req.AssignedClassID)
+			if err == nil && newClass != nil {
+				newClass.HomeroomTeacherID = &user.ID
+				s.repo.UpdateClass(ctx, newClass)
+			}
+		}
+	}
+
+	// Handle assigned_class_ids for guru_bk
+	if user.Role == models.RoleGuruBK && req.AssignedClassIDs != nil {
+		// Remove from all existing classes first
+		s.repo.RemoveCounselorFromAllClasses(ctx, schoolID, user.ID)
+
+		// Then assign to new classes
+		for _, classID := range req.AssignedClassIDs {
+			s.repo.AssignCounselorToClass(ctx, schoolID, classID, user.ID)
+		}
+	}
+
 	// Reload user
 	user, err = s.repo.FindUserByID(ctx, schoolID, user.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.toUserResponse(user), nil
+	response := s.toUserResponse(user)
+	
+	// Get assigned class for wali_kelas
+	if user.Role == models.RoleWaliKelas {
+		class, err := s.repo.FindClassByHomeroomTeacher(ctx, schoolID, user.ID)
+		if err == nil && class != nil {
+			response.AssignedClassID = &class.ID
+			response.AssignedClassName = class.Name
+		}
+	}
+
+	// Get assigned classes for guru_bk
+	if user.Role == models.RoleGuruBK {
+		classes, err := s.repo.FindClassesByCounselor(ctx, schoolID, user.ID)
+		if err == nil && len(classes) > 0 {
+			response.AssignedClasses = make([]AssignedClassInfo, len(classes))
+			for i, class := range classes {
+				response.AssignedClasses[i] = AssignedClassInfo{
+					ID:   class.ID,
+					Name: class.Name,
+				}
+			}
+		}
+	}
+
+	return response, nil
 }
 
 // DeleteUser deletes a user
 func (s *service) DeleteUser(ctx context.Context, schoolID uint, id uint) error {
+	// Get user first to check role
+	user, err := s.repo.FindUserByID(ctx, schoolID, id)
+	if err != nil {
+		return err
+	}
+
+	// If wali_kelas, remove from assigned class first
+	if user.Role == models.RoleWaliKelas {
+		class, _ := s.repo.FindClassByHomeroomTeacher(ctx, schoolID, id)
+		if class != nil {
+			class.HomeroomTeacherID = nil
+			s.repo.UpdateClass(ctx, class)
+		}
+	}
+
+	// If guru_bk, remove from all assigned classes
+	if user.Role == models.RoleGuruBK {
+		s.repo.RemoveCounselorFromAllClasses(ctx, schoolID, id)
+	}
+
 	return s.repo.DeleteUser(ctx, schoolID, id)
+}
+
+// ResetUserPassword resets a user's password
+func (s *service) ResetUserPassword(ctx context.Context, schoolID uint, id uint) (*ResetPasswordResponse, error) {
+	// Get existing user
+	user, err := s.repo.FindUserByID(ctx, schoolID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate new password
+	newPassword := DefaultPassword
+
+	// Hash password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update password
+	user.PasswordHash = string(passwordHash)
+	user.MustResetPwd = true
+
+	if err := s.repo.UpdateUser(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return &ResetPasswordResponse{
+		Username:          user.Username,
+		TemporaryPassword: newPassword,
+		Message:           "Password berhasil direset",
+	}, nil
 }
 
 // toUserResponse converts a User model to UserResponse DTO
@@ -1125,4 +1392,41 @@ func (s *service) toUserResponse(user *models.User) *UserResponse {
 	}
 
 	return response
+}
+
+// ==================== Device Service Methods ====================
+
+// GetSchoolDevices retrieves all devices for a school
+func (s *service) GetSchoolDevices(ctx context.Context, schoolID uint) ([]DeviceResponse, error) {
+	devices, err := s.repo.FindDevicesBySchool(ctx, schoolID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]DeviceResponse, len(devices))
+	for i, device := range devices {
+		responses[i] = DeviceResponse{
+			ID:          device.ID,
+			SchoolID:    device.SchoolID,
+			DeviceCode:  device.DeviceCode,
+			Description: device.Description,
+			IsActive:    device.IsActive,
+			LastSeenAt:  device.LastSeenAt,
+			CreatedAt:   device.CreatedAt,
+			UpdatedAt:   device.UpdatedAt,
+		}
+	}
+
+	return responses, nil
+}
+
+// ClearStudentRFID clears the RFID code from a student
+func (s *service) ClearStudentRFID(ctx context.Context, schoolID uint, studentID uint) error {
+	// Verify student exists and belongs to school
+	_, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.ClearStudentRFID(ctx, studentID)
 }

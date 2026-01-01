@@ -11,12 +11,12 @@ import (
 )
 
 var (
-	ErrViolationNotFound      = errors.New("violation not found")
-	ErrAchievementNotFound    = errors.New("achievement not found")
-	ErrPermitNotFound         = errors.New("permit not found")
-	ErrCounselingNoteNotFound = errors.New("counseling note not found")
-	ErrStudentNotFound        = errors.New("student not found")
-	ErrUserNotFound           = errors.New("user not found")
+	ErrViolationNotFound      = errors.New("pelanggaran tidak ditemukan")
+	ErrAchievementNotFound    = errors.New("prestasi tidak ditemukan")
+	ErrPermitNotFound         = errors.New("izin keluar tidak ditemukan")
+	ErrCounselingNoteNotFound = errors.New("catatan konseling tidak ditemukan")
+	ErrStudentNotFound        = errors.New("siswa tidak ditemukan")
+	ErrUserNotFound           = errors.New("user tidak ditemukan")
 )
 
 // Repository defines the interface for BK data operations

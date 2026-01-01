@@ -60,7 +60,7 @@ func (h *Handler) GetChildren(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -95,7 +95,7 @@ func (h *Handler) GetChildDashboard(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -106,7 +106,7 @@ func (h *Handler) GetChildDashboard(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -145,7 +145,7 @@ func (h *Handler) GetChildAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -156,7 +156,7 @@ func (h *Handler) GetChildAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -203,7 +203,7 @@ func (h *Handler) GetChildAttendanceSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -214,7 +214,7 @@ func (h *Handler) GetChildAttendanceSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -254,7 +254,7 @@ func (h *Handler) GetChildGrades(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -265,7 +265,7 @@ func (h *Handler) GetChildGrades(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -308,7 +308,7 @@ func (h *Handler) GetChildGradeSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -319,7 +319,7 @@ func (h *Handler) GetChildGradeSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -356,7 +356,7 @@ func (h *Handler) GetChildNotes(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -367,7 +367,7 @@ func (h *Handler) GetChildNotes(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -410,7 +410,7 @@ func (h *Handler) GetChildBKInfo(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -421,7 +421,7 @@ func (h *Handler) GetChildBKInfo(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -445,7 +445,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_PARENT",
-				"message": "Parent not found",
+				"message": "Orang tua tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrStudentNotFound):
@@ -453,7 +453,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_STUDENT",
-				"message": "Student not found",
+				"message": "Siswa tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrNotLinked):
@@ -461,15 +461,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_NOT_LINKED",
-				"message": "You do not have access to this student's data",
+				"message": "Anda tidak memiliki akses ke data siswa ini",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

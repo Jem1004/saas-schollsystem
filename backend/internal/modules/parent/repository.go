@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	ErrParentNotFound  = errors.New("parent not found")
-	ErrStudentNotFound = errors.New("student not found")
-	ErrNotLinked       = errors.New("student is not linked to this parent")
+	ErrParentNotFound  = errors.New("orang tua tidak ditemukan")
+	ErrStudentNotFound = errors.New("siswa tidak ditemukan")
+	ErrNotLinked       = errors.New("siswa tidak terhubung dengan orang tua ini")
 )
 
 // Repository defines the interface for parent data operations

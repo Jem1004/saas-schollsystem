@@ -25,6 +25,9 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	// Stats route
 	router.Get("/stats", h.GetStats)
 
+	// Devices route (for admin sekolah to get their school's devices)
+	router.Get("/devices", h.GetSchoolDevices)
+
 	// Class routes
 	classes := router.Group("/classes")
 	classes.Post("", h.CreateClass)
@@ -42,6 +45,9 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	students.Get("/:id", h.GetStudent)
 	students.Put("/:id", h.UpdateStudent)
 	students.Delete("/:id", h.DeleteStudent)
+	students.Post("/:id/account", h.CreateStudentAccount)
+	students.Post("/:id/reset-password", h.ResetStudentPassword)
+	students.Post("/:id/clear-rfid", h.ClearStudentRFID)
 
 	// Parent routes
 	parents := router.Group("/parents")
@@ -51,6 +57,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	parents.Put("/:id", h.UpdateParent)
 	parents.Delete("/:id", h.DeleteParent)
 	parents.Post("/:id/students", h.LinkParentToStudents)
+	parents.Post("/:id/reset-password", h.ResetParentPassword)
 
 	// User routes (school staff)
 	users := router.Group("/users")
@@ -59,6 +66,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	users.Get("/:id", h.GetUser)
 	users.Put("/:id", h.UpdateUser)
 	users.Delete("/:id", h.DeleteUser)
+	users.Post("/:id/reset-password", h.ResetUserPassword)
 }
 
 // GetStats handles getting school statistics for dashboard
@@ -78,7 +86,7 @@ func (h *Handler) GetStats(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -116,7 +124,7 @@ func (h *Handler) CreateClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -127,7 +135,7 @@ func (h *Handler) CreateClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -140,7 +148,7 @@ func (h *Handler) CreateClass(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Class created successfully",
+		"message": "Kelas berhasil dibuat",
 	})
 }
 
@@ -166,7 +174,7 @@ func (h *Handler) GetClasses(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -217,7 +225,7 @@ func (h *Handler) GetClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -228,7 +236,7 @@ func (h *Handler) GetClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid class ID",
+				"message": "ID kelas tidak valid",
 			},
 		})
 	}
@@ -267,7 +275,7 @@ func (h *Handler) UpdateClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -278,7 +286,7 @@ func (h *Handler) UpdateClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid class ID",
+				"message": "ID kelas tidak valid",
 			},
 		})
 	}
@@ -289,7 +297,7 @@ func (h *Handler) UpdateClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -302,7 +310,7 @@ func (h *Handler) UpdateClass(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Class updated successfully",
+		"message": "Kelas berhasil diperbarui",
 	})
 }
 
@@ -326,7 +334,7 @@ func (h *Handler) DeleteClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -337,7 +345,7 @@ func (h *Handler) DeleteClass(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid class ID",
+				"message": "ID kelas tidak valid",
 			},
 		})
 	}
@@ -348,7 +356,7 @@ func (h *Handler) DeleteClass(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Class deleted successfully",
+		"message": "Kelas berhasil dihapus",
 	})
 }
 
@@ -374,7 +382,7 @@ func (h *Handler) AssignHomeroomTeacher(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -385,7 +393,7 @@ func (h *Handler) AssignHomeroomTeacher(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid class ID",
+				"message": "ID kelas tidak valid",
 			},
 		})
 	}
@@ -396,7 +404,7 @@ func (h *Handler) AssignHomeroomTeacher(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -406,7 +414,7 @@ func (h *Handler) AssignHomeroomTeacher(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Teacher ID is required",
+				"message": "ID guru wajib diisi",
 			},
 		})
 	}
@@ -419,7 +427,7 @@ func (h *Handler) AssignHomeroomTeacher(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Homeroom teacher assigned successfully",
+		"message": "Wali kelas berhasil ditugaskan",
 	})
 }
 
@@ -442,7 +450,7 @@ func (h *Handler) GetClassStudents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -453,7 +461,7 @@ func (h *Handler) GetClassStudents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid class ID",
+				"message": "ID kelas tidak valid",
 			},
 		})
 	}
@@ -492,7 +500,7 @@ func (h *Handler) CreateStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -503,7 +511,7 @@ func (h *Handler) CreateStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -516,7 +524,7 @@ func (h *Handler) CreateStudent(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Student created successfully",
+		"message": "Siswa berhasil ditambahkan",
 	})
 }
 
@@ -544,7 +552,7 @@ func (h *Handler) GetStudents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -601,7 +609,7 @@ func (h *Handler) GetStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -612,7 +620,7 @@ func (h *Handler) GetStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -650,7 +658,7 @@ func (h *Handler) UpdateStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -661,7 +669,7 @@ func (h *Handler) UpdateStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -672,7 +680,7 @@ func (h *Handler) UpdateStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -685,7 +693,7 @@ func (h *Handler) UpdateStudent(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Student updated successfully",
+		"message": "Siswa berhasil diperbarui",
 	})
 }
 
@@ -709,7 +717,7 @@ func (h *Handler) DeleteStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -720,7 +728,7 @@ func (h *Handler) DeleteStudent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid student ID",
+				"message": "ID siswa tidak valid",
 			},
 		})
 	}
@@ -731,7 +739,7 @@ func (h *Handler) DeleteStudent(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Student deleted successfully",
+		"message": "Siswa berhasil dihapus",
 	})
 }
 
@@ -758,7 +766,7 @@ func (h *Handler) CreateParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -769,7 +777,7 @@ func (h *Handler) CreateParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -782,7 +790,7 @@ func (h *Handler) CreateParent(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Parent created successfully",
+		"message": "Orang tua berhasil ditambahkan",
 	})
 }
 
@@ -807,7 +815,7 @@ func (h *Handler) GetParents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -853,7 +861,7 @@ func (h *Handler) GetParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -864,7 +872,7 @@ func (h *Handler) GetParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid parent ID",
+				"message": "ID orang tua tidak valid",
 			},
 		})
 	}
@@ -902,7 +910,7 @@ func (h *Handler) UpdateParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -913,7 +921,7 @@ func (h *Handler) UpdateParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid parent ID",
+				"message": "ID orang tua tidak valid",
 			},
 		})
 	}
@@ -924,7 +932,7 @@ func (h *Handler) UpdateParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -937,7 +945,7 @@ func (h *Handler) UpdateParent(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Parent updated successfully",
+		"message": "Orang tua berhasil diperbarui",
 	})
 }
 
@@ -961,7 +969,7 @@ func (h *Handler) DeleteParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -972,7 +980,7 @@ func (h *Handler) DeleteParent(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid parent ID",
+				"message": "ID orang tua tidak valid",
 			},
 		})
 	}
@@ -983,7 +991,7 @@ func (h *Handler) DeleteParent(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Parent deleted successfully",
+		"message": "Orang tua berhasil dihapus",
 	})
 }
 
@@ -1009,7 +1017,7 @@ func (h *Handler) LinkParentToStudents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -1020,7 +1028,7 @@ func (h *Handler) LinkParentToStudents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid parent ID",
+				"message": "ID orang tua tidak valid",
 			},
 		})
 	}
@@ -1031,7 +1039,7 @@ func (h *Handler) LinkParentToStudents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -1041,7 +1049,7 @@ func (h *Handler) LinkParentToStudents(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "At least one student ID is required",
+				"message": "Minimal satu ID siswa wajib diisi",
 			},
 		})
 	}
@@ -1054,7 +1062,150 @@ func (h *Handler) LinkParentToStudents(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Parent linked to students successfully",
+		"message": "Orang tua berhasil dihubungkan dengan siswa",
+	})
+}
+
+// ResetParentPassword handles resetting a parent's password
+// @Summary Reset parent password
+// @Description Reset a parent's password to default
+// @Tags Parents
+// @Produce json
+// @Param id path int true "Parent ID"
+// @Success 200 {object} ResetPasswordResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/parents/{id}/reset-password [post]
+func (h *Handler) ResetParentPassword(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	parentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "ID orang tua tidak valid",
+			},
+		})
+	}
+
+	response, err := h.service.ResetParentPassword(c.Context(), schoolID, uint(parentID))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "Password berhasil direset",
+	})
+}
+
+// CreateStudentAccount handles creating a user account for a student
+// @Summary Create student account
+// @Description Create a user account for a student to login to mobile app
+// @Tags Students
+// @Produce json
+// @Param id path int true "Student ID"
+// @Success 201 {object} StudentResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/students/{id}/account [post]
+func (h *Handler) CreateStudentAccount(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	studentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "ID siswa tidak valid",
+			},
+		})
+	}
+
+	response, err := h.service.CreateStudentAccount(c.Context(), schoolID, uint(studentID))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "Akun siswa berhasil dibuat",
+	})
+}
+
+// ResetStudentPassword handles resetting a student's password
+// @Summary Reset student password
+// @Description Reset a student's password to default
+// @Tags Students
+// @Produce json
+// @Param id path int true "Student ID"
+// @Success 200 {object} ResetPasswordResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/students/{id}/reset-password [post]
+func (h *Handler) ResetStudentPassword(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	studentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "ID siswa tidak valid",
+			},
+		})
+	}
+
+	response, err := h.service.ResetStudentPassword(c.Context(), schoolID, uint(studentID))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "Password berhasil direset",
 	})
 }
 
@@ -1070,7 +1221,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_CLASS",
-				"message": "Class not found",
+				"message": "Kelas tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrDuplicateClass):
@@ -1078,7 +1229,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_DUPLICATE_ENTRY",
-				"message": "A class with this name already exists for this grade and year",
+				"message": "Kelas dengan nama ini sudah ada untuk tingkat dan tahun yang sama",
 			},
 		})
 	case errors.Is(err, ErrClassHasStudents):
@@ -1086,7 +1237,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_CONSTRAINT_VIOLATION",
-				"message": "Cannot delete class with students. Please reassign or remove students first.",
+				"message": "Tidak dapat menghapus kelas yang masih memiliki siswa. Pindahkan atau hapus siswa terlebih dahulu.",
 			},
 		})
 
@@ -1096,7 +1247,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_STUDENT",
-				"message": "Student not found",
+				"message": "Siswa tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrDuplicateNISN):
@@ -1104,7 +1255,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_DUPLICATE_NISN",
-				"message": "A student with this NISN already exists in the system",
+				"message": "Siswa dengan NISN ini sudah terdaftar di sistem",
 			},
 		})
 	case errors.Is(err, ErrDuplicateNIS):
@@ -1112,7 +1263,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_DUPLICATE_NIS",
-				"message": "A student with this NIS already exists in this school",
+				"message": "Siswa dengan NIS ini sudah terdaftar di sekolah ini",
 			},
 		})
 
@@ -1122,7 +1273,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_PARENT",
-				"message": "Parent not found",
+				"message": "Orang tua tidak ditemukan",
 			},
 		})
 
@@ -1132,7 +1283,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_TEACHER",
-				"message": "Teacher not found",
+				"message": "Guru tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrInvalidTeacher):
@@ -1140,7 +1291,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_TEACHER",
-				"message": "User is not a valid teacher for homeroom assignment",
+				"message": "User bukan guru yang valid untuk ditugaskan sebagai wali kelas",
 			},
 		})
 
@@ -1150,7 +1301,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_USER",
-				"message": "User not found",
+				"message": "User tidak ditemukan",
 			},
 		})
 
@@ -1160,7 +1311,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Name is required",
+				"message": "Nama wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrNISRequired):
@@ -1168,7 +1319,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "NIS is required",
+				"message": "NIS wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrNISNRequired):
@@ -1176,7 +1327,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "NISN is required",
+				"message": "NISN wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrClassIDRequired):
@@ -1184,7 +1335,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Class ID is required",
+				"message": "ID kelas wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrGradeRequired):
@@ -1192,7 +1343,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Grade is required and must be greater than 0",
+				"message": "Tingkat wajib diisi dan harus lebih dari 0",
 			},
 		})
 	case errors.Is(err, ErrYearRequired):
@@ -1200,7 +1351,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Year is required",
+				"message": "Tahun ajaran wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrPasswordRequired):
@@ -1208,7 +1359,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "Password is required",
+				"message": "Password wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrPasswordTooShort):
@@ -1216,7 +1367,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Password must be at least 8 characters",
+				"message": "Password minimal 8 karakter",
 			},
 		})
 	case errors.Is(err, ErrStudentIDsRequired):
@@ -1224,16 +1375,42 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "At least one student ID is required",
+				"message": "Minimal satu ID siswa wajib diisi",
+			},
+		})
+	case errors.Is(err, ErrPhoneRequired):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_REQUIRED_FIELD",
+				"message": "Nomor HP wajib diisi",
+			},
+		})
+	case errors.Is(err, ErrStudentHasAccount):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_DUPLICATE_ACCOUNT",
+				"message": "Siswa sudah memiliki akun",
+			},
+		})
+	case errors.Is(err, ErrStudentNoAccount):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_NO_ACCOUNT",
+				"message": "Siswa belum memiliki akun",
 			},
 		})
 
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}
@@ -1262,7 +1439,7 @@ func (h *Handler) GetUsers(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -1312,7 +1489,7 @@ func (h *Handler) GetUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -1323,7 +1500,7 @@ func (h *Handler) GetUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid user ID",
+				"message": "ID user tidak valid",
 			},
 		})
 	}
@@ -1359,7 +1536,7 @@ func (h *Handler) CreateUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -1370,7 +1547,7 @@ func (h *Handler) CreateUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -1383,7 +1560,7 @@ func (h *Handler) CreateUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "User created successfully",
+		"message": "User berhasil dibuat",
 	})
 }
 
@@ -1409,7 +1586,7 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -1420,7 +1597,7 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid user ID",
+				"message": "ID user tidak valid",
 			},
 		})
 	}
@@ -1431,7 +1608,7 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid request body",
+				"message": "Format data tidak valid",
 			},
 		})
 	}
@@ -1444,7 +1621,7 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "User updated successfully",
+		"message": "User berhasil diperbarui",
 	})
 }
 
@@ -1468,7 +1645,7 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_TENANT_REQUIRED",
-				"message": "Tenant context is required",
+				"message": "Konteks sekolah diperlukan",
 			},
 		})
 	}
@@ -1479,7 +1656,7 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Invalid user ID",
+				"message": "ID user tidak valid",
 			},
 		})
 	}
@@ -1490,7 +1667,134 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "User deleted successfully",
+		"message": "User berhasil dihapus",
+	})
+}
+
+// ResetUserPassword handles resetting a user's password
+// @Summary Reset user password
+// @Description Reset a user's password and generate a new temporary password
+// @Tags Users
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} ResetPasswordResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/users/{id}/reset-password [post]
+func (h *Handler) ResetUserPassword(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "ID user tidak valid",
+			},
+		})
+	}
+
+	response, err := h.service.ResetUserPassword(c.Context(), schoolID, uint(id))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "Password berhasil direset",
+	})
+}
+
+// GetSchoolDevices handles getting all devices for the school
+// @Summary Get school devices
+// @Description Get all RFID devices registered for this school
+// @Tags School
+// @Produce json
+// @Success 200 {object} []DeviceResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/devices [get]
+func (h *Handler) GetSchoolDevices(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	devices, err := h.service.GetSchoolDevices(c.Context(), schoolID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    devices,
+	})
+}
+
+// ClearStudentRFID handles clearing a student's RFID code
+// @Summary Clear student RFID
+// @Description Clear the RFID code from a student (unpair the card)
+// @Tags Students
+// @Produce json
+// @Param id path int true "Student ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/students/{id}/clear-rfid [post]
+func (h *Handler) ClearStudentRFID(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "ID siswa tidak valid",
+			},
+		})
+	}
+
+	if err := h.service.ClearStudentRFID(c.Context(), schoolID, uint(id)); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Kartu RFID berhasil dihapus dari siswa",
 	})
 }
 

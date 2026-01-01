@@ -11,15 +11,15 @@ import (
 )
 
 var (
-	ErrInvalidDate        = errors.New("invalid date format")
-	ErrInvalidTime        = errors.New("invalid time format")
-	ErrStudentIDRequired  = errors.New("student_id is required")
-	ErrDateRequired       = errors.New("date is required")
-	ErrAPIKeyRequired     = errors.New("api_key is required")
-	ErrRFIDCodeRequired   = errors.New("rfid_code is required")
-	ErrCheckOutBeforeIn   = errors.New("check_out_time cannot be before check_in_time")
-	ErrNoCheckIn          = errors.New("cannot record check-out without check-in")
-	ErrAlreadyCheckedOut  = errors.New("student has already checked out")
+	ErrInvalidDate        = errors.New("format tanggal tidak valid")
+	ErrInvalidTime        = errors.New("format waktu tidak valid")
+	ErrStudentIDRequired  = errors.New("ID siswa wajib diisi")
+	ErrDateRequired       = errors.New("tanggal wajib diisi")
+	ErrAPIKeyRequired     = errors.New("API key wajib diisi")
+	ErrRFIDCodeRequired   = errors.New("kode RFID wajib diisi")
+	ErrCheckOutBeforeIn   = errors.New("waktu check-out tidak boleh sebelum waktu check-in")
+	ErrNoCheckIn          = errors.New("tidak dapat mencatat check-out tanpa check-in")
+	ErrAlreadyCheckedOut  = errors.New("siswa sudah melakukan check-out")
 )
 
 // Service defines the interface for attendance business logic
@@ -349,7 +349,7 @@ func (s *service) GetClassAttendance(ctx context.Context, classID uint, date tim
 // GetSchoolAttendanceSummary retrieves school-wide attendance summary
 // Requirements: 5.4 - WHEN an Admin_Sekolah views attendance dashboard, THE System SHALL display summary statistics
 func (s *service) GetSchoolAttendanceSummary(ctx context.Context, schoolID uint, date time.Time) (*SchoolAttendanceSummaryResponse, error) {
-	summary, err := s.repo.GetAttendanceSummary(ctx, schoolID, date)
+	summary, byClass, err := s.repo.GetAttendanceSummaryByClass(ctx, schoolID, date)
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +358,7 @@ func (s *service) GetSchoolAttendanceSummary(ctx context.Context, schoolID uint,
 		SchoolID: schoolID,
 		Date:     date.Format("2006-01-02"),
 		Summary:  *summary,
+		ByClass:  byClass,
 	}, nil
 }
 

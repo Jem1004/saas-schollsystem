@@ -48,11 +48,11 @@ func TenantMiddleware() fiber.Handler {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "AUTHZ_TENANT_REQUIRED",
-					"message": "Tenant context is required. Please ensure your account is associated with a school.",
+					"message": "Konteks sekolah diperlukan. Pastikan akun Anda terhubung dengan sekolah.",
 					"debug": fiber.Map{
 						"username": username,
 						"role":     role,
-						"hint":     "User does not have school_id in JWT token. Please re-login with an account that has school_id.",
+						"hint":     "User tidak memiliki school_id di token JWT. Silakan login ulang dengan akun yang memiliki school_id.",
 					},
 				},
 			})
@@ -109,11 +109,11 @@ func ValidateTenantAccess(c *fiber.Ctx, targetSchoolID uint) error {
 
 	tenantID, ok := GetTenantID(c)
 	if !ok {
-		return fiber.NewError(fiber.StatusForbidden, "Tenant context is required")
+		return fiber.NewError(fiber.StatusForbidden, "Konteks sekolah diperlukan")
 	}
 
 	if tenantID != targetSchoolID {
-		return fiber.NewError(fiber.StatusForbidden, "Access to this tenant is not allowed")
+		return fiber.NewError(fiber.StatusForbidden, "Akses ke sekolah ini tidak diizinkan")
 	}
 
 	return nil

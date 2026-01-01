@@ -56,14 +56,14 @@ func (User) TableName() string {
 // Requirements: 4.1 - User account creation SHALL assign a role and generate initial credentials
 func (u *User) Validate() error {
 	if strings.TrimSpace(u.Username) == "" {
-		return errors.New("username is required")
+		return errors.New("username wajib diisi")
 	}
 	if !u.Role.IsValid() {
-		return errors.New("invalid role")
+		return errors.New("role tidak valid")
 	}
 	// Super admin doesn't need school_id
 	if u.Role != RoleSuperAdmin && u.SchoolID == nil {
-		return errors.New("school_id is required for non-super_admin users")
+		return errors.New("ID sekolah wajib diisi untuk user non-super_admin")
 	}
 	return nil
 }

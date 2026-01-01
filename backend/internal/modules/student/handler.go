@@ -58,7 +58,7 @@ func (h *Handler) GetProfile(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -91,7 +91,7 @@ func (h *Handler) GetDashboard(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -124,7 +124,7 @@ func (h *Handler) GetSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -161,7 +161,7 @@ func (h *Handler) GetAttendance(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -206,7 +206,7 @@ func (h *Handler) GetAttendanceSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -244,7 +244,7 @@ func (h *Handler) GetGrades(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -285,7 +285,7 @@ func (h *Handler) GetGradeSummary(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -318,7 +318,7 @@ func (h *Handler) GetBKInfo(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTH_REQUIRED",
-				"message": "Authentication required",
+				"message": "Autentikasi diperlukan",
 			},
 		})
 	}
@@ -342,7 +342,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_STUDENT",
-				"message": "Student not found",
+				"message": "Siswa tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrUserNotStudent):
@@ -350,15 +350,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "AUTHZ_NOT_STUDENT",
-				"message": "User is not a student",
+				"message": "User bukan siswa",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

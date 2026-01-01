@@ -181,7 +181,7 @@ func (h *Handler) MarkAsRead(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Notification marked as read",
+		"message": "Notifikasi ditandai sudah dibaca",
 	})
 }
 
@@ -208,7 +208,7 @@ func (h *Handler) MarkMultipleAsRead(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "notification_ids is required",
+				"message": "ID notifikasi wajib diisi",
 			},
 		})
 	}
@@ -219,7 +219,7 @@ func (h *Handler) MarkMultipleAsRead(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Notifications marked as read",
+		"message": "Notifikasi ditandai sudah dibaca",
 	})
 }
 
@@ -244,7 +244,7 @@ func (h *Handler) MarkAllAsRead(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "All notifications marked as read",
+		"message": "Semua notifikasi ditandai sudah dibaca",
 	})
 }
 
@@ -271,7 +271,7 @@ func (h *Handler) DeleteNotification(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Notification deleted successfully",
+		"message": "Notifikasi berhasil dihapus",
 	})
 }
 
@@ -308,7 +308,7 @@ func (h *Handler) RegisterFCMToken(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "FCM token registered successfully",
+		"message": "Token FCM berhasil didaftarkan",
 	})
 }
 
@@ -355,7 +355,7 @@ func (h *Handler) DeactivateFCMToken(c *fiber.Ctx) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "token is required",
+				"message": "Token wajib diisi",
 			},
 		})
 	}
@@ -366,7 +366,7 @@ func (h *Handler) DeactivateFCMToken(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "FCM token deactivated successfully",
+		"message": "Token FCM berhasil dinonaktifkan",
 	})
 }
 
@@ -396,7 +396,7 @@ func (h *Handler) authRequiredError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "AUTH_REQUIRED",
-			"message": "Authentication required",
+			"message": "Autentikasi diperlukan",
 		},
 	})
 }
@@ -406,7 +406,7 @@ func (h *Handler) invalidBodyError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "VAL_INVALID_FORMAT",
-			"message": "Invalid request body",
+			"message": "Format data tidak valid",
 		},
 	})
 }
@@ -428,7 +428,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_NOTIFICATION",
-				"message": "Notification not found",
+				"message": "Notifikasi tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrFCMTokenNotFound):
@@ -436,7 +436,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_FCM_TOKEN",
-				"message": "FCM token not found",
+				"message": "Token FCM tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrUserNotFound):
@@ -444,7 +444,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_USER",
-				"message": "User not found",
+				"message": "User tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrUserIDRequired),
@@ -463,11 +463,13 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

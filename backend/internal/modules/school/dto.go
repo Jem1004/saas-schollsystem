@@ -23,16 +23,17 @@ type UpdateClassRequest struct {
 
 // ClassResponse represents the class data in responses
 type ClassResponse struct {
-	ID                uint             `json:"id"`
-	SchoolID          uint             `json:"school_id"`
-	Name              string           `json:"name"`
-	Grade             int              `json:"grade"`
-	Year              string           `json:"year"`
-	HomeroomTeacherID *uint            `json:"homeroom_teacher_id"`
-	HomeroomTeacher   *TeacherResponse `json:"homeroom_teacher,omitempty"`
-	StudentCount      int64            `json:"student_count"`
-	CreatedAt         time.Time        `json:"created_at"`
-	UpdatedAt         time.Time        `json:"updated_at"`
+	ID                uint               `json:"id"`
+	SchoolID          uint               `json:"school_id"`
+	Name              string             `json:"name"`
+	Grade             int                `json:"grade"`
+	Year              string             `json:"year"`
+	HomeroomTeacherID *uint              `json:"homeroom_teacher_id"`
+	HomeroomTeacher   *TeacherResponse   `json:"homeroom_teacher,omitempty"`
+	Counselors        []CounselorResponse `json:"counselors,omitempty"`
+	StudentCount      int64              `json:"student_count"`
+	CreatedAt         time.Time          `json:"created_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
 }
 
 // ClassListResponse represents a paginated list of classes
@@ -63,11 +64,12 @@ func DefaultClassFilter() ClassFilter {
 // CreateStudentRequest represents the request to create a new student
 // Requirements: 3.2 - WHEN an Admin_Sekolah registers a student, THE System SHALL require NIS, NISN, name, and class assignment
 type CreateStudentRequest struct {
-	NIS      string `json:"nis" validate:"required"`
-	NISN     string `json:"nisn" validate:"required"`
-	Name     string `json:"name" validate:"required"`
-	ClassID  uint   `json:"class_id" validate:"required"`
-	RFIDCode string `json:"rfid_code"`
+	NIS           string `json:"nis" validate:"required"`
+	NISN          string `json:"nisn" validate:"required"`
+	Name          string `json:"name" validate:"required"`
+	ClassID       uint   `json:"class_id" validate:"required"`
+	RFIDCode      string `json:"rfid_code"`
+	CreateAccount bool   `json:"create_account"` // If true, create user account for mobile login
 }
 
 // UpdateStudentRequest represents the request to update a student
@@ -79,20 +81,28 @@ type UpdateStudentRequest struct {
 	IsActive *bool   `json:"is_active"`
 }
 
+// CreateStudentAccountRequest represents the request to create account for existing student
+type CreateStudentAccountRequest struct {
+	Password string `json:"password"` // Optional, will auto-generate if empty
+}
+
 // StudentResponse represents the student data in responses
 type StudentResponse struct {
-	ID        uint           `json:"id"`
-	SchoolID  uint           `json:"school_id"`
-	ClassID   uint           `json:"class_id"`
-	ClassName string         `json:"class_name,omitempty"`
-	NIS       string         `json:"nis"`
-	NISN      string         `json:"nisn"`
-	Name      string         `json:"name"`
-	RFIDCode  string         `json:"rfid_code"`
-	IsActive  bool           `json:"is_active"`
-	Class     *ClassResponse `json:"class,omitempty"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID                uint           `json:"id"`
+	SchoolID          uint           `json:"school_id"`
+	ClassID           uint           `json:"class_id"`
+	ClassName         string         `json:"class_name,omitempty"`
+	NIS               string         `json:"nis"`
+	NISN              string         `json:"nisn"`
+	Name              string         `json:"name"`
+	RFIDCode          string         `json:"rfid_code"`
+	IsActive          bool           `json:"is_active"`
+	HasAccount        bool           `json:"has_account"`
+	Username          string         `json:"username,omitempty"`
+	TemporaryPassword string         `json:"temporary_password,omitempty"`
+	Class             *ClassResponse `json:"class,omitempty"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
 // StudentListResponse represents a paginated list of students
@@ -125,11 +135,12 @@ func DefaultStudentFilter() StudentFilter {
 
 // CreateParentRequest represents the request to create a new parent
 // Requirements: 3.3 - WHEN an Admin_Sekolah registers a parent, THE System SHALL link the parent to one or more students
+// Username will be phone number (primary) or email (secondary)
 type CreateParentRequest struct {
 	Name       string `json:"name" validate:"required"`
-	Phone      string `json:"phone" validate:"required"`
-	Email      string `json:"email"`
-	Password   string `json:"password"` // Optional, will use default if empty
+	Phone      string `json:"phone" validate:"required"` // Required, used as primary username
+	Email      string `json:"email"`                     // Optional, used as secondary login
+	Password   string `json:"password"`                  // Optional, will auto-generate if empty
 	StudentIDs []uint `json:"student_ids"`
 }
 
@@ -207,9 +218,31 @@ type TeacherResponse struct {
 	Username string `json:"username"`
 }
 
+// CounselorResponse represents a simplified counselor (guru BK) response
+type CounselorResponse struct {
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+}
+
 // AssignHomeroomTeacherRequest represents the request to assign a homeroom teacher
 type AssignHomeroomTeacherRequest struct {
 	TeacherID uint `json:"teacher_id" validate:"required"`
+}
+
+// AssignCounselorsRequest represents the request to assign counselors to a class
+type AssignCounselorsRequest struct {
+	CounselorIDs []uint `json:"counselor_ids" validate:"required"`
+}
+
+// ClassCounselorResponse represents the class counselor assignment response
+type ClassCounselorResponse struct {
+	ID          uint              `json:"id"`
+	ClassID     uint              `json:"class_id"`
+	ClassName   string            `json:"class_name"`
+	CounselorID uint              `json:"counselor_id"`
+	Counselor   *CounselorResponse `json:"counselor,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
 }
 
 // ==================== Stats DTOs ====================
@@ -253,18 +286,26 @@ func DefaultUserFilter() UserFilter {
 
 // UserResponse represents the user data in responses
 type UserResponse struct {
-	ID              uint      `json:"id"`
-	SchoolID        uint      `json:"school_id"`
-	Role            string    `json:"role"`
-	Username        string    `json:"username"`
-	Email           string    `json:"email,omitempty"`
-	Name            string    `json:"name,omitempty"`
-	IsActive        bool      `json:"is_active"`
-	MustResetPwd    bool      `json:"must_reset_pwd"`
-	AssignedClassID *uint     `json:"assigned_class_id,omitempty"`
-	LastLoginAt     *string   `json:"last_login_at,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                 uint                `json:"id"`
+	SchoolID           uint                `json:"school_id"`
+	Role               string              `json:"role"`
+	Username           string              `json:"username"`
+	Email              string              `json:"email,omitempty"`
+	Name               string              `json:"name,omitempty"`
+	IsActive           bool                `json:"is_active"`
+	MustResetPwd       bool                `json:"must_reset_pwd"`
+	AssignedClassID    *uint               `json:"assigned_class_id,omitempty"`    // For wali_kelas
+	AssignedClassName  string              `json:"assigned_class_name,omitempty"`  // For wali_kelas
+	AssignedClasses    []AssignedClassInfo `json:"assigned_classes,omitempty"`     // For guru_bk
+	LastLoginAt        *string             `json:"last_login_at,omitempty"`
+	CreatedAt          time.Time           `json:"created_at"`
+	UpdatedAt          time.Time           `json:"updated_at"`
+}
+
+// AssignedClassInfo represents simplified class info for user assignments
+type AssignedClassInfo struct {
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
 }
 
 // UserListResponse represents a paginated list of users
@@ -275,18 +316,34 @@ type UserListResponse struct {
 
 // CreateUserRequest represents the request to create a new user
 type CreateUserRequest struct {
-	Role            string `json:"role" validate:"required,oneof=guru wali_kelas guru_bk admin_sekolah"`
-	Username        string `json:"username" validate:"required"`
-	Email           string `json:"email"`
-	Name            string `json:"name"`
-	Password        string `json:"password" validate:"required,min=8"`
-	AssignedClassID *uint  `json:"assigned_class_id"`
+	Role             string `json:"role" validate:"required,oneof=guru wali_kelas guru_bk admin_sekolah"`
+	Username         string `json:"username" validate:"required"`
+	Email            string `json:"email"`
+	Name             string `json:"name"`
+	Password         string `json:"password" validate:"required,min=8"`
+	AssignedClassID  *uint  `json:"assigned_class_id"`   // For wali_kelas
+	AssignedClassIDs []uint `json:"assigned_class_ids"`  // For guru_bk
 }
 
 // UpdateUserRequest represents the request to update a user
 type UpdateUserRequest struct {
-	Email           *string `json:"email"`
-	Name            *string `json:"name"`
-	IsActive        *bool   `json:"is_active"`
-	AssignedClassID *uint   `json:"assigned_class_id"`
+	Email            *string `json:"email"`
+	Name             *string `json:"name"`
+	IsActive         *bool   `json:"is_active"`
+	AssignedClassID  *uint   `json:"assigned_class_id"`   // For wali_kelas
+	AssignedClassIDs []uint  `json:"assigned_class_ids"`  // For guru_bk
+}
+
+// ==================== Device DTOs ====================
+
+// DeviceResponse represents the device data in responses
+type DeviceResponse struct {
+	ID          uint       `json:"id"`
+	SchoolID    uint       `json:"school_id"`
+	DeviceCode  string     `json:"device_code"`
+	Description string     `json:"description"`
+	IsActive    bool       `json:"is_active"`
+	LastSeenAt  *time.Time `json:"last_seen_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }

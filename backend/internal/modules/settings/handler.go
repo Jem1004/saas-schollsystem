@@ -96,7 +96,7 @@ func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Settings updated successfully",
+		"message": "Pengaturan berhasil diperbarui",
 	})
 }
 
@@ -124,7 +124,7 @@ func (h *Handler) ResetToDefaults(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Settings reset to defaults successfully",
+		"message": "Pengaturan berhasil direset ke default",
 	})
 }
 
@@ -160,7 +160,7 @@ func (h *Handler) UpdateAttendanceSettings(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Attendance settings updated successfully",
+		"message": "Pengaturan kehadiran berhasil diperbarui",
 	})
 }
 
@@ -197,7 +197,7 @@ func (h *Handler) UpdateNotificationSettings(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Notification settings updated successfully",
+		"message": "Pengaturan notifikasi berhasil diperbarui",
 	})
 }
 
@@ -233,7 +233,7 @@ func (h *Handler) UpdateAcademicSettings(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    response,
-		"message": "Academic settings updated successfully",
+		"message": "Pengaturan akademik berhasil diperbarui",
 	})
 }
 
@@ -266,7 +266,7 @@ func (h *Handler) GetAttendanceTimeWindow(c *fiber.Ctx) error {
 				"success": false,
 				"error": fiber.Map{
 					"code":    "VAL_INVALID_FORMAT",
-					"message": "Invalid date format. Use YYYY-MM-DD",
+					"message": "Format tanggal tidak valid. Gunakan YYYY-MM-DD",
 				},
 			})
 		}
@@ -292,7 +292,7 @@ func (h *Handler) tenantRequiredError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "AUTHZ_TENANT_REQUIRED",
-			"message": "School context is required",
+			"message": "Konteks sekolah diperlukan",
 		},
 	})
 }
@@ -302,7 +302,7 @@ func (h *Handler) invalidBodyError(c *fiber.Ctx) error {
 		"success": false,
 		"error": fiber.Map{
 			"code":    "VAL_INVALID_FORMAT",
-			"message": "Invalid request body",
+			"message": "Format data tidak valid",
 		},
 	})
 }
@@ -314,7 +314,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_SETTINGS",
-				"message": "Settings not found",
+				"message": "Pengaturan tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrSchoolNotFound):
@@ -322,7 +322,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_SCHOOL",
-				"message": "School not found",
+				"message": "Sekolah tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrSchoolIDRequired):
@@ -330,7 +330,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_REQUIRED_FIELD",
-				"message": "School ID is required",
+				"message": "ID sekolah wajib diisi",
 			},
 		})
 	case errors.Is(err, ErrInvalidTimeFormat):
@@ -338,7 +338,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_FORMAT",
-				"message": "Time must be in HH:MM format",
+				"message": "Waktu harus dalam format HH:MM",
 			},
 		})
 	case errors.Is(err, ErrInvalidLateThreshold):
@@ -346,7 +346,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_VALUE",
-				"message": "Late threshold must be non-negative",
+				"message": "Batas terlambat tidak boleh negatif",
 			},
 		})
 	case errors.Is(err, ErrInvalidVeryLateThreshold):
@@ -354,7 +354,7 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_VALUE",
-				"message": "Very late threshold must be greater than or equal to late threshold",
+				"message": "Batas sangat terlambat harus lebih besar atau sama dengan batas terlambat",
 			},
 		})
 	case errors.Is(err, ErrInvalidSemester):
@@ -362,15 +362,17 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"success": false,
 			"error": fiber.Map{
 				"code":    "VAL_INVALID_VALUE",
-				"message": "Semester must be 1 or 2",
+				"message": "Semester harus 1 atau 2",
 			},
 		})
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// Return the actual error message for better debugging
+		errMsg := err.Error()
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error": fiber.Map{
-				"code":    "INTERNAL_ERROR",
-				"message": "An internal error occurred",
+				"code":    "ERROR",
+				"message": errMsg,
 			},
 		})
 	}

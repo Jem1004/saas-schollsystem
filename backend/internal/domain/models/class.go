@@ -18,9 +18,10 @@ type Class struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 
 	// Relations
-	School          School    `gorm:"foreignKey:SchoolID" json:"school,omitempty"`
-	Students        []Student `gorm:"foreignKey:ClassID" json:"students,omitempty"`
-	HomeroomTeacher *User     `gorm:"foreignKey:HomeroomTeacherID" json:"homeroom_teacher,omitempty"`
+	School          School           `gorm:"foreignKey:SchoolID" json:"school,omitempty"`
+	Students        []Student        `gorm:"foreignKey:ClassID" json:"students,omitempty"`
+	HomeroomTeacher *User            `gorm:"foreignKey:HomeroomTeacherID" json:"homeroom_teacher,omitempty"`
+	Counselors      []ClassCounselor `gorm:"foreignKey:ClassID" json:"counselors,omitempty"`
 }
 
 // TableName specifies the table name for Class

@@ -57,16 +57,16 @@ func (Notification) TableName() string {
 // Requirements: 17.3 - Notification SHALL store notification history in database
 func (n *Notification) Validate() error {
 	if n.UserID == 0 {
-		return errors.New("user_id is required")
+		return errors.New("ID user wajib diisi")
 	}
 	if !n.Type.IsValid() {
-		return errors.New("invalid notification type")
+		return errors.New("tipe notifikasi tidak valid")
 	}
 	if strings.TrimSpace(n.Title) == "" {
-		return errors.New("title is required")
+		return errors.New("judul wajib diisi")
 	}
 	if strings.TrimSpace(n.Message) == "" {
-		return errors.New("message is required")
+		return errors.New("pesan wajib diisi")
 	}
 	return nil
 }
@@ -121,13 +121,13 @@ func (FCMToken) TableName() string {
 // Validate validates the FCM token data
 func (f *FCMToken) Validate() error {
 	if f.UserID == 0 {
-		return errors.New("user_id is required")
+		return errors.New("ID user wajib diisi")
 	}
 	if strings.TrimSpace(f.Token) == "" {
-		return errors.New("token is required")
+		return errors.New("token wajib diisi")
 	}
 	if f.Platform != "android" && f.Platform != "ios" {
-		return errors.New("platform must be android or ios")
+		return errors.New("platform harus android atau ios")
 	}
 	return nil
 }
