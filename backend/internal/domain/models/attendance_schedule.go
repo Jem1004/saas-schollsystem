@@ -13,8 +13,8 @@ type AttendanceSchedule struct {
 	ID                uint       `gorm:"primaryKey" json:"id"`
 	SchoolID          uint       `gorm:"index;not null" json:"school_id"`
 	Name              string     `gorm:"type:varchar(100);not null" json:"name"`
-	StartTime         string     `gorm:"type:time;not null" json:"start_time"`
-	EndTime           string     `gorm:"type:time;not null" json:"end_time"`
+	StartTime         string     `gorm:"type:time without time zone;not null" json:"start_time"`
+	EndTime           string     `gorm:"type:time without time zone;not null" json:"end_time"`
 	LateThreshold     int        `gorm:"not null;default:15" json:"late_threshold"`
 	VeryLateThreshold *int       `gorm:"" json:"very_late_threshold"`
 	DaysOfWeek        string     `gorm:"type:varchar(20);default:'1,2,3,4,5'" json:"days_of_week"`
@@ -57,16 +57,12 @@ func (s *AttendanceSchedule) Validate() error {
 		return errors.New("school_id is required")
 	}
 
-	// Validate time format
-	if _, err := time.Parse("15:04", s.StartTime); err != nil {
-		if _, err := time.Parse("15:04:05", s.StartTime); err != nil {
-			return errors.New("start_time must be in HH:MM or HH:MM:SS format")
-		}
+	// Validate time format (accept both HH:MM and HH:MM:SS)
+	if !isValidTimeFormat(s.StartTime) {
+		return errors.New("start_time must be in HH:MM or HH:MM:SS format")
 	}
-	if _, err := time.Parse("15:04", s.EndTime); err != nil {
-		if _, err := time.Parse("15:04:05", s.EndTime); err != nil {
-			return errors.New("end_time must be in HH:MM or HH:MM:SS format")
-		}
+	if !isValidTimeFormat(s.EndTime) {
+		return errors.New("end_time must be in HH:MM or HH:MM:SS format")
 	}
 
 	// Validate days_of_week format
@@ -77,6 +73,17 @@ func (s *AttendanceSchedule) Validate() error {
 	}
 
 	return nil
+}
+
+// isValidTimeFormat checks if time string is in HH:MM or HH:MM:SS format
+func isValidTimeFormat(timeStr string) bool {
+	if _, err := time.Parse("15:04", timeStr); err == nil {
+		return true
+	}
+	if _, err := time.Parse("15:04:05", timeStr); err == nil {
+		return true
+	}
+	return false
 }
 
 // ValidateDaysOfWeek validates the days_of_week format

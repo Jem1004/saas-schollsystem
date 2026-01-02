@@ -272,11 +272,11 @@ func (s *service) validateCreateRequest(req CreateScheduleRequest) error {
 		return ErrLateThresholdRequired
 	}
 
-	// Validate time formats
-	if _, err := time.Parse("15:04", req.StartTime); err != nil {
+	// Validate time formats (accept both HH:MM and HH:MM:SS)
+	if !isValidTimeFormat(req.StartTime) {
 		return ErrInvalidStartTime
 	}
-	if _, err := time.Parse("15:04", req.EndTime); err != nil {
+	if !isValidTimeFormat(req.EndTime) {
 		return ErrInvalidEndTime
 	}
 
@@ -293,13 +293,35 @@ func (s *service) validateCreateRequest(req CreateScheduleRequest) error {
 	return nil
 }
 
+// isValidTimeFormat checks if time string is in HH:MM or HH:MM:SS format
+func isValidTimeFormat(timeStr string) bool {
+	if _, err := time.Parse("15:04", timeStr); err == nil {
+		return true
+	}
+	if _, err := time.Parse("15:04:05", timeStr); err == nil {
+		return true
+	}
+	return false
+}
+
+// parseTimeString parses time string in HH:MM or HH:MM:SS format
+func parseTimeString(timeStr string) (time.Time, error) {
+	if t, err := time.Parse("15:04", timeStr); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse("15:04:05", timeStr); err == nil {
+		return t, nil
+	}
+	return time.Time{}, errors.New("invalid time format")
+}
+
 // validateTimeRange validates that end time is after start time
 func (s *service) validateTimeRange(startTime, endTime string) error {
-	start, err := time.Parse("15:04", startTime)
+	start, err := parseTimeString(startTime)
 	if err != nil {
 		return ErrInvalidStartTime
 	}
-	end, err := time.Parse("15:04", endTime)
+	end, err := parseTimeString(endTime)
 	if err != nil {
 		return ErrInvalidEndTime
 	}

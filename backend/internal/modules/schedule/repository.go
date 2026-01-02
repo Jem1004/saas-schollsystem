@@ -56,7 +56,32 @@ func NewRepository(db *gorm.DB) Repository {
 // Create creates a new attendance schedule
 // Requirements: 3.1 - Schedule creation
 func (r *repository) Create(ctx context.Context, schedule *models.AttendanceSchedule) error {
-	return r.db.WithContext(ctx).Create(schedule).Error
+	// Use raw SQL to properly handle TIME type
+	query := `
+		INSERT INTO attendance_schedules 
+		(school_id, name, start_time, end_time, late_threshold, very_late_threshold, days_of_week, is_active, is_default, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id
+	`
+	now := time.Now()
+	schedule.CreatedAt = now
+	schedule.UpdatedAt = now
+	
+	err := r.db.WithContext(ctx).Raw(query,
+		schedule.SchoolID,
+		schedule.Name,
+		schedule.StartTime,
+		schedule.EndTime,
+		schedule.LateThreshold,
+		schedule.VeryLateThreshold,
+		schedule.DaysOfWeek,
+		schedule.IsActive,
+		schedule.IsDefault,
+		schedule.CreatedAt,
+		schedule.UpdatedAt,
+	).Scan(&schedule.ID).Error
+	
+	return err
 }
 
 // FindByID retrieves a schedule by ID for a specific school
@@ -90,19 +115,35 @@ func (r *repository) FindAll(ctx context.Context, schoolID uint) ([]models.Atten
 // Update updates an existing schedule
 // Requirements: 3.7 - Updates SHALL not affect existing attendance records
 func (r *repository) Update(ctx context.Context, schedule *models.AttendanceSchedule) error {
-	result := r.db.WithContext(ctx).
-		Model(&models.AttendanceSchedule{}).
-		Where("id = ? AND school_id = ?", schedule.ID, schedule.SchoolID).
-		Updates(map[string]interface{}{
-			"name":                schedule.Name,
-			"start_time":          schedule.StartTime,
-			"end_time":            schedule.EndTime,
-			"late_threshold":      schedule.LateThreshold,
-			"very_late_threshold": schedule.VeryLateThreshold,
-			"days_of_week":        schedule.DaysOfWeek,
-			"is_active":           schedule.IsActive,
-			"is_default":          schedule.IsDefault,
-		})
+	// Use raw SQL to properly handle TIME type
+	query := `
+		UPDATE attendance_schedules 
+		SET name = $1, 
+			start_time = $2, 
+			end_time = $3, 
+			late_threshold = $4, 
+			very_late_threshold = $5, 
+			days_of_week = $6, 
+			is_active = $7, 
+			is_default = $8,
+			updated_at = $9
+		WHERE id = $10 AND school_id = $11
+	`
+	schedule.UpdatedAt = time.Now()
+	
+	result := r.db.WithContext(ctx).Exec(query,
+		schedule.Name,
+		schedule.StartTime,
+		schedule.EndTime,
+		schedule.LateThreshold,
+		schedule.VeryLateThreshold,
+		schedule.DaysOfWeek,
+		schedule.IsActive,
+		schedule.IsDefault,
+		schedule.UpdatedAt,
+		schedule.ID,
+		schedule.SchoolID,
+	)
 
 	if result.Error != nil {
 		return result.Error

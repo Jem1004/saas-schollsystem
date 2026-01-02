@@ -108,6 +108,30 @@ func main() {
 	// Register public auth routes (login, refresh, logout)
 	authHandler.RegisterRoutes(api)
 
+	// Initialize Display Token Module (needed for public display)
+	// Requirements: 5.1, 6.1 - Display token management for public display access
+	displayTokenRepo := displaytoken.NewRepository(db)
+	displayTokenService := displaytoken.NewService(displayTokenRepo)
+	displayTokenHandler := displaytoken.NewHandler(displayTokenService)
+
+	// Initialize Real-Time Module (needed for public display)
+	// Requirements: 4.1, 4.2, 4.3 - Real-time attendance dashboard with WebSocket
+	realtimeHub := realtime.NewHub()
+	go realtimeHub.Run() // Start the hub in a goroutine
+	realtimeRepo := realtime.NewRepository(db)
+	realtimeService := realtime.NewService(realtimeRepo, realtimeHub)
+	realtimeHandler := realtime.NewHandler(realtimeService, jwtManager)
+
+	// Initialize Public Display Module BEFORE protected routes
+	// Requirements: 5.3, 5.4, 5.5, 5.6 - Public display for LCD screens without login
+	// IMPORTANT: Must be registered before protected group to avoid auth middleware
+	publicDisplayRepo := publicdisplay.NewRepository(db)
+	publicDisplayService := publicdisplay.NewService(publicDisplayRepo, displayTokenService)
+	publicDisplayHandler := publicdisplay.NewHandler(publicDisplayService, realtimeHub, realtimeRepo)
+
+	// Public display routes (no auth required - uses display token)
+	publicDisplayHandler.RegisterPublicRoutes(api)
+
 	// Protected routes group with auth middleware
 	protected := api.Group("", middleware.AuthMiddleware(jwtManager))
 
@@ -181,12 +205,6 @@ func main() {
 	scheduleRoutes := tenantScoped.Group("/schedules", middleware.AdminSekolahOnly())
 	scheduleHandler.RegisterRoutesWithoutGroup(scheduleRoutes)
 
-	// Initialize Display Token Module (Admin Sekolah only)
-	// Requirements: 5.1, 6.1 - Display token management for public display access
-	displayTokenRepo := displaytoken.NewRepository(db)
-	displayTokenService := displaytoken.NewService(displayTokenRepo)
-	displayTokenHandler := displaytoken.NewHandler(displayTokenService)
-
 	// Display token routes for admin sekolah only
 	displayTokenRoutes := tenantScoped.Group("/display-tokens", middleware.AdminSekolahOnly())
 	displayTokenHandler.RegisterRoutesWithoutGroup(displayTokenRoutes)
@@ -196,14 +214,6 @@ func main() {
 	attendancePolicy := attendance.NewAttendancePolicy(db)
 	attendanceService := attendance.NewService(attendanceRepo, deviceService, attendancePolicy)
 	attendanceHandler := attendance.NewHandler(attendanceService, attendanceRepo)
-
-	// Initialize Real-Time Module
-	// Requirements: 4.1, 4.2, 4.3 - Real-time attendance dashboard with WebSocket
-	realtimeHub := realtime.NewHub()
-	go realtimeHub.Run() // Start the hub in a goroutine
-	realtimeRepo := realtime.NewRepository(db)
-	realtimeService := realtime.NewService(realtimeRepo, realtimeHub)
-	realtimeHandler := realtime.NewHandler(realtimeService, jwtManager)
 
 	// Connect attendance service to real-time broadcaster
 	// Requirements: 4.2 - Broadcast attendance updates in real-time
@@ -223,15 +233,6 @@ func main() {
 	// Requirements: 4.1 - Live attendance dashboard
 	realtimeRoutes := tenantScoped.Group("/realtime")
 	realtimeHandler.RegisterRoutes(realtimeRoutes)
-
-	// Initialize Public Display Module
-	// Requirements: 5.3, 5.4, 5.5, 5.6 - Public display for LCD screens without login
-	publicDisplayRepo := publicdisplay.NewRepository(db)
-	publicDisplayService := publicdisplay.NewService(publicDisplayRepo, displayTokenService)
-	publicDisplayHandler := publicdisplay.NewHandler(publicDisplayService, realtimeHub, realtimeRepo)
-
-	// Public display routes (no auth required - uses display token)
-	publicDisplayHandler.RegisterPublicRoutes(api)
 
 	// Initialize BK Module
 	bkRepo := bk.NewRepository(db)
