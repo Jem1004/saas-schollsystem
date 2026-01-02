@@ -53,8 +53,8 @@ export const exportService = {
       params.class_id = filter.classId
     }
 
-    const response = await api.get<MonthlyRecapResponse>('/attendance/monthly-recap', { params })
-    return response.data
+    const response = await api.get<{ success: boolean; data: MonthlyRecapResponse }>('/attendance/monthly-recap', { params })
+    return response.data.data
   },
 
   /**

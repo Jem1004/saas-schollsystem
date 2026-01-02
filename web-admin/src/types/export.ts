@@ -26,16 +26,16 @@ export interface MonthlyRecapFilter {
  * Requirements: 2.1, 2.2 - Summary per student with attendance percentage
  */
 export interface StudentRecapSummary {
-  studentId: number
-  studentNis: string
-  studentNisn: string
-  studentName: string
-  className: string
-  totalPresent: number
-  totalLate: number
-  totalVeryLate: number
-  totalAbsent: number
-  attendancePercent: number // (present / total_days) * 100
+  student_id: number
+  student_nis: string
+  student_nisn: string
+  student_name: string
+  class_name: string
+  total_present: number
+  total_late: number
+  total_very_late: number
+  total_absent: number
+  attendance_percent: number // (present / total_days) * 100
 }
 
 /**
@@ -45,10 +45,10 @@ export interface StudentRecapSummary {
 export interface MonthlyRecapResponse {
   month: number
   year: number
-  totalDays: number       // Total school days in the month
-  classId?: number
-  className?: string
-  studentRecaps: StudentRecapSummary[]
+  total_days: number       // Total school days in the month
+  class_id?: number
+  class_name?: string
+  student_recaps: StudentRecapSummary[]
 }
 
 /**

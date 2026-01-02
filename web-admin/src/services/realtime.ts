@@ -8,9 +8,6 @@ import type {
   AttendanceStats,
   LiveFeedEntry,
   LeaderboardEntry,
-  LiveFeedResponse,
-  StatsResponse,
-  LeaderboardResponse,
   WSConnectionStatus,
 } from '@/types/realtime'
 
@@ -25,6 +22,84 @@ export type ConnectionStatusHandler = (status: WSConnectionStatus) => void
 const WS_RECONNECT_DELAY = 3000 // 3 seconds
 const WS_MAX_RECONNECT_ATTEMPTS = 10
 const WS_PING_INTERVAL = 30000 // 30 seconds
+
+// Backend response types (snake_case)
+interface BackendLiveFeedEntry {
+  id: number
+  student_id: number
+  student_name: string
+  class_name: string
+  class_id: number
+  time: string
+  status: string
+  type: string
+}
+
+interface BackendLeaderboardEntry {
+  rank: number
+  student_id: number
+  student_name: string
+  class_name: string
+  arrival_time: string
+}
+
+interface BackendAttendanceStats {
+  total_students: number
+  present: number
+  late: number
+  very_late: number
+  absent: number
+  percentage: number
+}
+
+interface BackendLiveFeedResponse {
+  feed: BackendLiveFeedEntry[]
+}
+
+interface BackendStatsResponse {
+  stats: BackendAttendanceStats
+  date: string
+}
+
+interface BackendLeaderboardResponse {
+  leaderboard: BackendLeaderboardEntry[]
+  date: string
+}
+
+// Transform functions
+function transformLiveFeedEntry(entry: BackendLiveFeedEntry): LiveFeedEntry {
+  return {
+    id: entry.id,
+    studentId: entry.student_id,
+    studentName: entry.student_name,
+    className: entry.class_name,
+    classId: entry.class_id,
+    time: entry.time,
+    status: entry.status as LiveFeedEntry['status'],
+    type: entry.type as 'check_in' | 'check_out',
+  }
+}
+
+function transformLeaderboardEntry(entry: BackendLeaderboardEntry): LeaderboardEntry {
+  return {
+    rank: entry.rank,
+    studentId: entry.student_id,
+    studentName: entry.student_name,
+    className: entry.class_name,
+    arrivalTime: entry.arrival_time,
+  }
+}
+
+function transformAttendanceStats(stats: BackendAttendanceStats): AttendanceStats {
+  return {
+    totalStudents: stats.total_students,
+    present: stats.present,
+    late: stats.late,
+    veryLate: stats.very_late,
+    absent: stats.absent,
+    percentage: stats.percentage,
+  }
+}
 
 class RealtimeService {
   private ws: WebSocket | null = null
@@ -101,7 +176,9 @@ class RealtimeService {
 
     this.ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as AttendanceEvent
+        const rawData = JSON.parse(event.data)
+        // Transform backend snake_case to frontend camelCase
+        const data = this.transformWebSocketEvent(rawData)
         this.notifyEventHandlers(data)
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error)
@@ -219,6 +296,29 @@ class RealtimeService {
     })
   }
 
+  // Transform WebSocket event from backend snake_case to frontend camelCase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private transformWebSocketEvent(rawData: any): AttendanceEvent {
+    const event: AttendanceEvent = {
+      type: rawData.type,
+      schoolId: rawData.school_id,
+    }
+
+    if (rawData.attendance) {
+      event.attendance = transformLiveFeedEntry(rawData.attendance)
+    }
+
+    if (rawData.stats) {
+      event.stats = transformAttendanceStats(rawData.stats)
+    }
+
+    if (rawData.leaderboard && Array.isArray(rawData.leaderboard)) {
+      event.leaderboard = rawData.leaderboard.map(transformLeaderboardEntry)
+    }
+
+    return event
+  }
+
   // Notify all status handlers
   private notifyStatusChange(status: WSConnectionStatus): void {
     this.statusHandlers.forEach(handler => {
@@ -259,8 +359,9 @@ class RealtimeService {
     if (classId) {
       params.class_id = classId.toString()
     }
-    const response = await api.get<LiveFeedResponse>('/realtime/feed', { params })
-    return response.data.feed || []
+    const response = await api.get<{ success: boolean; data: BackendLiveFeedResponse }>('/realtime/live-feed', { params })
+    const feed = response.data.data?.feed || []
+    return feed.map(transformLiveFeedEntry)
   }
 
   // Get attendance stats via REST API
@@ -269,8 +370,19 @@ class RealtimeService {
     if (classId) {
       params.class_id = classId.toString()
     }
-    const response = await api.get<StatsResponse>('/realtime/stats', { params })
-    return response.data.stats
+    const response = await api.get<{ success: boolean; data: BackendStatsResponse }>('/realtime/stats', { params })
+    const stats = response.data.data?.stats
+    if (stats) {
+      return transformAttendanceStats(stats)
+    }
+    return {
+      totalStudents: 0,
+      present: 0,
+      late: 0,
+      veryLate: 0,
+      absent: 0,
+      percentage: 0,
+    }
   }
 
   // Get leaderboard via REST API
@@ -279,8 +391,9 @@ class RealtimeService {
     if (classId) {
       params.class_id = classId.toString()
     }
-    const response = await api.get<LeaderboardResponse>('/realtime/leaderboard', { params })
-    return response.data.leaderboard || []
+    const response = await api.get<{ success: boolean; data: BackendLeaderboardResponse }>('/realtime/leaderboard', { params })
+    const leaderboard = response.data.data?.leaderboard || []
+    return leaderboard.map(transformLeaderboardEntry)
   }
 }
 

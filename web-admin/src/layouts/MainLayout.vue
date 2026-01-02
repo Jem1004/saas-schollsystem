@@ -145,11 +145,11 @@ const allMenuItems: MenuItemConfig[] = [
     roles: ['admin_sekolah'],
   },
   {
-    key: 'attendance-admin',
+    key: 'attendance-report',
     icon: ScheduleOutlined,
-    label: 'Monitoring Absensi',
+    label: 'Laporan Absensi',
     path: '/attendance',
-    roles: ['admin_sekolah'],
+    roles: ['admin_sekolah', 'wali_kelas'],
   },
   {
     key: 'live-attendance',
@@ -157,13 +157,6 @@ const allMenuItems: MenuItemConfig[] = [
     label: 'Absensi Real-Time',
     path: '/attendance/live',
     roles: ['admin_sekolah', 'wali_kelas', 'guru_bk'],
-  },
-  {
-    key: 'monthly-recap',
-    icon: FileTextOutlined,
-    label: 'Rekap Bulanan',
-    path: '/attendance/monthly-recap',
-    roles: ['admin_sekolah', 'wali_kelas'],
   },
   // Note: School settings removed from super_admin menu as they don't have school context
   // Super admin should manage school settings through tenant management

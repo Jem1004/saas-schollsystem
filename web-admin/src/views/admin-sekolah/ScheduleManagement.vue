@@ -35,7 +35,6 @@ import {
 import { scheduleService } from '@/services'
 import type { AttendanceSchedule, CreateScheduleRequest, UpdateScheduleRequest } from '@/types/schedule'
 import { DAYS_OF_WEEK, parseDaysOfWeek, formatDaysOfWeek, getDayLabels } from '@/types/schedule'
-import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 
@@ -53,8 +52,8 @@ const editingSchedule = ref<AttendanceSchedule | null>(null)
 const formRef = ref()
 const formState = reactive({
   name: '',
-  startTime: undefined as dayjs.Dayjs | undefined,
-  endTime: undefined as dayjs.Dayjs | undefined,
+  startTime: '' as string,
+  endTime: '' as string,
   lateThreshold: 15,
   veryLateThreshold: undefined as number | undefined,
   daysOfWeek: ['1', '2', '3', '4', '5'] as string[],
@@ -64,8 +63,26 @@ const formState = reactive({
 // Form rules
 const formRules = {
   name: [{ required: true, message: 'Nama jadwal wajib diisi' }],
-  startTime: [{ required: true, message: 'Waktu mulai wajib diisi' }],
-  endTime: [{ required: true, message: 'Waktu selesai wajib diisi' }],
+  startTime: [{ 
+    required: true, 
+    message: 'Waktu mulai wajib diisi',
+    validator: (_rule: unknown, value: string) => {
+      if (!value || value.trim() === '') {
+        return Promise.reject('Waktu mulai wajib diisi')
+      }
+      return Promise.resolve()
+    }
+  }],
+  endTime: [{ 
+    required: true, 
+    message: 'Waktu selesai wajib diisi',
+    validator: (_rule: unknown, value: string) => {
+      if (!value || value.trim() === '') {
+        return Promise.reject('Waktu selesai wajib diisi')
+      }
+      return Promise.resolve()
+    }
+  }],
   lateThreshold: [{ required: true, message: 'Batas terlambat wajib diisi' }],
   daysOfWeek: [{ required: true, message: 'Pilih minimal satu hari', type: 'array' as const, min: 1 }],
 }
@@ -141,8 +158,8 @@ const openEditModal = (schedule: AttendanceSchedule) => {
   isEditing.value = true
   editingSchedule.value = schedule
   formState.name = schedule.name
-  formState.startTime = dayjs(schedule.startTime, 'HH:mm')
-  formState.endTime = dayjs(schedule.endTime, 'HH:mm')
+  formState.startTime = schedule.startTime
+  formState.endTime = schedule.endTime
   formState.lateThreshold = schedule.lateThreshold
   formState.veryLateThreshold = schedule.veryLateThreshold || undefined
   formState.daysOfWeek = parseDaysOfWeek(schedule.daysOfWeek)
@@ -153,8 +170,8 @@ const openEditModal = (schedule: AttendanceSchedule) => {
 // Reset form
 const resetForm = () => {
   formState.name = ''
-  formState.startTime = undefined
-  formState.endTime = undefined
+  formState.startTime = ''
+  formState.endTime = ''
   formState.lateThreshold = 15
   formState.veryLateThreshold = undefined
   formState.daysOfWeek = ['1', '2', '3', '4', '5']
@@ -181,8 +198,8 @@ const handleSubmit = async () => {
     if (isEditing.value && editingSchedule.value) {
       const updateData: UpdateScheduleRequest = {
         name: formState.name,
-        start_time: formState.startTime?.format('HH:mm'),
-        end_time: formState.endTime?.format('HH:mm'),
+        start_time: formState.startTime,
+        end_time: formState.endTime,
         late_threshold: formState.lateThreshold,
         very_late_threshold: formState.veryLateThreshold || undefined,
         days_of_week: formatDaysOfWeek(formState.daysOfWeek),
@@ -193,8 +210,8 @@ const handleSubmit = async () => {
     } else {
       const createData: CreateScheduleRequest = {
         name: formState.name,
-        start_time: formState.startTime!.format('HH:mm'),
-        end_time: formState.endTime!.format('HH:mm'),
+        start_time: formState.startTime,
+        end_time: formState.endTime,
         late_threshold: formState.lateThreshold,
         very_late_threshold: formState.veryLateThreshold || undefined,
         days_of_week: formatDaysOfWeek(formState.daysOfWeek),
@@ -370,6 +387,7 @@ onMounted(() => {
               <TimePicker
                 v-model:value="formState.startTime"
                 format="HH:mm"
+                value-format="HH:mm"
                 placeholder="Pilih waktu"
                 style="width: 100%"
               />
@@ -380,6 +398,7 @@ onMounted(() => {
               <TimePicker
                 v-model:value="formState.endTime"
                 format="HH:mm"
+                value-format="HH:mm"
                 placeholder="Pilih waktu"
                 style="width: 100%"
               />

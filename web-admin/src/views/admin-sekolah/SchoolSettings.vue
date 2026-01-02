@@ -5,29 +5,25 @@ import {
   Card,
   Form,
   FormItem,
-  InputNumber,
   Switch,
   Button,
   Row,
   Col,
   Typography,
   Divider,
-  TimePicker,
   Select,
   SelectOption,
   message,
   Spin,
   Popconfirm,
+  Alert,
 } from 'ant-design-vue'
 import {
   SaveOutlined,
   ReloadOutlined,
-  ClockCircleOutlined,
   BellOutlined,
   CalendarOutlined,
 } from '@ant-design/icons-vue'
-import dayjs from 'dayjs'
-import type { Dayjs } from 'dayjs'
 import { schoolService } from '@/services'
 import type { SchoolSettings, UpdateSchoolSettingsRequest } from '@/types/school'
 
@@ -39,13 +35,9 @@ const loading = ref(false)
 const saving = ref(false)
 const resetting = ref(false)
 
-// Form state
+// Form state - removed attendance settings
 const formRef = ref()
 const formState = reactive<{
-  attendanceStartTime: Dayjs | undefined
-  attendanceEndTime: Dayjs | undefined
-  attendanceLateThreshold: number
-  attendanceVeryLateThreshold: number
   enableAttendanceNotification: boolean
   enableGradeNotification: boolean
   enableBKNotification: boolean
@@ -53,10 +45,6 @@ const formState = reactive<{
   academicYear: string
   semester: number
 }>({
-  attendanceStartTime: undefined,
-  attendanceEndTime: undefined,
-  attendanceLateThreshold: 30,
-  attendanceVeryLateThreshold: 60,
   enableAttendanceNotification: true,
   enableGradeNotification: true,
   enableBKNotification: true,
@@ -67,8 +55,6 @@ const formState = reactive<{
 
 // Form rules
 const formRules = {
-  attendanceStartTime: [{ required: true, message: 'Waktu mulai absensi wajib diisi' }],
-  attendanceEndTime: [{ required: true, message: 'Waktu akhir absensi wajib diisi' }],
   academicYear: [{ required: true, message: 'Tahun ajaran wajib diisi' }],
 }
 
@@ -124,16 +110,8 @@ const loadSettings = async () => {
   }
 }
 
-// Apply settings to form
+// Apply settings to form - removed attendance settings
 const applySettings = (settings: SchoolSettings) => {
-  formState.attendanceStartTime = settings.attendanceStartTime 
-    ? dayjs(settings.attendanceStartTime, 'HH:mm') 
-    : undefined
-  formState.attendanceEndTime = settings.attendanceEndTime 
-    ? dayjs(settings.attendanceEndTime, 'HH:mm') 
-    : undefined
-  formState.attendanceLateThreshold = settings.attendanceLateThreshold
-  formState.attendanceVeryLateThreshold = settings.attendanceVeryLateThreshold
   formState.enableAttendanceNotification = settings.enableAttendanceNotification
   formState.enableGradeNotification = settings.enableGradeNotification
   formState.enableBKNotification = settings.enableBKNotification
@@ -142,7 +120,7 @@ const applySettings = (settings: SchoolSettings) => {
   formState.semester = settings.semester
 }
 
-// Handle save
+// Handle save - removed attendance settings
 const handleSave = async () => {
   try {
     await formRef.value?.validate()
@@ -153,10 +131,6 @@ const handleSave = async () => {
   saving.value = true
   try {
     const updateData: UpdateSchoolSettingsRequest = {
-      attendance_start_time: formState.attendanceStartTime?.format('HH:mm'),
-      attendance_end_time: formState.attendanceEndTime?.format('HH:mm'),
-      attendance_late_threshold: formState.attendanceLateThreshold,
-      attendance_very_late_threshold: formState.attendanceVeryLateThreshold,
       enable_attendance_notification: formState.enableAttendanceNotification,
       enable_grade_notification: formState.enableGradeNotification,
       enable_bk_notification: formState.enableBKNotification,
@@ -214,7 +188,7 @@ onMounted(() => {
   <div class="school-settings">
     <div class="page-header">
       <Title :level="2" style="margin: 0">Pengaturan Sekolah</Title>
-      <Text type="secondary">Konfigurasi pengaturan absensi, notifikasi, dan tahun ajaran</Text>
+      <Text type="secondary">Konfigurasi notifikasi dan tahun ajaran</Text>
     </div>
 
     <Spin :spinning="loading">
@@ -224,69 +198,8 @@ onMounted(() => {
         :rules="formRules"
         layout="vertical"
       >
-        <!-- Attendance Settings -->
-        <Card class="settings-card">
-          <template #title>
-            <Space>
-              <ClockCircleOutlined />
-              <span>Pengaturan Absensi</span>
-            </Space>
-          </template>
-          
-          <Row :gutter="24">
-            <Col :xs="24" :sm="12" :md="6">
-              <FormItem label="Waktu Mulai Absensi" name="attendanceStartTime" required>
-                <TimePicker
-                  v-model:value="formState.attendanceStartTime"
-                  format="HH:mm"
-                  placeholder="07:00"
-                  style="width: 100%"
-                />
-              </FormItem>
-            </Col>
-            <Col :xs="24" :sm="12" :md="6">
-              <FormItem label="Waktu Akhir Absensi" name="attendanceEndTime" required>
-                <TimePicker
-                  v-model:value="formState.attendanceEndTime"
-                  format="HH:mm"
-                  placeholder="07:30"
-                  style="width: 100%"
-                />
-              </FormItem>
-            </Col>
-            <Col :xs="24" :sm="12" :md="6">
-              <FormItem
-                label="Batas Terlambat (menit)"
-                name="attendanceLateThreshold"
-                extra="Menit setelah waktu mulai untuk dianggap terlambat"
-              >
-                <InputNumber
-                  v-model:value="formState.attendanceLateThreshold"
-                  :min="1"
-                  :max="120"
-                  style="width: 100%"
-                />
-              </FormItem>
-            </Col>
-            <Col :xs="24" :sm="12" :md="6">
-              <FormItem
-                label="Batas Sangat Terlambat (menit)"
-                name="attendanceVeryLateThreshold"
-                extra="Menit setelah waktu mulai untuk dianggap sangat terlambat"
-              >
-                <InputNumber
-                  v-model:value="formState.attendanceVeryLateThreshold"
-                  :min="1"
-                  :max="180"
-                  style="width: 100%"
-                />
-              </FormItem>
-            </Col>
-          </Row>
-        </Card>
-
         <!-- Notification Settings -->
-        <Card class="settings-card" style="margin-top: 24px">
+        <Card class="settings-card">
           <template #title>
             <Space>
               <BellOutlined />

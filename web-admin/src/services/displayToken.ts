@@ -9,6 +9,8 @@ import type {
 
 // Transform backend response to frontend format (snake_case to camelCase)
 function transformToken(data: Record<string, unknown>): DisplayToken {
+  // For list response, use display_url from backend (token value is not exposed)
+  // Backend generates URL using the actual token stored in database
   return {
     id: data.id as number,
     schoolId: data.school_id as number,
@@ -18,20 +20,43 @@ function transformToken(data: Record<string, unknown>): DisplayToken {
     expiresAt: data.expires_at as string | undefined,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
-    displayUrl: data.display_url as string | undefined,
+    // Use backend URL but replace the host with frontend origin
+    displayUrl: transformDisplayUrl(data.display_url as string | undefined),
   }
 }
 
 function transformTokenWithSecret(data: Record<string, unknown>): DisplayTokenWithSecret {
+  const token = data.token as string
   return {
     id: data.id as number,
     schoolId: data.school_id as number,
-    token: data.token as string,
+    token: token,
     name: data.name as string,
     isActive: data.is_active as boolean,
     expiresAt: data.expires_at as string | undefined,
     createdAt: data.created_at as string,
-    displayUrl: data.display_url as string,
+    // Generate display URL using frontend origin for newly created/regenerated tokens
+    displayUrl: `${window.location.origin}/display/${token}`,
+  }
+}
+
+// Transform display URL from backend to use frontend origin
+function transformDisplayUrl(backendUrl: string | undefined): string | undefined {
+  if (!backendUrl) return undefined
+  
+  try {
+    // Extract the path from backend URL (e.g., /display/abc123)
+    const url = new URL(backendUrl)
+    const path = url.pathname
+    // Reconstruct with frontend origin
+    return `${window.location.origin}${path}`
+  } catch {
+    // If URL parsing fails, try to extract path manually
+    const match = backendUrl.match(/\/display\/[a-f0-9]+$/i)
+    if (match) {
+      return `${window.location.origin}${match[0]}`
+    }
+    return backendUrl
   }
 }
 

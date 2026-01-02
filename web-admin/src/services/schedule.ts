@@ -7,6 +7,13 @@ import type {
   ActiveScheduleResponse,
 } from '@/types/schedule'
 
+// Backend response wrapper
+interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
+}
+
 // Transform backend response to frontend format (snake_case to camelCase)
 function transformSchedule(data: Record<string, unknown>): AttendanceSchedule {
   return {
@@ -28,29 +35,30 @@ function transformSchedule(data: Record<string, unknown>): AttendanceSchedule {
 export const scheduleService = {
   // Get all schedules for the school
   async getSchedules(): Promise<ScheduleListResponse> {
-    const response = await api.get<{ schedules: Record<string, unknown>[]; total: number }>('/schedules')
+    const response = await api.get<ApiResponse<{ schedules: Record<string, unknown>[]; total: number }>>('/schedules')
+    const data = response.data.data
     return {
-      schedules: (response.data.schedules || []).map(transformSchedule),
-      total: response.data.total || 0,
+      schedules: (data?.schedules || []).map(transformSchedule),
+      total: data?.total || 0,
     }
   },
 
   // Get a single schedule by ID
   async getScheduleById(id: number): Promise<AttendanceSchedule> {
-    const response = await api.get<Record<string, unknown>>(`/schedules/${id}`)
-    return transformSchedule(response.data)
+    const response = await api.get<ApiResponse<Record<string, unknown>>>(`/schedules/${id}`)
+    return transformSchedule(response.data.data)
   },
 
   // Create a new schedule
   async createSchedule(data: CreateScheduleRequest): Promise<AttendanceSchedule> {
-    const response = await api.post<Record<string, unknown>>('/schedules', data)
-    return transformSchedule(response.data)
+    const response = await api.post<ApiResponse<Record<string, unknown>>>('/schedules', data)
+    return transformSchedule(response.data.data)
   },
 
   // Update an existing schedule
   async updateSchedule(id: number, data: UpdateScheduleRequest): Promise<AttendanceSchedule> {
-    const response = await api.put<Record<string, unknown>>(`/schedules/${id}`, data)
-    return transformSchedule(response.data)
+    const response = await api.put<ApiResponse<Record<string, unknown>>>(`/schedules/${id}`, data)
+    return transformSchedule(response.data.data)
   },
 
   // Delete a schedule
@@ -59,17 +67,17 @@ export const scheduleService = {
   },
 
   // Set a schedule as default
-  async setDefaultSchedule(id: number): Promise<AttendanceSchedule> {
-    const response = await api.post<Record<string, unknown>>(`/schedules/${id}/default`)
-    return transformSchedule(response.data)
+  async setDefaultSchedule(id: number): Promise<void> {
+    await api.post(`/schedules/${id}/default`)
   },
 
   // Get the currently active schedule
   async getActiveSchedule(): Promise<ActiveScheduleResponse> {
-    const response = await api.get<{ schedule?: Record<string, unknown>; message?: string }>('/schedules/active')
+    const response = await api.get<ApiResponse<{ schedule?: Record<string, unknown>; message?: string }>>('/schedules/active')
+    const data = response.data.data
     return {
-      schedule: response.data.schedule ? transformSchedule(response.data.schedule) : undefined,
-      message: response.data.message,
+      schedule: data?.schedule ? transformSchedule(data.schedule) : undefined,
+      message: data?.message,
     }
   },
 }
