@@ -205,15 +205,17 @@ func main() {
 	// ============================================
 	// 8. Create Students
 	// ============================================
+	class7AID := class7A.ID
+	class7BID := class7B.ID
 	students := []models.Student{
-		{SchoolID: school1.ID, ClassID: class7A.ID, NIS: "2024001", NISN: "0012345001", Name: "Ahmad Rizki", RFIDCode: "RFID001", IsActive: true},
-		{SchoolID: school1.ID, ClassID: class7A.ID, NIS: "2024002", NISN: "0012345002", Name: "Budi Santoso", RFIDCode: "RFID002", IsActive: true},
-		{SchoolID: school1.ID, ClassID: class7A.ID, NIS: "2024003", NISN: "0012345003", Name: "Citra Dewi", RFIDCode: "RFID003", IsActive: true},
-		{SchoolID: school1.ID, ClassID: class7A.ID, NIS: "2024004", NISN: "0012345004", Name: "Dian Permata", RFIDCode: "RFID004", IsActive: true},
-		{SchoolID: school1.ID, ClassID: class7A.ID, NIS: "2024005", NISN: "0012345005", Name: "Eko Prasetyo", RFIDCode: "RFID005", IsActive: true},
-		{SchoolID: school1.ID, ClassID: class7B.ID, NIS: "2024006", NISN: "0012345006", Name: "Fitri Handayani", RFIDCode: "RFID006", IsActive: true},
-		{SchoolID: school1.ID, ClassID: class7B.ID, NIS: "2024007", NISN: "0012345007", Name: "Galih Pratama", RFIDCode: "RFID007", IsActive: true},
-		{SchoolID: school1.ID, ClassID: class7B.ID, NIS: "2024008", NISN: "0012345008", Name: "Hana Safitri", RFIDCode: "RFID008", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7AID, NIS: "2024001", NISN: "0012345001", Name: "Ahmad Rizki", RFIDCode: "RFID001", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7AID, NIS: "2024002", NISN: "0012345002", Name: "Budi Santoso", RFIDCode: "RFID002", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7AID, NIS: "2024003", NISN: "0012345003", Name: "Citra Dewi", RFIDCode: "RFID003", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7AID, NIS: "2024004", NISN: "0012345004", Name: "Dian Permata", RFIDCode: "RFID004", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7AID, NIS: "2024005", NISN: "0012345005", Name: "Eko Prasetyo", RFIDCode: "RFID005", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7BID, NIS: "2024006", NISN: "0012345006", Name: "Fitri Handayani", RFIDCode: "RFID006", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7BID, NIS: "2024007", NISN: "0012345007", Name: "Galih Pratama", RFIDCode: "RFID007", IsActive: true},
+		{SchoolID: school1.ID, ClassID: &class7BID, NIS: "2024008", NISN: "0012345008", Name: "Hana Safitri", RFIDCode: "RFID008", IsActive: true},
 	}
 
 	for i := range students {

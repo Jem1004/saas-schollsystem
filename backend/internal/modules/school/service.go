@@ -75,6 +75,13 @@ type Service interface {
 
 	// Device operations
 	GetSchoolDevices(ctx context.Context, schoolID uint) ([]DeviceResponse, error)
+
+	// Bulk operations for import
+	GetStudentsWithoutClass(ctx context.Context, schoolID uint) ([]StudentResponse, error)
+	BulkAssignClass(ctx context.Context, schoolID uint, req BulkAssignClassRequest) (*BulkAssignClassResponse, error)
+
+	// Search operations for parent linking
+	SearchStudents(ctx context.Context, schoolID uint, query string) ([]StudentSearchResponse, error)
 }
 
 // service implements the Service interface
@@ -423,15 +430,16 @@ func (s *service) CreateStudent(ctx context.Context, schoolID uint, req CreateSt
 		userID = &user.ID
 	}
 
-	// Create student
+	// Create student with ClassID as pointer
+	classID := req.ClassID
 	student := &models.Student{
 		SchoolID: schoolID,
-		ClassID:  req.ClassID,
+		ClassID:  &classID,
 		NIS:      nis,
 		NISN:     nisn,
 		Name:     name,
 		RFIDCode: strings.TrimSpace(req.RFIDCode),
-		IsActive: true,
+		IsActive: true, // IsActive is true when ClassID is set
 		UserID:   userID,
 	}
 
@@ -533,6 +541,7 @@ func (s *service) GetStudentsByClass(ctx context.Context, schoolID uint, classID
 }
 
 // UpdateStudent updates a student
+// Requirements: 3.9, 3.10, 8.2, 8.3 - Handle ClassID changes and IsActive based on ClassID presence
 func (s *service) UpdateStudent(ctx context.Context, schoolID uint, id uint, req UpdateStudentRequest) (*StudentResponse, error) {
 	// Get existing student
 	student, err := s.repo.FindStudentByID(ctx, schoolID, id)
@@ -575,13 +584,21 @@ func (s *service) UpdateStudent(ctx context.Context, schoolID uint, id uint, req
 		if err != nil {
 			return nil, err
 		}
-		student.ClassID = classID
+		student.ClassID = &classID
+		// When ClassID is set, student can be active (Requirements: 8.3)
+		student.IsActive = true
 	}
 	if req.RFIDCode != nil {
 		student.RFIDCode = strings.TrimSpace(*req.RFIDCode)
 	}
 	if req.IsActive != nil {
-		student.IsActive = *req.IsActive
+		// Only allow setting IsActive to true if ClassID is set (Requirements: 8.2)
+		if *req.IsActive && !student.CanBeActive() {
+			// Cannot set IsActive to true without ClassID
+			student.IsActive = false
+		} else {
+			student.IsActive = *req.IsActive
+		}
 	}
 
 	if err := s.repo.UpdateStudent(ctx, student); err != nil {
@@ -623,8 +640,8 @@ func (s *service) toStudentResponse(student *models.Student) *StudentResponse {
 		response.Username = student.NIS // Username is NIS
 	}
 
-	// Add class info if available
-	if student.Class.ID != 0 {
+	// Add class info if available (Class is now a pointer)
+	if student.Class != nil && student.Class.ID != 0 {
 		response.ClassName = student.Class.Name
 		response.Class = &ClassResponse{
 			ID:       student.Class.ID,
@@ -1429,4 +1446,102 @@ func (s *service) ClearStudentRFID(ctx context.Context, schoolID uint, studentID
 	}
 
 	return s.repo.ClearStudentRFID(ctx, studentID)
+}
+
+
+// ==================== Bulk Operations Service Methods ====================
+
+// GetStudentsWithoutClass retrieves all students without class assignment
+// Requirements: 6.1 - Filter for students without class assignment
+func (s *service) GetStudentsWithoutClass(ctx context.Context, schoolID uint) ([]StudentResponse, error) {
+	students, err := s.repo.FindStudentsWithoutClass(ctx, schoolID)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]StudentResponse, len(students))
+	for i, student := range students {
+		responses[i] = *s.toStudentResponse(&student)
+	}
+
+	return responses, nil
+}
+
+// BulkAssignClass assigns a class to multiple students
+// Requirements: 6.2, 6.3, 6.4, 6.5 - Bulk class assignment with validation
+func (s *service) BulkAssignClass(ctx context.Context, schoolID uint, req BulkAssignClassRequest) (*BulkAssignClassResponse, error) {
+	// Validate student IDs are provided
+	if len(req.StudentIDs) == 0 {
+		return nil, ErrStudentIDsRequired
+	}
+
+	// Validate class exists and belongs to the same school
+	class, err := s.repo.FindClassByID(ctx, schoolID, req.ClassID)
+	if err != nil {
+		return nil, err
+	}
+	if class.SchoolID != schoolID {
+		return nil, ErrClassNotFound
+	}
+
+	// Validate all students exist and belong to the same school
+	for _, studentID := range req.StudentIDs {
+		_, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Perform bulk update
+	if err := s.repo.BulkUpdateStudentClass(ctx, req.StudentIDs, req.ClassID); err != nil {
+		return nil, err
+	}
+
+	// Reload updated students
+	updatedStudents := make([]StudentResponse, 0, len(req.StudentIDs))
+	for _, studentID := range req.StudentIDs {
+		student, err := s.repo.FindStudentByID(ctx, schoolID, studentID)
+		if err == nil {
+			updatedStudents = append(updatedStudents, *s.toStudentResponse(student))
+		}
+	}
+
+	return &BulkAssignClassResponse{
+		UpdatedCount: len(updatedStudents),
+		Students:     updatedStudents,
+		Message:      "Kelas berhasil ditetapkan untuk siswa terpilih",
+	}, nil
+}
+
+
+// ==================== Search Operations Service Methods ====================
+
+// SearchStudents searches students by NISN or name for parent linking
+// Requirements: 7.2 - Search students by NISN or name for parent linking
+func (s *service) SearchStudents(ctx context.Context, schoolID uint, query string) ([]StudentSearchResponse, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return []StudentSearchResponse{}, nil
+	}
+
+	students, err := s.repo.SearchStudents(ctx, schoolID, query, 20)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]StudentSearchResponse, len(students))
+	for i, student := range students {
+		responses[i] = StudentSearchResponse{
+			ID:      student.ID,
+			NIS:     student.NIS,
+			NISN:    student.NISN,
+			Name:    student.Name,
+			ClassID: student.ClassID,
+		}
+		if student.Class != nil {
+			responses[i].ClassName = student.Class.Name
+		}
+	}
+
+	return responses, nil
 }

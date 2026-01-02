@@ -480,12 +480,18 @@ func (s *service) GetPermitDocument(ctx context.Context, permitID uint) (*Permit
 		return nil, err
 	}
 
+	// Handle nullable Class pointer
+	className := ""
+	if permit.Student.Class != nil {
+		className = permit.Student.Class.Name
+	}
+
 	return &PermitDocumentData{
 		PermitID:           permit.ID,
 		StudentName:        permit.Student.Name,
 		StudentNIS:         permit.Student.NIS,
 		StudentNISN:        permit.Student.NISN,
-		ClassName:          permit.Student.Class.Name,
+		ClassName:          className,
 		SchoolName:         permit.Student.School.Name,
 		Reason:             permit.Reason,
 		ExitTime:           permit.ExitTime,
@@ -817,7 +823,8 @@ func toViolationResponse(v *models.Violation) *ViolationResponse {
 		response.StudentName = v.Student.Name
 		response.StudentNIS = v.Student.NIS
 		response.StudentNISN = v.Student.NISN
-		if v.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if v.Student.Class != nil && v.Student.Class.ID != 0 {
 			response.ClassName = v.Student.Class.Name
 		}
 	}
@@ -844,7 +851,8 @@ func toAchievementResponse(a *models.Achievement) *AchievementResponse {
 		response.StudentName = a.Student.Name
 		response.StudentNIS = a.Student.NIS
 		response.StudentNISN = a.Student.NISN
-		if a.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if a.Student.Class != nil && a.Student.Class.ID != 0 {
 			response.ClassName = a.Student.Class.Name
 		}
 	}
@@ -874,7 +882,8 @@ func toPermitResponse(p *models.Permit) *PermitResponse {
 		response.StudentName = p.Student.Name
 		response.StudentNIS = p.Student.NIS
 		response.StudentNISN = p.Student.NISN
-		if p.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if p.Student.Class != nil && p.Student.Class.ID != 0 {
 			response.ClassName = p.Student.Class.Name
 		}
 	}
@@ -903,7 +912,8 @@ func toCounselingNoteResponse(n *models.CounselingNote) *CounselingNoteResponse 
 		response.StudentName = n.Student.Name
 		response.StudentNIS = n.Student.NIS
 		response.StudentNISN = n.Student.NISN
-		if n.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if n.Student.Class != nil && n.Student.Class.ID != 0 {
 			response.ClassName = n.Student.Class.Name
 		}
 	}
@@ -929,7 +939,8 @@ func toCounselingNoteFullResponse(n *models.CounselingNote) *CounselingNoteFullR
 		response.StudentName = n.Student.Name
 		response.StudentNIS = n.Student.NIS
 		response.StudentNISN = n.Student.NISN
-		if n.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if n.Student.Class != nil && n.Student.Class.ID != 0 {
 			response.ClassName = n.Student.Class.Name
 		}
 	}

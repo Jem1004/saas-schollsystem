@@ -390,7 +390,6 @@ onMounted(() => {
               <Space>
                 <Button @click="loadGrades">
                   <template #icon><ReloadOutlined /></template>
-                  Refresh
                 </Button>
                 <Button type="primary" @click="openGradeModal()">
                   <template #icon><PlusOutlined /></template>

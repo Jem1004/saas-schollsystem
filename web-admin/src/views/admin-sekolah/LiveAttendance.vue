@@ -420,7 +420,6 @@ watch(filterClassId, () => {
             </Select>
             <Button @click="handleRefresh" :loading="loading">
               <template #icon><ReloadOutlined /></template>
-              Refresh
             </Button>
           </div>
         </div>

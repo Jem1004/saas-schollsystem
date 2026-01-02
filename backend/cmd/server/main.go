@@ -22,6 +22,7 @@ import (
 	"github.com/school-management/backend/internal/modules/displaytoken"
 	"github.com/school-management/backend/internal/modules/grade"
 	"github.com/school-management/backend/internal/modules/homeroom"
+	importmodule "github.com/school-management/backend/internal/modules/import"
 	"github.com/school-management/backend/internal/modules/notification"
 	"github.com/school-management/backend/internal/modules/parent"
 	"github.com/school-management/backend/internal/modules/publicdisplay"
@@ -132,6 +133,10 @@ func main() {
 	// Public display routes (no auth required - uses display token)
 	publicDisplayHandler.RegisterPublicRoutes(api)
 
+	// Register WebSocket routes BEFORE protected routes
+	// WebSocket handles its own authentication via token query parameter
+	realtimeHandler.RegisterWebSocketRoutes(app)
+
 	// Protected routes group with auth middleware
 	protected := api.Group("", middleware.AuthMiddleware(jwtManager))
 
@@ -195,6 +200,14 @@ func main() {
 	adminSekolahRoutes := tenantScoped.Group("/school")
 	schoolHandler.RegisterRoutes(adminSekolahRoutes)
 
+	// Initialize Import Module (Admin Sekolah only)
+	// Requirements: 1.1, 1.2, 2.1 - Bulk import for students and parents
+	importService := importmodule.NewService(db)
+	importHandler := importmodule.NewHandler(importService)
+
+	// Import routes for admin sekolah (template download and import)
+	importHandler.RegisterRoutes(adminSekolahRoutes)
+
 	// Initialize Schedule Module (Admin Sekolah only)
 	// Requirements: 3.1 - Multi-schedule support for different activities
 	scheduleRepo := schedule.NewRepository(db)
@@ -218,9 +231,6 @@ func main() {
 	// Connect attendance service to real-time broadcaster
 	// Requirements: 4.2 - Broadcast attendance updates in real-time
 	attendanceService.SetRealtimeBroadcaster(realtimeService)
-
-	// Register WebSocket routes (before other routes to handle upgrade properly)
-	realtimeHandler.RegisterWebSocketRoutes(app)
 
 	// Public attendance routes (for ESP32 RFID devices)
 	attendanceHandler.RegisterPublicRoutes(api)

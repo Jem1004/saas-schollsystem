@@ -315,7 +315,6 @@ onMounted(() => {
           <Space>
             <Button @click="loadClasses">
               <template #icon><ReloadOutlined /></template>
-              Refresh
             </Button>
             <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>

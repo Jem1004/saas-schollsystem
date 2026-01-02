@@ -295,7 +295,6 @@ onMounted(() => {
               <Space>
                 <Button @click="loadNotes">
                   <template #icon><ReloadOutlined /></template>
-                  Refresh
                 </Button>
                 <Button type="primary" @click="openNoteModal()">
                   <template #icon><PlusOutlined /></template>

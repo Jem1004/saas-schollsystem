@@ -328,7 +328,6 @@ onMounted(() => {
           <Space>
             <Button @click="loadAchievements">
               <template #icon><ReloadOutlined /></template>
-              Refresh
             </Button>
             <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>

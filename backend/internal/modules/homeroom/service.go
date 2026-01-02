@@ -198,8 +198,8 @@ func (s *service) ValidateTeacherAccess(ctx context.Context, teacherID, studentI
 		return err
 	}
 
-	// Check if student is in teacher's class
-	if student.ClassID != *classID {
+	// Check if student is in teacher's class (handle nullable ClassID)
+	if student.ClassID == nil || *student.ClassID != *classID {
 		return ErrStudentNotInClass
 	}
 
@@ -279,7 +279,8 @@ func toNoteResponse(n *models.HomeroomNote) *NoteResponse {
 		response.StudentName = n.Student.Name
 		response.StudentNIS = n.Student.NIS
 		response.StudentNISN = n.Student.NISN
-		if n.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if n.Student.Class != nil && n.Student.Class.ID != 0 {
 			response.ClassName = n.Student.Class.Name
 		}
 	}

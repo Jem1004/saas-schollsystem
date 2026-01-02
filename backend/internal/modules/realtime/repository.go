@@ -83,7 +83,8 @@ func (r *repository) GetLiveFeed(ctx context.Context, schoolID uint, classID *ui
 			Type:        "check_in",
 		}
 
-		if a.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if a.Student.Class != nil && a.Student.Class.ID != 0 {
 			entry.ClassName = a.Student.Class.Name
 			entry.ClassID = a.Student.Class.ID
 		}

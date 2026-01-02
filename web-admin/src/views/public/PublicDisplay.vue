@@ -24,6 +24,7 @@ import {
   ListItem,
   Avatar,
   Empty,
+  Button,
 } from 'ant-design-vue'
 import {
   CheckCircleOutlined,
@@ -35,6 +36,7 @@ import {
   WifiOutlined,
   DisconnectOutlined,
   SyncOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/id'
@@ -304,10 +306,31 @@ const handleAttendanceUpdate = (message: any) => {
 }
 
 // Handle WebSocket reconnection
-const handleReconnect = () => {
+// Validate token before reconnecting to avoid infinite loop
+const handleReconnect = async () => {
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
     connectionStatus.value = { connected: false, message: 'Gagal terhubung. Refresh halaman.' }
     return
+  }
+
+  // Validate token before reconnecting
+  if (reconnectAttempts > 0 && reconnectAttempts % 3 === 0) {
+    // Every 3 attempts, validate token via REST API
+    try {
+      const baseUrl = getApiBaseUrl()
+      const response = await fetch(`${baseUrl}/api/v1/public/display/${token.value}`)
+      const data = await response.json()
+      
+      if (!response.ok) {
+        // Token is invalid/revoked/expired - stop reconnecting
+        errorCode.value = data.error?.code || data.error || 'TOKEN_INVALID'
+        error.value = getErrorMessage(errorCode.value)
+        connectionStatus.value = { connected: false, message: 'Token tidak valid' }
+        return
+      }
+    } catch {
+      // Network error - continue trying to reconnect
+    }
   }
 
   reconnectAttempts++
@@ -320,6 +343,38 @@ const handleReconnect = () => {
   reconnectTimeout = setTimeout(() => {
     connectWebSocket()
   }, delay)
+}
+
+// Get user-friendly error message
+const getErrorMessage = (code: string | null): string => {
+  switch (code) {
+    case 'TOKEN_INVALID':
+    case 'TOKEN_NOT_FOUND':
+      return 'Token display tidak valid atau tidak ditemukan.'
+    case 'TOKEN_REVOKED':
+      return 'Token display telah dicabut oleh administrator.'
+    case 'TOKEN_EXPIRED':
+      return 'Token display telah kedaluwarsa.'
+    case 'NETWORK_ERROR':
+      return 'Gagal terhubung ke server. Periksa koneksi internet.'
+    default:
+      return 'Terjadi kesalahan. Silakan hubungi administrator.'
+  }
+}
+
+// Manual refresh function
+const handleManualRefresh = async () => {
+  loading.value = true
+  error.value = null
+  errorCode.value = null
+  reconnectAttempts = 0
+  
+  disconnectWebSocket()
+  await fetchDisplayData()
+  
+  if (!error.value) {
+    connectWebSocket()
+  }
 }
 
 // Disconnect WebSocket
@@ -448,11 +503,15 @@ onUnmounted(() => {
     <div v-else-if="error" class="error-container">
       <div class="error-content">
         <ExclamationCircleOutlined class="error-icon" />
-        <Title :level="2" class="error-title">{{ error }}</Title>
-        <Text type="secondary" class="error-code">Kode: {{ errorCode }}</Text>
+        <Title :level="2" class="error-title">{{ getErrorMessage(errorCode) }}</Title>
+        <Text type="secondary" class="error-code" v-if="errorCode">Kode Error: {{ errorCode }}</Text>
         <Text type="secondary" class="error-hint">
           Silakan hubungi administrator sekolah untuk mendapatkan token display yang valid.
         </Text>
+        <Button type="primary" size="large" class="refresh-button" @click="handleManualRefresh">
+          <template #icon><ReloadOutlined /></template>
+          Coba Lagi
+        </Button>
       </div>
     </div>
 
@@ -702,6 +761,11 @@ onUnmounted(() => {
   display: block;
   font-size: 16px;
   color: rgba(255, 255, 255, 0.8) !important;
+  margin-bottom: 24px;
+}
+
+.refresh-button {
+  margin-top: 16px;
 }
 
 /* Display Content */

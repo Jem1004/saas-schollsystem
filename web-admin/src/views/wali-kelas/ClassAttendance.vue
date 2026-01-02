@@ -382,7 +382,6 @@ onMounted(() => {
           <Space>
             <Button @click="loadAttendance">
               <template #icon><ReloadOutlined /></template>
-              Refresh
             </Button>
             <Button type="primary" @click="openManualAttendanceModal()">
               <template #icon><PlusOutlined /></template>

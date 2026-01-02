@@ -574,7 +574,8 @@ func toAttendanceResponse(attendance *models.Attendance) *AttendanceResponse {
 		response.StudentName = attendance.Student.Name
 		response.StudentNIS = attendance.Student.NIS
 		response.StudentNISN = attendance.Student.NISN
-		if attendance.Student.Class.ID != 0 {
+		// Handle nullable Class pointer
+		if attendance.Student.Class != nil && attendance.Student.Class.ID != 0 {
 			response.ClassName = attendance.Student.Class.Name
 		}
 	}

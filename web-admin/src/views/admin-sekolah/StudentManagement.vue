@@ -22,8 +22,13 @@ import {
   Tooltip,
   Alert,
   Progress,
+  Upload,
+  Divider,
+  List,
+  ListItem,
+  ListItemMeta,
 } from 'ant-design-vue'
-import type { TableProps } from 'ant-design-vue'
+import type { TableProps, UploadProps } from 'ant-design-vue'
 import {
   PlusOutlined,
   SearchOutlined,
@@ -38,8 +43,15 @@ import {
   InfoCircleOutlined,
   WifiOutlined,
   CloseCircleOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+  FileExcelOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons-vue'
-import { schoolService } from '@/services'
+import { schoolService, importService } from '@/services'
+import type { ImportResult, ImportError, ImportWarning } from '@/services/import'
 import type { Student, Class, UpdateStudentRequest, Device, PairingSessionResponse } from '@/types/school'
 
 const { Title, Text } = Typography
@@ -79,6 +91,20 @@ const pairingTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const selectedDeviceId = ref<number | undefined>(undefined)
 const devices = ref<Device[]>([])
 const loadingDevices = ref(false)
+
+// Import modal state
+const importModalVisible = ref(false)
+const importLoading = ref(false)
+const importResultModalVisible = ref(false)
+const importResult = ref<ImportResult | null>(null)
+const studentsWithoutClass = ref(0)
+
+// Bulk class assignment state
+const selectedStudentIds = ref<number[]>([])
+const bulkAssignModalVisible = ref(false)
+const bulkAssignLoading = ref(false)
+const bulkAssignClassId = ref<number | undefined>(undefined)
+const filterWithoutClass = ref(false)
 
 // Form state
 const formRef = ref()
@@ -179,15 +205,36 @@ const filteredStudents = computed(() => {
 // Load students data
 const loadStudents = async () => {
   loading.value = true
+  selectedStudentIds.value = [] // Clear selection when loading
   try {
-    const response = await schoolService.getStudents({
-      page: pagination.current,
-      page_size: pagination.pageSize,
-      search: searchText.value,
-      class_id: filterClassId.value,
-    })
-    students.value = response.students
-    total.value = response.pagination.total
+    if (filterWithoutClass.value) {
+      // Load students without class from import service
+      const studentsData = await importService.getStudentsWithoutClass()
+      students.value = studentsData.map(s => ({
+        id: s.id,
+        schoolId: 0,
+        classId: 0,
+        className: undefined,
+        nis: s.nis,
+        nisn: s.nisn,
+        name: s.name,
+        rfidCode: undefined,
+        isActive: s.is_active,
+        hasAccount: false,
+        createdAt: '',
+        updatedAt: '',
+      })) as Student[]
+      total.value = studentsData.length
+    } else {
+      const response = await schoolService.getStudents({
+        page: pagination.current,
+        page_size: pagination.pageSize,
+        search: searchText.value,
+        class_id: filterClassId.value,
+      })
+      students.value = response.students
+      total.value = response.pagination.total
+    }
   } catch (err) {
     console.error('Failed to load students:', err)
     message.error('Gagal memuat data siswa')
@@ -524,9 +571,165 @@ const handleClearRFID = async (student: Student) => {
   }
 }
 
+// ==================== Import Functions ====================
+
+// Download student template
+const handleDownloadTemplate = async () => {
+  try {
+    const blob = await importService.downloadStudentTemplate()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'template_import_siswa.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    message.success('Template berhasil diunduh')
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: { message?: string } } } }
+    message.error(err.response?.data?.error?.message || 'Gagal mengunduh template')
+  }
+}
+
+// Open import modal
+const openImportModal = () => {
+  importModalVisible.value = true
+}
+
+// Handle file upload for import
+const handleImportUpload: UploadProps['customRequest'] = async (options) => {
+  const { file, onSuccess, onError } = options
+  
+  if (!(file instanceof File)) {
+    message.error('File tidak valid')
+    onError?.(new Error('Invalid file'))
+    return
+  }
+
+  // Validate file type
+  const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                  file.name.endsWith('.xlsx')
+  if (!isExcel) {
+    message.error('Hanya file Excel (.xlsx) yang diperbolehkan')
+    onError?.(new Error('Invalid file type'))
+    return
+  }
+
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024
+  if (file.size > maxSize) {
+    message.error('Ukuran file maksimal 5MB')
+    onError?.(new Error('File too large'))
+    return
+  }
+
+  importLoading.value = true
+  try {
+    const result = await importService.importStudents(file)
+    importResult.value = result
+    importModalVisible.value = false
+    importResultModalVisible.value = true
+    
+    // Update students without class count
+    if (result.students_without_class) {
+      studentsWithoutClass.value = result.students_without_class
+    }
+    
+    // Reload students list
+    loadStudents()
+    onSuccess?.(result)
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: { message?: string } } } }
+    message.error(err.response?.data?.error?.message || 'Gagal mengimpor data siswa')
+    onError?.(error as Error)
+  } finally {
+    importLoading.value = false
+  }
+}
+
+// Close import result modal
+const closeImportResultModal = () => {
+  importResultModalVisible.value = false
+  importResult.value = null
+}
+
+// Load students without class count
+const loadStudentsWithoutClassCount = async () => {
+  try {
+    const students = await importService.getStudentsWithoutClass()
+    studentsWithoutClass.value = students.length
+  } catch {
+    // Ignore error, just don't show the count
+    studentsWithoutClass.value = 0
+  }
+}
+
+// ==================== Bulk Class Assignment Functions ====================
+
+// Handle filter without class change
+const handleFilterWithoutClassChange = () => {
+  pagination.current = 1
+  if (filterWithoutClass.value) {
+    filterClassId.value = undefined // Clear class filter when showing without class
+  }
+  loadStudents()
+}
+
+// Row selection config
+const rowSelection = computed(() => ({
+  selectedRowKeys: selectedStudentIds.value,
+  onChange: (selectedKeys: (string | number)[]) => {
+    selectedStudentIds.value = selectedKeys.map(k => Number(k))
+  },
+  getCheckboxProps: () => ({
+    disabled: !filterWithoutClass.value, // Only allow selection when filtering without class
+  }),
+}))
+
+// Open bulk assign modal
+const openBulkAssignModal = () => {
+  if (selectedStudentIds.value.length === 0) {
+    message.warning('Pilih siswa terlebih dahulu')
+    return
+  }
+  bulkAssignClassId.value = undefined
+  bulkAssignModalVisible.value = true
+}
+
+// Handle bulk class assignment
+const handleBulkAssign = async () => {
+  if (!bulkAssignClassId.value) {
+    message.error('Pilih kelas terlebih dahulu')
+    return
+  }
+
+  bulkAssignLoading.value = true
+  try {
+    const result = await importService.bulkAssignClass(selectedStudentIds.value, bulkAssignClassId.value)
+    message.success(`${result.updated_count} siswa berhasil diassign ke kelas`)
+    bulkAssignModalVisible.value = false
+    selectedStudentIds.value = []
+    loadStudents()
+    loadStudentsWithoutClassCount()
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: { message?: string } } } }
+    message.error(err.response?.data?.error?.message || 'Gagal mengassign kelas')
+  } finally {
+    bulkAssignLoading.value = false
+  }
+}
+
+// Close bulk assign modal
+const closeBulkAssignModal = () => {
+  bulkAssignModalVisible.value = false
+  bulkAssignClassId.value = undefined
+}
+
 onMounted(() => {
   loadStudents()
   loadClasses()
+  loadStudentsWithoutClassCount()
 })
 
 onUnmounted(() => {
@@ -562,50 +765,87 @@ onUnmounted(() => {
 
     <Card>
       <!-- Toolbar -->
-      <Row :gutter="16" class="toolbar" justify="space-between" align="middle">
-        <Col :xs="24" :sm="24" :md="16">
-          <Space wrap>
-            <Input
-              v-model:value="searchText"
-              placeholder="Cari siswa (nama/NIS/NISN)..."
-              allow-clear
-              style="width: 250px"
-              @press-enter="handleSearch"
-            >
-              <template #prefix>
-                <SearchOutlined />
-              </template>
-            </Input>
-            <Select
-              v-model:value="filterClassId"
-              placeholder="Filter Kelas"
-              allow-clear
-              style="width: 150px"
-              :loading="loadingClasses"
-              @change="handleClassFilterChange"
-            >
-              <template #suffixIcon>
-                <FilterOutlined />
-              </template>
-              <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
-                {{ cls.name }}
-              </SelectOption>
-            </Select>
-          </Space>
-        </Col>
-        <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
+      <div class="toolbar">
+        <Space wrap class="toolbar-filters">
+          <Input
+            v-model:value="searchText"
+            placeholder="Cari siswa (nama/NIS/NISN)..."
+            allow-clear
+            style="width: 220px"
+            @press-enter="handleSearch"
+            :disabled="filterWithoutClass"
+          >
+            <template #prefix>
+              <SearchOutlined />
+            </template>
+          </Input>
+          <Select
+            v-model:value="filterClassId"
+            placeholder="Filter Kelas"
+            allow-clear
+            style="width: 140px"
+            :loading="loadingClasses"
+            :disabled="filterWithoutClass"
+            @change="handleClassFilterChange"
+          >
+            <template #suffixIcon>
+              <FilterOutlined />
+            </template>
+            <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
+              {{ cls.name }}
+            </SelectOption>
+          </Select>
+          <Checkbox v-model:checked="filterWithoutClass" @change="handleFilterWithoutClassChange">
+            <Space>
+              <ExclamationCircleOutlined style="color: #faad14" />
+              <span>Tanpa Kelas</span>
+            </Space>
+          </Checkbox>
+        </Space>
+        <Space wrap class="toolbar-actions">
+          <Button @click="loadStudents">
+            <template #icon><ReloadOutlined /></template>
+          </Button>
+          <Button @click="handleDownloadTemplate">
+            <template #icon><DownloadOutlined /></template>
+            Template
+          </Button>
+          <Button @click="openImportModal">
+            <template #icon><UploadOutlined /></template>
+            Import
+          </Button>
+          <Button
+            v-if="filterWithoutClass && selectedStudentIds.length > 0"
+            type="primary"
+            @click="openBulkAssignModal"
+          >
+            <template #icon><CheckCircleOutlined /></template>
+            Assign ({{ selectedStudentIds.length }})
+          </Button>
+          <Button type="primary" @click="openCreateModal">
+            <template #icon><PlusOutlined /></template>
+            Tambah Siswa
+          </Button>
+        </Space>
+      </div>
+
+      <!-- Students Without Class Alert -->
+      <Alert
+        v-if="studentsWithoutClass > 0 && !filterWithoutClass"
+        type="warning"
+        show-icon
+        style="margin-bottom: 16px"
+      >
+        <template #icon><ExclamationCircleOutlined /></template>
+        <template #message>
           <Space>
-            <Button @click="loadStudents">
-              <template #icon><ReloadOutlined /></template>
-              Refresh
-            </Button>
-            <Button type="primary" @click="openCreateModal">
-              <template #icon><PlusOutlined /></template>
-              Tambah Siswa
+            <span>Ada <strong>{{ studentsWithoutClass }}</strong> siswa yang belum memiliki kelas.</span>
+            <Button type="link" size="small" @click="filterWithoutClass = true; handleFilterWithoutClassChange()">
+              Lihat &amp; Assign Kelas
             </Button>
           </Space>
-        </Col>
-      </Row>
+        </template>
+      </Alert>
 
       <!-- Table -->
       <Table
@@ -619,12 +859,14 @@ onUnmounted(() => {
           showSizeChanger: true,
           showTotal: (total: number) => `Total ${total} siswa`,
         }"
+        :row-selection="filterWithoutClass ? rowSelection : undefined"
         row-key="id"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'className'">
-            <Tag color="blue">{{ (record as Student).className }}</Tag>
+            <Tag v-if="(record as Student).className" color="blue">{{ (record as Student).className }}</Tag>
+            <Tag v-else color="orange">Belum ada kelas</Tag>
           </template>
           <template v-else-if="column.key === 'rfidCode'">
             <template v-if="(record as Student).rfidCode">
@@ -943,6 +1185,233 @@ onUnmounted(() => {
         </div>
       </div>
     </Modal>
+
+    <!-- Import Modal -->
+    <Modal
+      v-model:open="importModalVisible"
+      title="Import Data Siswa dari Excel"
+      :footer="null"
+      width="500px"
+    >
+      <div class="import-info">
+        <div class="import-header">
+          <FileExcelOutlined style="font-size: 48px; color: #52c41a" />
+          <Typography.Title :level="4" style="margin: 16px 0 8px">Import Siswa</Typography.Title>
+          <Typography.Text type="secondary">
+            Upload file Excel (.xlsx) untuk mengimpor data siswa secara massal
+          </Typography.Text>
+        </div>
+
+        <Alert
+          type="info"
+          show-icon
+          style="margin: 16px 0"
+        >
+          <template #message>Format Template</template>
+          <template #description>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+              <li><strong>NIS</strong> - Nomor Induk Siswa (wajib)</li>
+              <li><strong>NISN</strong> - Nomor Induk Siswa Nasional (wajib)</li>
+              <li><strong>Nama</strong> - Nama lengkap siswa (wajib)</li>
+              <li><strong>Kelas</strong> - Nama kelas (opsional, auto-match)</li>
+            </ul>
+          </template>
+        </Alert>
+
+        <Upload.Dragger
+          :custom-request="handleImportUpload"
+          :show-upload-list="false"
+          accept=".xlsx"
+          :disabled="importLoading"
+        >
+          <p class="ant-upload-drag-icon">
+            <UploadOutlined v-if="!importLoading" />
+            <Progress v-else type="circle" :percent="0" :size="48" status="active" />
+          </p>
+          <p class="ant-upload-text">
+            {{ importLoading ? 'Mengimpor data...' : 'Klik atau drag file ke area ini' }}
+          </p>
+          <p class="ant-upload-hint">
+            Hanya file Excel (.xlsx), maksimal 5MB
+          </p>
+        </Upload.Dragger>
+
+        <Divider />
+
+        <Button block @click="handleDownloadTemplate">
+          <template #icon><DownloadOutlined /></template>
+          Download Template Excel
+        </Button>
+      </div>
+    </Modal>
+
+    <!-- Import Result Modal -->
+    <Modal
+      v-model:open="importResultModalVisible"
+      title="Hasil Import Siswa"
+      :footer="null"
+      width="600px"
+      @cancel="closeImportResultModal"
+    >
+      <div v-if="importResult" class="import-result">
+        <!-- Summary -->
+        <Row :gutter="16" style="margin-bottom: 24px">
+          <Col :span="6">
+            <Card size="small" class="result-card">
+              <div class="result-number">{{ importResult.total_rows }}</div>
+              <div class="result-label">Total Baris</div>
+            </Card>
+          </Col>
+          <Col :span="6">
+            <Card size="small" class="result-card success">
+              <div class="result-number">{{ importResult.success_count }}</div>
+              <div class="result-label">Berhasil</div>
+            </Card>
+          </Col>
+          <Col :span="6">
+            <Card size="small" class="result-card warning">
+              <div class="result-number">{{ importResult.warning_count }}</div>
+              <div class="result-label">Warning</div>
+            </Card>
+          </Col>
+          <Col :span="6">
+            <Card size="small" class="result-card error">
+              <div class="result-number">{{ importResult.failed_count }}</div>
+              <div class="result-label">Gagal</div>
+            </Card>
+          </Col>
+        </Row>
+
+        <!-- Students Without Class Alert -->
+        <Alert
+          v-if="importResult.students_without_class && importResult.students_without_class > 0"
+          type="warning"
+          show-icon
+          style="margin-bottom: 16px"
+        >
+          <template #icon><ExclamationCircleOutlined /></template>
+          <template #message>
+            <strong>{{ importResult.students_without_class }}</strong> siswa diimpor tanpa kelas.
+            Anda dapat mengassign kelas secara bulk nanti.
+          </template>
+        </Alert>
+
+        <!-- Success Message -->
+        <Alert
+          v-if="importResult.success_count > 0 && importResult.failed_count === 0"
+          type="success"
+          show-icon
+          style="margin-bottom: 16px"
+        >
+          <template #icon><CheckCircleOutlined /></template>
+          <template #message>
+            Semua data berhasil diimpor!
+          </template>
+        </Alert>
+
+        <!-- Errors List -->
+        <div v-if="importResult.errors && importResult.errors.length > 0" class="result-section">
+          <Typography.Title :level="5">
+            <CloseCircleOutlined style="color: #ff4d4f" /> Error ({{ importResult.errors.length }})
+          </Typography.Title>
+          <List
+            size="small"
+            :data-source="importResult.errors"
+            :bordered="true"
+            style="max-height: 200px; overflow-y: auto"
+          >
+            <template #renderItem="{ item }">
+              <ListItem>
+                <ListItemMeta>
+                  <template #title>
+                    <Tag color="red">Baris {{ (item as ImportError).row }}</Tag>
+                    {{ (item as ImportError).field }}
+                  </template>
+                  <template #description>
+                    {{ (item as ImportError).message }}
+                  </template>
+                </ListItemMeta>
+              </ListItem>
+            </template>
+          </List>
+        </div>
+
+        <!-- Warnings List -->
+        <div v-if="importResult.warnings && importResult.warnings.length > 0" class="result-section">
+          <Typography.Title :level="5">
+            <WarningOutlined style="color: #faad14" /> Warning ({{ importResult.warnings.length }})
+          </Typography.Title>
+          <List
+            size="small"
+            :data-source="importResult.warnings"
+            :bordered="true"
+            style="max-height: 200px; overflow-y: auto"
+          >
+            <template #renderItem="{ item }">
+              <ListItem>
+                <ListItemMeta>
+                  <template #title>
+                    <Tag color="orange">Baris {{ (item as ImportWarning).row }}</Tag>
+                    {{ (item as ImportWarning).field }}
+                  </template>
+                  <template #description>
+                    {{ (item as ImportWarning).message }}
+                  </template>
+                </ListItemMeta>
+              </ListItem>
+            </template>
+          </List>
+        </div>
+
+        <Divider />
+
+        <Button type="primary" block @click="closeImportResultModal">
+          Tutup
+        </Button>
+      </div>
+    </Modal>
+
+    <!-- Bulk Assign Class Modal -->
+    <Modal
+      v-model:open="bulkAssignModalVisible"
+      title="Assign Kelas ke Siswa"
+      :confirm-loading="bulkAssignLoading"
+      @ok="handleBulkAssign"
+      @cancel="closeBulkAssignModal"
+      ok-text="Assign Kelas"
+      cancel-text="Batal"
+    >
+      <div class="bulk-assign-info">
+        <Alert
+          type="info"
+          show-icon
+          style="margin-bottom: 16px"
+        >
+          <template #message>
+            <strong>{{ selectedStudentIds.length }}</strong> siswa akan diassign ke kelas yang dipilih.
+          </template>
+          <template #description>
+            Setelah diassign, status siswa akan menjadi aktif dan dapat melakukan absensi.
+          </template>
+        </Alert>
+
+        <Form layout="vertical">
+          <FormItem label="Pilih Kelas" required>
+            <Select
+              v-model:value="bulkAssignClassId"
+              placeholder="Pilih kelas tujuan"
+              :loading="loadingClasses"
+              style="width: 100%"
+              size="large"
+            >
+              <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
+                {{ cls.name }} ({{ cls.studentCount || 0 }} siswa)
+              </SelectOption>
+            </Select>
+          </FormItem>
+        </Form>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -956,12 +1425,21 @@ onUnmounted(() => {
 }
 
 .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
-.toolbar-right {
-  display: flex;
-  justify-content: flex-end;
+.toolbar-filters {
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar-actions {
+  flex-shrink: 0;
 }
 
 .account-info {
@@ -1036,9 +1514,70 @@ onUnmounted(() => {
   margin-top: 16px;
 }
 
+/* Import styles */
+.import-info {
+  text-align: center;
+}
+
+.import-header {
+  margin-bottom: 16px;
+}
+
+.import-result {
+  text-align: left;
+}
+
+.result-card {
+  text-align: center;
+}
+
+.result-card.success {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.result-card.warning {
+  background: #fffbe6;
+  border-color: #ffe58f;
+}
+
+.result-card.error {
+  background: #fff2f0;
+  border-color: #ffccc7;
+}
+
+.result-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #262626;
+}
+
+.result-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.result-section {
+  margin-bottom: 16px;
+}
+
+/* Bulk assign styles */
+.bulk-assign-info {
+  padding: 8px 0;
+}
+
 @media (max-width: 768px) {
-  .toolbar-right {
-    margin-top: 16px;
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .toolbar-filters,
+  .toolbar-actions {
+    width: 100%;
+  }
+  
+  .toolbar-actions {
     justify-content: flex-start;
   }
 }

@@ -103,7 +103,8 @@ func (s *service) BroadcastAttendance(ctx context.Context, schoolID uint, attend
 		Type:        attendanceType,
 	}
 
-	if student.Class.ID != 0 {
+	// Handle nullable Class pointer
+	if student.Class != nil && student.Class.ID != 0 {
 		liveFeedEntry.ClassName = student.Class.Name
 		liveFeedEntry.ClassID = student.Class.ID
 	}

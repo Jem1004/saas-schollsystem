@@ -71,6 +71,21 @@ func (s *service) CreateSchedule(ctx context.Context, schoolID uint, req CreateS
 		return nil, ErrScheduleLimitExceeded
 	}
 
+	// Set default days of week if not provided
+	daysOfWeek := req.DaysOfWeek
+	if daysOfWeek == "" {
+		daysOfWeek = "1,2,3,4,5" // Monday to Friday
+	}
+
+	// Check for time overlap with existing schedules
+	hasOverlap, err := s.repo.CheckTimeOverlap(ctx, schoolID, req.StartTime, req.EndTime, daysOfWeek, nil)
+	if err != nil {
+		return nil, err
+	}
+	if hasOverlap {
+		return nil, ErrScheduleTimeOverlap
+	}
+
 	// Create schedule model
 	schedule := &models.AttendanceSchedule{
 		SchoolID:          schoolID,
@@ -79,14 +94,9 @@ func (s *service) CreateSchedule(ctx context.Context, schoolID uint, req CreateS
 		EndTime:           req.EndTime,
 		LateThreshold:     req.LateThreshold,
 		VeryLateThreshold: req.VeryLateThreshold,
-		DaysOfWeek:        req.DaysOfWeek,
+		DaysOfWeek:        daysOfWeek,
 		IsActive:          true,
 		IsDefault:         false,
-	}
-
-	// Set default days of week if not provided
-	if schedule.DaysOfWeek == "" {
-		schedule.DaysOfWeek = "1,2,3,4,5" // Monday to Friday
 	}
 
 	// Override IsActive if provided
@@ -181,6 +191,17 @@ func (s *service) UpdateSchedule(ctx context.Context, schoolID, id uint, req Upd
 	// Validate very late threshold
 	if schedule.VeryLateThreshold != nil && *schedule.VeryLateThreshold < schedule.LateThreshold {
 		return nil, ErrVeryLateThreshold
+	}
+
+	// Check for time overlap with other schedules (only if schedule is active)
+	if schedule.IsActive {
+		hasOverlap, err := s.repo.CheckTimeOverlap(ctx, schoolID, schedule.StartTime, schedule.EndTime, schedule.DaysOfWeek, &id)
+		if err != nil {
+			return nil, err
+		}
+		if hasOverlap {
+			return nil, ErrScheduleTimeOverlap
+		}
 	}
 
 	// Update in database

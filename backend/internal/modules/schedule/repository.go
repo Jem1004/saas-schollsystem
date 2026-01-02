@@ -41,6 +41,9 @@ type Repository interface {
 	
 	// Check if schedule has attendance records
 	HasAttendanceRecords(ctx context.Context, scheduleID uint) (bool, error)
+	
+	// Check for time overlap with existing schedules
+	CheckTimeOverlap(ctx context.Context, schoolID uint, startTime, endTime, daysOfWeek string, excludeID *uint) (bool, error)
 }
 
 // repository implements the Repository interface
@@ -297,4 +300,88 @@ func (r *repository) HasAttendanceRecords(ctx context.Context, scheduleID uint) 
 	}
 
 	return count > 0, nil
+}
+
+
+// CheckTimeOverlap checks if a schedule's time range overlaps with existing schedules
+// This helps prevent ambiguous active schedule selection
+func (r *repository) CheckTimeOverlap(ctx context.Context, schoolID uint, startTime, endTime, daysOfWeek string, excludeID *uint) (bool, error) {
+	// Get all active schedules for this school
+	var schedules []models.AttendanceSchedule
+	query := r.db.WithContext(ctx).
+		Where("school_id = ? AND is_active = ?", schoolID, true)
+	
+	if excludeID != nil {
+		query = query.Where("id != ?", *excludeID)
+	}
+	
+	if err := query.Find(&schedules).Error; err != nil {
+		return false, err
+	}
+
+	// Normalize input times
+	if len(startTime) == 5 {
+		startTime += ":00"
+	}
+	if len(endTime) == 5 {
+		endTime += ":00"
+	}
+
+	// Parse days of week for the new schedule
+	newDays := parseDaysOfWeek(daysOfWeek)
+
+	// Check each existing schedule for overlap
+	for _, schedule := range schedules {
+		// Check if days overlap
+		existingDays := parseDaysOfWeek(schedule.DaysOfWeek)
+		if !daysOverlap(newDays, existingDays) {
+			continue
+		}
+
+		// Normalize existing schedule times
+		existingStart := schedule.StartTime
+		if len(existingStart) == 5 {
+			existingStart += ":00"
+		}
+		existingEnd := schedule.EndTime
+		if len(existingEnd) == 5 {
+			existingEnd += ":00"
+		}
+
+		// Check time overlap: (start1 < end2) AND (end1 > start2)
+		if startTime < existingEnd && endTime > existingStart {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// parseDaysOfWeek parses days of week string (e.g., "1,2,3,4,5") into a map
+func parseDaysOfWeek(daysStr string) map[int]bool {
+	days := make(map[int]bool)
+	if daysStr == "" {
+		// Default to weekdays
+		for i := 1; i <= 5; i++ {
+			days[i] = true
+		}
+		return days
+	}
+	
+	for _, d := range daysStr {
+		if d >= '0' && d <= '6' {
+			days[int(d-'0')] = true
+		}
+	}
+	return days
+}
+
+// daysOverlap checks if two sets of days have any overlap
+func daysOverlap(days1, days2 map[int]bool) bool {
+	for day := range days1 {
+		if days2[day] {
+			return true
+		}
+	}
+	return false
 }

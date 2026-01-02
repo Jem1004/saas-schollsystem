@@ -320,6 +320,38 @@ function transformPairingSession(apiResponse: PairingSessionApiResponse): Pairin
   }
 }
 
+// Backend response types for Student Search (snake_case)
+interface StudentSearchApiResponse {
+  id: number
+  nis: string
+  nisn: string
+  name: string
+  class_name?: string
+  class_id?: number
+}
+
+// Frontend type for student search result
+export interface StudentSearchResult {
+  id: number
+  nis: string
+  nisn: string
+  name: string
+  className?: string
+  classId?: number
+}
+
+// Transform student search from API response to frontend format
+function transformStudentSearch(apiStudent: StudentSearchApiResponse): StudentSearchResult {
+  return {
+    id: apiStudent.id,
+    nis: apiStudent.nis,
+    nisn: apiStudent.nisn,
+    name: apiStudent.name,
+    className: apiStudent.class_name,
+    classId: apiStudent.class_id,
+  }
+}
+
 // Backend response types for User (snake_case)
 interface AssignedClassApiInfo {
   id: number
@@ -600,5 +632,14 @@ export const schoolService = {
 
   async clearStudentRFID(studentId: number): Promise<void> {
     await api.post(`/school/students/${studentId}/clear-rfid`)
+  },
+
+  // Search students for parent linking
+  // Requirements: 7.2 - Search students by NISN or name for parent linking
+  async searchStudents(query: string): Promise<StudentSearchResult[]> {
+    const response = await api.get<ApiResponse<StudentSearchApiResponse[]>>('/school/students/search', {
+      params: { q: query },
+    })
+    return response.data.data.map(transformStudentSearch)
   },
 }

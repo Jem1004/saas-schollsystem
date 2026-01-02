@@ -9,8 +9,6 @@ import {
   Modal,
   Form,
   FormItem,
-  Select,
-  SelectOption,
   message,
   Popconfirm,
   Card,
@@ -19,8 +17,14 @@ import {
   Typography,
   Tooltip,
   Alert,
+  Upload,
+  Divider,
+  List,
+  ListItem,
+  ListItemMeta,
+  Progress,
 } from 'ant-design-vue'
-import type { TableProps } from 'ant-design-vue'
+import type { TableProps, UploadProps } from 'ant-design-vue'
 import {
   PlusOutlined,
   SearchOutlined,
@@ -32,8 +36,16 @@ import {
   KeyOutlined,
   CopyOutlined,
   InfoCircleOutlined,
+  DownloadOutlined,
+  UploadOutlined,
+  FileExcelOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  WarningOutlined,
 } from '@ant-design/icons-vue'
-import { schoolService } from '@/services'
+import { schoolService, importService } from '@/services'
+import type { StudentSearchResult } from '@/services/school'
+import type { ImportResult, ImportError, ImportWarning } from '@/services/import'
 import type { Parent, Student, UpdateParentRequest } from '@/types/school'
 
 const { Title, Text } = Typography
@@ -52,6 +64,13 @@ const searchText = ref('')
 const students = ref<Student[]>([])
 const loadingStudents = ref(false)
 
+// Student search state for enhanced linking
+const studentSearchQuery = ref('')
+const studentSearchResults = ref<StudentSearchResult[]>([])
+const searchingStudents = ref(false)
+const selectedStudentsForLinking = ref<StudentSearchResult[]>([])
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
 // Modal state
 const modalVisible = ref(false)
 const modalLoading = ref(false)
@@ -61,6 +80,12 @@ const editingParent = ref<Parent | null>(null)
 // Credential modal state
 const credentialModalVisible = ref(false)
 const credentialData = ref<{ username: string; password: string; name: string } | null>(null)
+
+// Import modal state
+const importModalVisible = ref(false)
+const importLoading = ref(false)
+const importResultModalVisible = ref(false)
+const importResult = ref<ImportResult | null>(null)
 
 // Form state
 const formRef = ref()
@@ -75,7 +100,6 @@ const formState = reactive({
 const formRules = {
   name: [{ required: true, message: 'Nama orang tua wajib diisi' }],
   phone: [{ required: true, message: 'Nomor telepon wajib diisi (digunakan sebagai username)' }],
-  student_ids: [{ required: true, message: 'Pilih minimal satu siswa', type: 'array' as const, min: 1 }],
 }
 
 // Table columns
@@ -158,10 +182,70 @@ const loadStudents = async () => {
   }
 }
 
-// Filter option for student select
-const filterStudentOption = (input: string, option: unknown) => {
-  const opt = option as { label?: string }
-  return opt?.label?.toLowerCase().includes(input.toLowerCase()) ?? false
+// ==================== Student Search Functions ====================
+
+// Search students by NISN or name
+const handleStudentSearch = (query: string) => {
+  studentSearchQuery.value = query
+  
+  // Clear previous timer
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+  
+  // Debounce search
+  searchDebounceTimer = setTimeout(async () => {
+    if (!query || query.length < 2) {
+      studentSearchResults.value = []
+      return
+    }
+    
+    searchingStudents.value = true
+    try {
+      const results = await schoolService.searchStudents(query)
+      // Filter out already selected students
+      studentSearchResults.value = results.filter(
+        r => !formState.student_ids.includes(r.id)
+      )
+    } catch (err) {
+      console.error('Failed to search students:', err)
+      studentSearchResults.value = []
+    } finally {
+      searchingStudents.value = false
+    }
+  }, 300)
+}
+
+// Add student to selection
+const addStudentToSelection = (student: StudentSearchResult) => {
+  if (!formState.student_ids.includes(student.id)) {
+    formState.student_ids.push(student.id)
+    selectedStudentsForLinking.value.push(student)
+  }
+  // Clear search
+  studentSearchQuery.value = ''
+  studentSearchResults.value = []
+}
+
+// Remove student from selection
+const removeStudentFromSelection = (studentId: number) => {
+  formState.student_ids = formState.student_ids.filter(id => id !== studentId)
+  selectedStudentsForLinking.value = selectedStudentsForLinking.value.filter(s => s.id !== studentId)
+}
+
+// Get student name by ID (for display)
+const getStudentDisplayName = (studentId: number): string => {
+  // First check in selected students for linking
+  const selected = selectedStudentsForLinking.value.find(s => s.id === studentId)
+  if (selected) {
+    return `${selected.name}${selected.className ? ` - ${selected.className}` : ''}`
+  }
+  // Then check in loaded students
+  const student = students.value.find(s => s.id === studentId)
+  if (student) {
+    return `${student.name}${student.className ? ` - ${student.className}` : ''}`
+  }
+  return `Siswa #${studentId}`
 }
 
 // Handle table change (pagination, sorting)
@@ -186,13 +270,30 @@ const openCreateModal = () => {
 }
 
 // Open modal for edit
-const openEditModal = (parent: Parent) => {
+const openEditModal = async (parent: Parent) => {
   isEditing.value = true
   editingParent.value = parent
   formState.name = parent.name
   formState.phone = parent.phone || ''
   formState.email = parent.email || ''
   formState.student_ids = parent.studentIds || []
+  
+  // Populate selectedStudentsForLinking with existing linked students
+  selectedStudentsForLinking.value = []
+  if (parent.studentIds && parent.studentIds.length > 0 && parent.studentNames) {
+    for (let i = 0; i < parent.studentIds.length; i++) {
+      const student = students.value.find(s => s.id === parent.studentIds![i])
+      selectedStudentsForLinking.value.push({
+        id: parent.studentIds[i],
+        nis: student?.nis || '',
+        nisn: student?.nisn || '',
+        name: parent.studentNames[i] || `Siswa #${parent.studentIds[i]}`,
+        className: student?.className,
+        classId: student?.classId,
+      })
+    }
+  }
+  
   modalVisible.value = true
 }
 
@@ -202,6 +303,9 @@ const resetForm = () => {
   formState.phone = ''
   formState.email = ''
   formState.student_ids = []
+  selectedStudentsForLinking.value = []
+  studentSearchQuery.value = ''
+  studentSearchResults.value = []
   formRef.value?.resetFields()
 }
 
@@ -296,6 +400,84 @@ const copyToClipboard = (text: string) => {
   message.success('Berhasil disalin!')
 }
 
+// ==================== Import Functions ====================
+
+// Download parent template
+const handleDownloadTemplate = async () => {
+  try {
+    const blob = await importService.downloadParentTemplate()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'template_import_orang_tua.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    message.success('Template berhasil diunduh')
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: { message?: string } } } }
+    message.error(err.response?.data?.error?.message || 'Gagal mengunduh template')
+  }
+}
+
+// Open import modal
+const openImportModal = () => {
+  importModalVisible.value = true
+}
+
+// Handle file upload for import
+const handleImportUpload: UploadProps['customRequest'] = async (options) => {
+  const { file, onSuccess, onError } = options
+  
+  if (!(file instanceof File)) {
+    message.error('File tidak valid')
+    onError?.(new Error('Invalid file'))
+    return
+  }
+
+  // Validate file type
+  const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                  file.name.endsWith('.xlsx')
+  if (!isExcel) {
+    message.error('Hanya file Excel (.xlsx) yang diperbolehkan')
+    onError?.(new Error('Invalid file type'))
+    return
+  }
+
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024
+  if (file.size > maxSize) {
+    message.error('Ukuran file maksimal 5MB')
+    onError?.(new Error('File too large'))
+    return
+  }
+
+  importLoading.value = true
+  try {
+    const result = await importService.importParents(file)
+    importResult.value = result
+    importModalVisible.value = false
+    importResultModalVisible.value = true
+    
+    // Reload parents list
+    loadParents()
+    onSuccess?.(result)
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: { message?: string } } } }
+    message.error(err.response?.data?.error?.message || 'Gagal mengimpor data orang tua')
+    onError?.(error as Error)
+  } finally {
+    importLoading.value = false
+  }
+}
+
+// Close import result modal
+const closeImportResultModal = () => {
+  importResultModalVisible.value = false
+  importResult.value = null
+}
+
 onMounted(() => {
   loadParents()
   loadStudents()
@@ -340,11 +522,18 @@ onMounted(() => {
             </template>
           </Input>
         </Col>
-        <Col :xs="24" :sm="12" :md="8" class="toolbar-right">
-          <Space>
+        <Col :xs="24" :sm="12" :md="16" class="toolbar-right">
+          <Space wrap>
             <Button @click="loadParents">
               <template #icon><ReloadOutlined /></template>
-              Refresh
+            </Button>
+            <Button @click="handleDownloadTemplate">
+              <template #icon><DownloadOutlined /></template>
+              Download Template
+            </Button>
+            <Button type="default" @click="openImportModal">
+              <template #icon><UploadOutlined /></template>
+              Import Excel
             </Button>
             <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
@@ -493,29 +682,87 @@ onMounted(() => {
         <FormItem
           label="Anak (Siswa)"
           name="student_ids"
-          required
-          extra="Pilih siswa yang merupakan anak dari orang tua ini"
         >
-          <Select
-            v-model:value="formState.student_ids"
-            mode="multiple"
-            placeholder="Pilih siswa"
-            :loading="loadingStudents"
-            show-search
-            :filter-option="filterStudentOption"
+          <template #extra>
+            <span v-if="!isEditing">Pilih siswa yang merupakan anak dari orang tua ini</span>
+            <span v-else>Cari siswa berdasarkan NISN atau nama untuk menghubungkan</span>
+          </template>
+          
+          <!-- Student Search Input -->
+          <Input
+            v-model:value="studentSearchQuery"
+            placeholder="Cari siswa berdasarkan NISN atau nama..."
+            allow-clear
+            @input="(e: Event) => handleStudentSearch((e.target as HTMLInputElement).value)"
+            style="margin-bottom: 8px"
           >
-            <SelectOption
-              v-for="student in students"
+            <template #prefix>
+              <SearchOutlined />
+            </template>
+            <template #suffix>
+              <span v-if="searchingStudents" class="ant-spin-dot ant-spin-dot-spin" style="font-size: 12px">
+                <i class="ant-spin-dot-item"></i>
+              </span>
+            </template>
+          </Input>
+          
+          <!-- Search Results -->
+          <div v-if="studentSearchResults.length > 0" class="student-search-results">
+            <div
+              v-for="student in studentSearchResults"
               :key="student.id"
-              :value="student.id"
-              :label="`${student.name} - ${student.className}`"
+              class="student-search-item"
+              @click="addStudentToSelection(student)"
             >
-              <div class="student-option">
-                <span>{{ student.name }}</span>
-                <Tag size="small" color="blue">{{ student.className }}</Tag>
+              <div class="student-search-info">
+                <span class="student-name">{{ student.name }}</span>
+                <span class="student-details">
+                  NISN: {{ student.nisn }} | NIS: {{ student.nis }}
+                </span>
               </div>
-            </SelectOption>
-          </Select>
+              <Tag v-if="student.className" size="small" color="blue">{{ student.className }}</Tag>
+              <Tag v-else size="small" color="orange">Belum ada kelas</Tag>
+            </div>
+          </div>
+          
+          <!-- No Results Message -->
+          <div v-else-if="studentSearchQuery.length >= 2 && !searchingStudents && studentSearchResults.length === 0" class="student-search-empty">
+            <Text type="secondary">Tidak ada siswa ditemukan</Text>
+          </div>
+          
+          <!-- Selected Students List -->
+          <div v-if="formState.student_ids.length > 0" class="selected-students">
+            <Divider style="margin: 12px 0 8px 0">
+              <Text type="secondary" style="font-size: 12px">
+                <LinkOutlined /> Siswa Terhubung ({{ formState.student_ids.length }})
+              </Text>
+            </Divider>
+            <div class="selected-students-list">
+              <Tag
+                v-for="studentId in formState.student_ids"
+                :key="studentId"
+                closable
+                color="green"
+                @close="removeStudentFromSelection(studentId)"
+                style="margin-bottom: 4px"
+              >
+                {{ getStudentDisplayName(studentId) }}
+              </Tag>
+            </div>
+          </div>
+          
+          <!-- Empty State for Edit Mode -->
+          <Alert
+            v-else-if="isEditing"
+            type="info"
+            show-icon
+            style="margin-top: 8px"
+          >
+            <template #message>Belum ada siswa terhubung</template>
+            <template #description>
+              Gunakan pencarian di atas untuk menghubungkan orang tua dengan siswa.
+            </template>
+          </Alert>
         </FormItem>
       </Form>
     </Modal>
@@ -566,6 +813,204 @@ onMounted(() => {
         </Button>
       </div>
     </Modal>
+
+    <!-- Import Modal -->
+    <Modal
+      v-model:open="importModalVisible"
+      title="Import Data Orang Tua dari Excel"
+      :footer="null"
+      width="500px"
+    >
+      <div class="import-info">
+        <div class="import-header">
+          <FileExcelOutlined style="font-size: 48px; color: #52c41a" />
+          <Title :level="4" style="margin: 16px 0 8px">Import Orang Tua</Title>
+          <Text type="secondary">
+            Upload file Excel (.xlsx) untuk mengimpor data orang tua secara massal
+          </Text>
+        </div>
+
+        <Alert
+          type="info"
+          show-icon
+          style="margin: 16px 0"
+        >
+          <template #message>Format Template</template>
+          <template #description>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+              <li><strong>Nama</strong> - Nama lengkap orang tua (wajib)</li>
+              <li><strong>No_HP</strong> - Nomor telepon/username (wajib)</li>
+              <li><strong>Email</strong> - Alamat email (wajib)</li>
+            </ul>
+          </template>
+        </Alert>
+
+        <Alert
+          type="warning"
+          show-icon
+          style="margin-bottom: 16px"
+        >
+          <template #message>Catatan Penting</template>
+          <template #description>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+              <li>Orang tua yang diimpor belum terhubung dengan siswa</li>
+              <li>Gunakan fitur edit untuk menghubungkan orang tua dengan siswa</li>
+              <li>Password default: <code>password123</code></li>
+            </ul>
+          </template>
+        </Alert>
+
+        <Upload.Dragger
+          :custom-request="handleImportUpload"
+          :show-upload-list="false"
+          accept=".xlsx"
+          :disabled="importLoading"
+        >
+          <p class="ant-upload-drag-icon">
+            <UploadOutlined v-if="!importLoading" />
+            <Progress v-else type="circle" :percent="0" :size="48" status="active" />
+          </p>
+          <p class="ant-upload-text">
+            {{ importLoading ? 'Mengimpor data...' : 'Klik atau drag file ke area ini' }}
+          </p>
+          <p class="ant-upload-hint">
+            Hanya file Excel (.xlsx), maksimal 5MB
+          </p>
+        </Upload.Dragger>
+
+        <Divider />
+
+        <Button block @click="handleDownloadTemplate">
+          <template #icon><DownloadOutlined /></template>
+          Download Template Excel
+        </Button>
+      </div>
+    </Modal>
+
+    <!-- Import Result Modal -->
+    <Modal
+      v-model:open="importResultModalVisible"
+      title="Hasil Import Orang Tua"
+      :footer="null"
+      width="600px"
+      @cancel="closeImportResultModal"
+    >
+      <div v-if="importResult" class="import-result">
+        <!-- Summary -->
+        <Row :gutter="16" style="margin-bottom: 24px">
+          <Col :span="8">
+            <Card size="small" class="result-card">
+              <div class="result-number">{{ importResult.total_rows }}</div>
+              <div class="result-label">Total Baris</div>
+            </Card>
+          </Col>
+          <Col :span="8">
+            <Card size="small" class="result-card success">
+              <div class="result-number">{{ importResult.success_count }}</div>
+              <div class="result-label">Berhasil</div>
+            </Card>
+          </Col>
+          <Col :span="8">
+            <Card size="small" class="result-card error">
+              <div class="result-number">{{ importResult.failed_count + importResult.warning_count }}</div>
+              <div class="result-label">Gagal/Skip</div>
+            </Card>
+          </Col>
+        </Row>
+
+        <!-- Success Message -->
+        <Alert
+          v-if="importResult.success_count > 0 && importResult.failed_count === 0"
+          type="success"
+          show-icon
+          style="margin-bottom: 16px"
+        >
+          <template #icon><CheckCircleOutlined /></template>
+          <template #message>
+            Semua data berhasil diimpor!
+          </template>
+          <template #description>
+            Orang tua yang diimpor belum terhubung dengan siswa. Gunakan fitur edit untuk menghubungkan.
+          </template>
+        </Alert>
+
+        <!-- Partial Success Message -->
+        <Alert
+          v-else-if="importResult.success_count > 0"
+          type="info"
+          show-icon
+          style="margin-bottom: 16px"
+        >
+          <template #icon><InfoCircleOutlined /></template>
+          <template #message>
+            {{ importResult.success_count }} data berhasil diimpor
+          </template>
+          <template #description>
+            Orang tua yang diimpor belum terhubung dengan siswa. Gunakan fitur edit untuk menghubungkan.
+          </template>
+        </Alert>
+
+        <!-- Errors List -->
+        <div v-if="importResult.errors && importResult.errors.length > 0" class="result-section">
+          <Title :level="5">
+            <CloseCircleOutlined style="color: #ff4d4f" /> Error ({{ importResult.errors.length }})
+          </Title>
+          <List
+            size="small"
+            :data-source="importResult.errors"
+            :bordered="true"
+            style="max-height: 200px; overflow-y: auto"
+          >
+            <template #renderItem="{ item }">
+              <ListItem>
+                <ListItemMeta>
+                  <template #title>
+                    <Tag color="red">Baris {{ (item as ImportError).row }}</Tag>
+                    {{ (item as ImportError).field }}
+                  </template>
+                  <template #description>
+                    {{ (item as ImportError).message }}
+                  </template>
+                </ListItemMeta>
+              </ListItem>
+            </template>
+          </List>
+        </div>
+
+        <!-- Warnings List -->
+        <div v-if="importResult.warnings && importResult.warnings.length > 0" class="result-section">
+          <Title :level="5">
+            <WarningOutlined style="color: #faad14" /> Warning ({{ importResult.warnings.length }})
+          </Title>
+          <List
+            size="small"
+            :data-source="importResult.warnings"
+            :bordered="true"
+            style="max-height: 200px; overflow-y: auto"
+          >
+            <template #renderItem="{ item }">
+              <ListItem>
+                <ListItemMeta>
+                  <template #title>
+                    <Tag color="orange">Baris {{ (item as ImportWarning).row }}</Tag>
+                    {{ (item as ImportWarning).field }}
+                  </template>
+                  <template #description>
+                    {{ (item as ImportWarning).message }}
+                  </template>
+                </ListItemMeta>
+              </ListItem>
+            </template>
+          </List>
+        </div>
+
+        <Divider />
+
+        <Button type="primary" block @click="closeImportResultModal">
+          Tutup
+        </Button>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -591,6 +1036,64 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* Student Search Styles */
+.student-search-results {
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.student-search-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.student-search-item:hover {
+  background-color: #f5f5f5;
+}
+
+.student-search-item:not(:last-child) {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.student-search-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.student-name {
+  font-weight: 500;
+}
+
+.student-details {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.student-search-empty {
+  text-align: center;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.selected-students {
+  margin-top: 8px;
+}
+
+.selected-students-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .credential-info {
@@ -635,6 +1138,53 @@ onMounted(() => {
   background: #f6ffed;
   border-radius: 4px;
   border: 1px solid #b7eb8f;
+}
+
+/* Import styles */
+.import-info {
+  text-align: center;
+}
+
+.import-header {
+  margin-bottom: 16px;
+}
+
+.import-result {
+  text-align: left;
+}
+
+.result-card {
+  text-align: center;
+}
+
+.result-card.success {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.result-card.warning {
+  background: #fffbe6;
+  border-color: #ffe58f;
+}
+
+.result-card.error {
+  background: #fff2f0;
+  border-color: #ffccc7;
+}
+
+.result-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #262626;
+}
+
+.result-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.result-section {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 576px) {

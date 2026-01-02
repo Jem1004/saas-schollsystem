@@ -90,7 +90,7 @@ type CreateStudentAccountRequest struct {
 type StudentResponse struct {
 	ID                uint           `json:"id"`
 	SchoolID          uint           `json:"school_id"`
-	ClassID           uint           `json:"class_id"`
+	ClassID           *uint          `json:"class_id"` // Nullable for import workflow
 	ClassName         string         `json:"class_name,omitempty"`
 	NIS               string         `json:"nis"`
 	NISN              string         `json:"nisn"`
@@ -334,6 +334,22 @@ type UpdateUserRequest struct {
 	AssignedClassIDs []uint  `json:"assigned_class_ids"`  // For guru_bk
 }
 
+// ==================== Bulk Operations DTOs ====================
+
+// BulkAssignClassRequest represents request to assign class to multiple students
+// Requirements: 6.2, 6.3, 6.4, 6.5 - Bulk class assignment for imported students
+type BulkAssignClassRequest struct {
+	StudentIDs []uint `json:"student_ids" validate:"required,min=1"`
+	ClassID    uint   `json:"class_id" validate:"required"`
+}
+
+// BulkAssignClassResponse represents the result of bulk class assignment
+type BulkAssignClassResponse struct {
+	UpdatedCount int               `json:"updated_count"`
+	Students     []StudentResponse `json:"students"`
+	Message      string            `json:"message"`
+}
+
 // ==================== Device DTOs ====================
 
 // DeviceResponse represents the device data in responses
@@ -346,4 +362,17 @@ type DeviceResponse struct {
 	LastSeenAt  *time.Time `json:"last_seen_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+// ==================== Search DTOs ====================
+
+// StudentSearchResponse represents a simplified student response for search/linking
+// Requirements: 7.2 - Search students by NISN or name for parent linking
+type StudentSearchResponse struct {
+	ID        uint   `json:"id"`
+	NIS       string `json:"nis"`
+	NISN      string `json:"nisn"`
+	Name      string `json:"name"`
+	ClassName string `json:"class_name,omitempty"`
+	ClassID   *uint  `json:"class_id,omitempty"`
 }

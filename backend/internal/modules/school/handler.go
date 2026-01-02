@@ -42,6 +42,9 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	students := router.Group("/students")
 	students.Post("", h.CreateStudent)
 	students.Get("", h.GetStudents)
+	students.Get("/without-class", h.GetStudentsWithoutClass)
+	students.Get("/search", h.SearchStudents)
+	students.Post("/bulk-assign-class", h.BulkAssignClass)
 	students.Get("/:id", h.GetStudent)
 	students.Put("/:id", h.UpdateStudent)
 	students.Delete("/:id", h.DeleteStudent)
@@ -1795,6 +1798,156 @@ func (h *Handler) ClearStudentRFID(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Kartu RFID berhasil dihapus dari siswa",
+	})
+}
+
+// ==================== Bulk Operations Handlers ====================
+
+// GetStudentsWithoutClass handles getting students without class assignment
+// @Summary Get students without class
+// @Description Get all students that don't have a class assigned (for bulk assignment after import)
+// @Tags Students
+// @Produce json
+// @Success 200 {object} []StudentResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/students/without-class [get]
+func (h *Handler) GetStudentsWithoutClass(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	students, err := h.service.GetStudentsWithoutClass(c.Context(), schoolID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    students,
+	})
+}
+
+// BulkAssignClass handles bulk class assignment for multiple students
+// @Summary Bulk assign class to students
+// @Description Assign a class to multiple students at once (for students imported without class)
+// @Tags Students
+// @Accept json
+// @Produce json
+// @Param request body BulkAssignClassRequest true "Bulk assignment data"
+// @Success 200 {object} BulkAssignClassResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/students/bulk-assign-class [post]
+func (h *Handler) BulkAssignClass(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	var req BulkAssignClassRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Format data tidak valid",
+			},
+		})
+	}
+
+	if len(req.StudentIDs) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_REQUIRED_FIELD",
+				"message": "Minimal satu ID siswa wajib diisi",
+			},
+		})
+	}
+
+	if req.ClassID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_REQUIRED_FIELD",
+				"message": "ID kelas wajib diisi",
+			},
+		})
+	}
+
+	response, err := h.service.BulkAssignClass(c.Context(), schoolID, req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": response.Message,
+	})
+}
+
+// SearchStudents handles searching students by NISN or name for parent linking
+// @Summary Search students
+// @Description Search students by NISN or name for linking to parents
+// @Tags Students
+// @Produce json
+// @Param q query string true "Search query (NISN or name)"
+// @Success 200 {object} []StudentSearchResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/school/students/search [get]
+func (h *Handler) SearchStudents(c *fiber.Ctx) error {
+	schoolID, ok := middleware.GetTenantID(c)
+	if !ok {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "AUTHZ_TENANT_REQUIRED",
+				"message": "Konteks sekolah diperlukan",
+			},
+		})
+	}
+
+	query := c.Query("q")
+	if query == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_REQUIRED_FIELD",
+				"message": "Parameter pencarian (q) wajib diisi",
+			},
+		})
+	}
+
+	students, err := h.service.SearchStudents(c.Context(), schoolID, query)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    students,
 	})
 }
 

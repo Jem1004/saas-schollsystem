@@ -299,7 +299,6 @@ onMounted(() => {
             <Text type="secondary">Total: {{ totalDevices }} device</Text>
             <Button @click="loadDevices" :loading="loading">
               <template #icon><ReloadOutlined /></template>
-              Refresh
             </Button>
             <Button type="primary" @click="openRegisterModal">
               <template #icon><PlusOutlined /></template>

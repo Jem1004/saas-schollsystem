@@ -363,7 +363,6 @@ onMounted(() => {
               <Space>
                 <Button @click="handleRefresh">
                   <template #icon><ReloadOutlined /></template>
-                  Refresh
                 </Button>
                 <Button type="primary" @click="openExportModal">
                   <template #icon><DownloadOutlined /></template>
@@ -504,7 +503,6 @@ onMounted(() => {
               <Space>
                 <Button @click="handleRefresh">
                   <template #icon><ReloadOutlined /></template>
-                  Refresh
                 </Button>
                 <Button type="primary" :loading="exporting" @click="openExportModal">
                   <template #icon><DownloadOutlined /></template>

@@ -363,7 +363,6 @@ onMounted(() => {
           <Space>
             <Button @click="loadViolations">
               <template #icon><ReloadOutlined /></template>
-              Refresh
             </Button>
             <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>

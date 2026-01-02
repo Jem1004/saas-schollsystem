@@ -83,6 +83,13 @@ type Repository interface {
 
 	// RFID operations
 	ClearStudentRFID(ctx context.Context, studentID uint) error
+
+	// Bulk operations for import
+	FindStudentsWithoutClass(ctx context.Context, schoolID uint) ([]models.Student, error)
+	BulkUpdateStudentClass(ctx context.Context, studentIDs []uint, classID uint) error
+
+	// Search operations for parent linking
+	SearchStudents(ctx context.Context, schoolID uint, query string, limit int) ([]models.Student, error)
 }
 
 // repository implements the Repository interface
@@ -977,4 +984,74 @@ func (r *repository) ClearStudentRFID(ctx context.Context, studentID uint) error
 		return ErrStudentNotFound
 	}
 	return nil
+}
+
+
+// ==================== Bulk Operations Repository Methods ====================
+
+// FindStudentsWithoutClass retrieves all students without class assignment
+// Requirements: 6.1 - Filter for students without class assignment
+func (r *repository) FindStudentsWithoutClass(ctx context.Context, schoolID uint) ([]models.Student, error) {
+	var students []models.Student
+	err := r.db.WithContext(ctx).
+		Where("school_id = ? AND class_id IS NULL", schoolID).
+		Order("name ASC").
+		Find(&students).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return students, nil
+}
+
+// BulkUpdateStudentClass updates ClassID and IsActive for multiple students
+// Requirements: 6.3, 6.4 - Bulk class assignment with IsActive update
+func (r *repository) BulkUpdateStudentClass(ctx context.Context, studentIDs []uint, classID uint) error {
+	if len(studentIDs) == 0 {
+		return nil
+	}
+
+	result := r.db.WithContext(ctx).
+		Model(&models.Student{}).
+		Where("id IN ?", studentIDs).
+		Updates(map[string]interface{}{
+			"class_id":  classID,
+			"is_active": true,
+		})
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	return nil
+}
+
+// SearchStudents searches students by NISN or name within a school
+// Requirements: 7.2 - Search students by NISN or name for parent linking
+func (r *repository) SearchStudents(ctx context.Context, schoolID uint, query string, limit int) ([]models.Student, error) {
+	var students []models.Student
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	searchQuery := "%" + query + "%"
+
+	err := r.db.WithContext(ctx).
+		Preload("Class").
+		Where("school_id = ?", schoolID).
+		Where("nisn ILIKE ? OR name ILIKE ?", searchQuery, searchQuery).
+		Order("name ASC").
+		Limit(limit).
+		Find(&students).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return students, nil
 }

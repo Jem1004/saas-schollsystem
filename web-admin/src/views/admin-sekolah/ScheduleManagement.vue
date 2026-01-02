@@ -279,7 +279,6 @@ onMounted(() => {
           <Space>
             <Button @click="loadSchedules">
               <template #icon><ReloadOutlined /></template>
-              Refresh
             </Button>
             <Tooltip v-if="maxSchedulesReached" title="Maksimal 10 jadwal per sekolah">
               <Button type="primary" disabled>
