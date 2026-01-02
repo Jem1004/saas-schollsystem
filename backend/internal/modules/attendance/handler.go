@@ -830,6 +830,22 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 				"message": "Siswa sudah melakukan check-out hari ini",
 			},
 		})
+	case errors.Is(err, ErrOutsideAttendanceWindow):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_NO_SCHEDULE",
+				"message": "Tidak ada jadwal absensi untuk waktu ini",
+			},
+		})
+	case errors.Is(err, ErrAlreadyCheckedIn):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_ALREADY_CHECKED_IN",
+				"message": "Anda sudah absen untuk jadwal ini",
+			},
+		})
 	default:
 		// Return the actual error message for better debugging
 		errMsg := err.Error()

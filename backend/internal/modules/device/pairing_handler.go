@@ -35,6 +35,42 @@ func (h *PairingHandler) RegisterRoutesWithoutGroup(router fiber.Router) {
 // RegisterPublicRoutes registers public routes for ESP32 devices
 func (h *PairingHandler) RegisterPublicRoutes(router fiber.Router) {
 	router.Post("/pairing/rfid", h.ProcessRFIDPairing)
+	router.Get("/pairing/status/:deviceId", h.GetPairingStatus)
+	router.Post("/pairing/start-test", h.StartPairingTest) // For testing without auth
+}
+
+// StartPairingTest handles starting a pairing session without auth (FOR TESTING ONLY)
+func (h *PairingHandler) StartPairingTest(c *fiber.Ctx) error {
+	var req StartPairingRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "Format data tidak valid",
+			},
+		})
+	}
+
+	if req.DeviceID == 0 || req.StudentID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_REQUIRED_FIELD",
+				"message": "device_id dan student_id wajib diisi",
+			},
+		})
+	}
+
+	response, err := h.service.StartPairing(c.Context(), req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
 }
 
 // StartPairing handles starting a pairing session

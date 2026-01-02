@@ -11,15 +11,17 @@ import (
 )
 
 var (
-	ErrInvalidDate        = errors.New("format tanggal tidak valid")
-	ErrInvalidTime        = errors.New("format waktu tidak valid")
-	ErrStudentIDRequired  = errors.New("ID siswa wajib diisi")
-	ErrDateRequired       = errors.New("tanggal wajib diisi")
-	ErrAPIKeyRequired     = errors.New("API key wajib diisi")
-	ErrRFIDCodeRequired   = errors.New("kode RFID wajib diisi")
-	ErrCheckOutBeforeIn   = errors.New("waktu check-out tidak boleh sebelum waktu check-in")
-	ErrNoCheckIn          = errors.New("tidak dapat mencatat check-out tanpa check-in")
-	ErrAlreadyCheckedOut  = errors.New("siswa sudah melakukan check-out")
+	ErrInvalidDate             = errors.New("format tanggal tidak valid")
+	ErrInvalidTime             = errors.New("format waktu tidak valid")
+	ErrStudentIDRequired       = errors.New("ID siswa wajib diisi")
+	ErrDateRequired            = errors.New("tanggal wajib diisi")
+	ErrAPIKeyRequired          = errors.New("API key wajib diisi")
+	ErrRFIDCodeRequired        = errors.New("kode RFID wajib diisi")
+	ErrCheckOutBeforeIn        = errors.New("waktu check-out tidak boleh sebelum waktu check-in")
+	ErrNoCheckIn               = errors.New("tidak dapat mencatat check-out tanpa check-in")
+	ErrAlreadyCheckedOut       = errors.New("siswa sudah melakukan check-out")
+	ErrAlreadyCheckedIn        = errors.New("siswa sudah absen untuk jadwal ini")
+	ErrOutsideAttendanceWindow = errors.New("tidak ada jadwal absensi untuk waktu ini")
 )
 
 // Service defines the interface for attendance business logic
@@ -132,32 +134,57 @@ func (s *service) RecordRFIDAttendance(ctx context.Context, req RFIDAttendanceRe
 		return nil, err
 	}
 
+	// Find active schedule first
+	activeSchedule, err := s.repo.FindActiveSchedule(ctx, student.SchoolID, timestamp)
+	if err != nil {
+		log.Printf("Warning: Failed to find active schedule: %v", err)
+	}
+
+	// Validate: Must have an active schedule to record attendance
+	if activeSchedule == nil {
+		log.Printf("RFID attendance rejected: no active schedule at %s on %s", 
+			timestamp.Format("15:04"), timestamp.Weekday().String())
+		return &RFIDAttendanceResponse{
+			Success:     false,
+			StudentID:   student.ID,
+			StudentName: student.Name,
+			Type:        "rejected",
+			Time:        timestamp,
+			Message:     "Tidak ada jadwal absensi untuk waktu ini",
+		}, ErrOutsideAttendanceWindow
+	}
+
 	var response *RFIDAttendanceResponse
+
+	// Check if student already has attendance for this specific schedule today
+	existingForSchedule, err := s.repo.FindByStudentDateAndSchedule(ctx, student.ID, date, activeSchedule.ID)
+	if err != nil && !errors.Is(err, ErrAttendanceNotFound) {
+		return nil, err
+	}
+
+	if existingForSchedule != nil {
+		// Student already checked in for this schedule
+		log.Printf("RFID attendance rejected: student %s already checked in for schedule '%s'", 
+			student.Name, activeSchedule.Name)
+		return &RFIDAttendanceResponse{
+			Success:     false,
+			StudentID:   student.ID,
+			StudentName: student.Name,
+			Type:        "already_checked_in",
+			Time:        timestamp,
+			Message:     "Anda sudah absen untuk jadwal ini",
+		}, ErrAlreadyCheckedIn
+	}
 
 	if existing == nil {
 		// First tap of the day - record check-in
 		// Requirements: 5.2 - First attendance record SHALL be recorded as check-in
-		
-		// Requirements: 3.4, 3.5 - Find and associate active schedule
-		activeSchedule, err := s.repo.FindActiveSchedule(ctx, student.SchoolID, timestamp)
-		if err != nil {
-			log.Printf("Warning: Failed to find active schedule: %v", err)
-			// Continue without schedule - will use default policy
-		}
 
-		var status models.AttendanceStatus
-		var scheduleID *uint
-
-		if activeSchedule != nil {
-			// Use schedule-based status determination
-			status = activeSchedule.GetLateStatus(timestamp)
-			scheduleID = &activeSchedule.ID
-			log.Printf("Using schedule '%s' (ID: %d) for attendance", activeSchedule.Name, activeSchedule.ID)
-		} else {
-			// Requirements: 3.6 - IF no schedule is active, use default policy
-			status = s.policy.DetermineAttendanceStatus(timestamp, student.SchoolID)
-			log.Printf("No active schedule found, using default policy")
-		}
+		// Use schedule-based status determination
+		status := activeSchedule.GetLateStatus(timestamp)
+		scheduleID := &activeSchedule.ID
+		log.Printf("Using schedule '%s' (ID: %d) for attendance at %s", 
+			activeSchedule.Name, activeSchedule.ID, timestamp.Format("15:04"))
 		
 		attendance := &models.Attendance{
 			StudentID:  student.ID,
@@ -190,14 +217,24 @@ func (s *service) RecordRFIDAttendance(ctx context.Context, req RFIDAttendanceRe
 			go s.realtime.BroadcastAttendance(ctx, student.SchoolID, attendance, student, "check_in")
 		}
 
-	} else if existing.CheckOutTime == nil {
-		// Second tap - record check-out
-		// Requirements: 5.2 - Second attendance record SHALL update with check-out time
-		if err := existing.SetCheckOut(timestamp); err != nil {
-			return nil, err
+	} else {
+		// Student has attendance today but for a different schedule
+		// This is a new schedule, so record new attendance
+		status := activeSchedule.GetLateStatus(timestamp)
+		scheduleID := &activeSchedule.ID
+		log.Printf("New schedule '%s' (ID: %d) for attendance at %s", 
+			activeSchedule.Name, activeSchedule.ID, timestamp.Format("15:04"))
+		
+		attendance := &models.Attendance{
+			StudentID:  student.ID,
+			ScheduleID: scheduleID,
+			Date:       date,
+			Method:     models.AttendanceMethodRFID,
+			Status:     status,
 		}
+		attendance.SetCheckIn(timestamp)
 
-		if err := s.repo.Update(ctx, existing); err != nil {
+		if err := s.repo.Create(ctx, attendance); err != nil {
 			return nil, err
 		}
 
@@ -205,31 +242,19 @@ func (s *service) RecordRFIDAttendance(ctx context.Context, req RFIDAttendanceRe
 			Success:     true,
 			StudentID:   student.ID,
 			StudentName: student.Name,
-			Type:        "check_out",
+			Type:        "check_in",
+			Status:      status,
 			Time:        timestamp,
-			Message:     "Check-out recorded successfully",
+			Message:     "Check-in recorded successfully",
 		}
 
-		log.Printf("RFID check-out recorded: student %s (%d) at %s", 
-			student.Name, student.ID, timestamp.Format("15:04"))
+		log.Printf("RFID check-in recorded for new schedule: student %s (%d) at %s, status: %s", 
+			student.Name, student.ID, timestamp.Format("15:04"), status)
 
 		// Requirements: 4.2 - Broadcast real-time update
 		if s.realtime != nil {
-			go s.realtime.BroadcastAttendance(ctx, student.SchoolID, existing, student, "check_out")
+			go s.realtime.BroadcastAttendance(ctx, student.SchoolID, attendance, student, "check_in")
 		}
-
-	} else {
-		// Already checked out
-		response = &RFIDAttendanceResponse{
-			Success:     false,
-			StudentID:   student.ID,
-			StudentName: student.Name,
-			Type:        "already_checked_out",
-			Time:        timestamp,
-			Message:     "Student has already checked out today",
-		}
-
-		log.Printf("RFID tap ignored: student %s (%d) already checked out", student.Name, student.ID)
 	}
 
 	// TODO: Trigger notification to parent (async)

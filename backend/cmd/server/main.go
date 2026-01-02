@@ -137,6 +137,36 @@ func main() {
 	// WebSocket handles its own authentication via token query parameter
 	realtimeHandler.RegisterWebSocketRoutes(app)
 
+	// Initialize Device Module (needed for public routes)
+	deviceRepo := device.NewRepository(db)
+	deviceService := device.NewService(deviceRepo)
+	deviceHandler := device.NewHandler(deviceService)
+
+	// Initialize Pairing Module (needed for public routes)
+	deviceStudentRepo := device.NewStudentRepository(db)
+	pairingService := device.NewPairingService(deviceRepo, deviceStudentRepo)
+	pairingHandler := device.NewPairingHandler(pairingService)
+
+	// Initialize Attendance Module EARLY (needed for public routes)
+	attendanceRepo := attendance.NewRepository(db)
+	attendancePolicy := attendance.NewAttendancePolicy(db)
+	attendanceService := attendance.NewService(attendanceRepo, deviceService, attendancePolicy)
+	attendanceHandler := attendance.NewHandler(attendanceService, attendanceRepo)
+
+	// IMPORTANT: Register public ESP32 routes directly on app (not using groups)
+	// This ensures they are NOT affected by any middleware
+	
+	// Public device routes (for ESP32 API key validation)
+	app.Post("/api/v1/public/devices/validate-key", deviceHandler.ValidateAPIKey)
+
+	// Public pairing routes (for ESP32 RFID pairing)
+	app.Post("/api/v1/public/pairing/rfid", pairingHandler.ProcessRFIDPairing)
+	app.Get("/api/v1/public/pairing/status/:deviceId", pairingHandler.GetPairingStatus)
+	app.Post("/api/v1/public/pairing/start-test", pairingHandler.StartPairingTest) // For testing
+
+	// Public attendance routes (for ESP32 RFID devices)
+	app.Post("/api/v1/public/attendance/rfid", attendanceHandler.RecordRFIDAttendance)
+
 	// Protected routes group with auth middleware
 	protected := api.Group("", middleware.AuthMiddleware(jwtManager))
 
@@ -148,16 +178,6 @@ func main() {
 	tenantService := tenant.NewService(tenantRepo)
 	tenantHandler := tenant.NewHandler(tenantService)
 
-	// Initialize Device Module (Super Admin only)
-	deviceRepo := device.NewRepository(db)
-	deviceService := device.NewService(deviceRepo)
-	deviceHandler := device.NewHandler(deviceService)
-
-	// Initialize Pairing Module (for RFID card pairing)
-	deviceStudentRepo := device.NewStudentRepository(db)
-	pairingService := device.NewPairingService(deviceRepo, deviceStudentRepo)
-	pairingHandler := device.NewPairingHandler(pairingService)
-
 	// Super Admin routes - use specific path prefixes to avoid middleware conflicts
 	// Schools management (Super Admin only)
 	schoolsAdmin := protected.Group("/schools", middleware.SuperAdminOnly())
@@ -166,12 +186,6 @@ func main() {
 	// Devices management (Super Admin only)
 	devicesAdmin := protected.Group("/devices", middleware.SuperAdminOnly())
 	deviceHandler.RegisterRoutesWithoutGroup(devicesAdmin)
-
-	// Public device routes (for ESP32 API key validation)
-	deviceHandler.RegisterPublicRoutes(api)
-
-	// Public pairing routes (for ESP32 RFID pairing)
-	pairingHandler.RegisterPublicRoutes(api)
 
 	// Tenant-scoped routes (for non-super_admin users)
 	tenantScoped := protected.Group("", middleware.TenantMiddleware())
@@ -222,18 +236,9 @@ func main() {
 	displayTokenRoutes := tenantScoped.Group("/display-tokens", middleware.AdminSekolahOnly())
 	displayTokenHandler.RegisterRoutesWithoutGroup(displayTokenRoutes)
 
-	// Initialize Attendance Module
-	attendanceRepo := attendance.NewRepository(db)
-	attendancePolicy := attendance.NewAttendancePolicy(db)
-	attendanceService := attendance.NewService(attendanceRepo, deviceService, attendancePolicy)
-	attendanceHandler := attendance.NewHandler(attendanceService, attendanceRepo)
-
 	// Connect attendance service to real-time broadcaster
 	// Requirements: 4.2 - Broadcast attendance updates in real-time
 	attendanceService.SetRealtimeBroadcaster(realtimeService)
-
-	// Public attendance routes (for ESP32 RFID devices)
-	attendanceHandler.RegisterPublicRoutes(api)
 
 	// Attendance routes for admin sekolah and wali kelas
 	attendanceRoutes := tenantScoped.Group("/attendance")

@@ -83,7 +83,7 @@ func DefaultSchoolSettings(schoolID uint) *SchoolSettings {
 	return &SchoolSettings{
 		SchoolID:                     schoolID,
 		AttendanceStartTime:          "07:00",
-		AttendanceEndTime:            "07:30",
+		AttendanceEndTime:            "16:00",  // Extended to 4 PM for check-out
 		AttendanceLateThreshold:      30,
 		AttendanceVeryLateThreshold:  60,
 		EnableAttendanceNotification: true,

@@ -512,14 +512,24 @@ const pollPairingStatus = async () => {
           pairingTimer.value = null
         }
         
-        // Check if pairing was successful (student now has RFID)
-        if (status.message.includes('berhasil')) {
-          message.success('Kartu RFID berhasil dipasangkan!')
-          pairingModalVisible.value = false
-          loadStudents()
-        } else {
-          pairingSession.value = status
+        // Reload student data to check if RFID was paired successfully
+        if (pairingStudent.value) {
+          try {
+            const updatedStudent = await schoolService.getStudent(pairingStudent.value.id)
+            if (updatedStudent.rfidCode) {
+              // Pairing was successful - student now has RFID
+              message.success(`Kartu RFID berhasil dipasangkan ke ${updatedStudent.name}!`)
+              pairingModalVisible.value = false
+              loadStudents()
+              return
+            }
+          } catch {
+            // Ignore error, fall through to show session status
+          }
         }
+        
+        // Session ended without successful pairing (expired or cancelled)
+        pairingSession.value = status
       }
     } catch {
       // Ignore polling errors

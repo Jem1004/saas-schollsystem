@@ -15,7 +15,7 @@ type Student struct {
 	NIS       string    `gorm:"type:varchar(20);not null" json:"nis"`
 	NISN      string    `gorm:"type:varchar(20);uniqueIndex;not null" json:"nisn"`
 	Name      string    `gorm:"type:varchar(255);not null" json:"name"`
-	RFIDCode  string    `gorm:"type:varchar(50);index" json:"rfid_code"`
+	RFIDCode  string    `gorm:"column:rf_id_code;type:varchar(50);index" json:"rfid_code"`
 	IsActive  bool      `gorm:"default:false" json:"is_active"` // Default false, true only when ClassID is set
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

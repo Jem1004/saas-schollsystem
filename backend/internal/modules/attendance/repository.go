@@ -23,6 +23,7 @@ type Repository interface {
 	Create(ctx context.Context, attendance *models.Attendance) error
 	FindByID(ctx context.Context, id uint) (*models.Attendance, error)
 	FindByStudentAndDate(ctx context.Context, studentID uint, date time.Time) (*models.Attendance, error)
+	FindByStudentDateAndSchedule(ctx context.Context, studentID uint, date time.Time, scheduleID uint) (*models.Attendance, error)
 	Update(ctx context.Context, attendance *models.Attendance) error
 	Delete(ctx context.Context, id uint) error
 
@@ -109,6 +110,31 @@ func (r *repository) FindByStudentAndDate(ctx context.Context, studentID uint, d
 		Preload("Student.Class").
 		Preload("Schedule").
 		Where("student_id = ? AND date = ?", studentID, dateOnly).
+		First(&attendance).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrAttendanceNotFound
+		}
+		return nil, err
+	}
+
+	return &attendance, nil
+}
+
+// FindByStudentDateAndSchedule retrieves attendance for a student on a specific date and schedule
+// Used to check if student already has attendance for a specific schedule
+func (r *repository) FindByStudentDateAndSchedule(ctx context.Context, studentID uint, date time.Time, scheduleID uint) (*models.Attendance, error) {
+	var attendance models.Attendance
+	
+	// Normalize date to start of day
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	
+	err := r.db.WithContext(ctx).
+		Preload("Student").
+		Preload("Student.Class").
+		Preload("Schedule").
+		Where("student_id = ? AND date = ? AND schedule_id = ?", studentID, dateOnly, scheduleID).
 		First(&attendance).Error
 
 	if err != nil {
@@ -292,7 +318,7 @@ func (r *repository) FindStudentByRFID(ctx context.Context, rfidCode string) (*m
 		Preload("Class").
 		Preload("School").
 		Preload("Parents").
-		Where("rfid_code = ? AND is_active = ?", rfidCode, true).
+		Where("rf_id_code = ? AND is_active = ?", rfidCode, true).
 		First(&student).Error
 
 	if err != nil {

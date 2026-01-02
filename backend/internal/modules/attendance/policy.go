@@ -2,6 +2,7 @@ package attendance
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -74,35 +75,53 @@ func (p *policy) DetermineAttendanceStatus(checkInTime time.Time, schoolID uint)
 }
 
 // IsWithinAttendanceWindow checks if the given time is within the attendance window
+// This validates that attendance can only be recorded during school hours
 func (p *policy) IsWithinAttendanceWindow(schoolID uint, timestamp time.Time) bool {
 	settings := p.getSchoolSettings(schoolID)
 	
-	// Parse start and end times
+	// Parse start time (default 06:00 - allow early arrivals)
 	startTime, err := parseTimeString(settings.AttendanceStartTime)
 	if err != nil {
-		startTime = time.Date(0, 1, 1, 7, 0, 0, 0, time.UTC)
+		startTime = time.Date(0, 1, 1, 6, 0, 0, 0, time.UTC) // Default 06:00
 	}
 	
+	// Parse end time (default 17:00 - allow late check-outs)
 	endTime, err := parseTimeString(settings.AttendanceEndTime)
 	if err != nil {
-		endTime = time.Date(0, 1, 1, 17, 0, 0, 0, time.UTC) // Default end at 5 PM
+		endTime = time.Date(0, 1, 1, 17, 0, 0, 0, time.UTC) // Default 17:00
 	}
 
-	// Create time window for the timestamp date
+	// Create extended window for the timestamp date
+	// Allow check-in 1 hour before official start time
+	// Allow check-out until end time
 	date := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), 0, 0, 0, 0, timestamp.Location())
 	
+	// Window starts 1 hour before attendance start time (for early arrivals)
 	windowStart := time.Date(
 		date.Year(), date.Month(), date.Day(),
-		startTime.Hour(), startTime.Minute(), 0, 0, timestamp.Location(),
+		startTime.Hour()-1, startTime.Minute(), 0, 0, timestamp.Location(),
 	)
+	if windowStart.Hour() < 0 {
+		windowStart = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, timestamp.Location())
+	}
+	
 	windowEnd := time.Date(
 		date.Year(), date.Month(), date.Day(),
 		endTime.Hour(), endTime.Minute(), 0, 0, timestamp.Location(),
 	)
 
 	// Check if timestamp is within window
-	return (timestamp.After(windowStart) || timestamp.Equal(windowStart)) &&
+	isWithin := (timestamp.After(windowStart) || timestamp.Equal(windowStart)) &&
 		(timestamp.Before(windowEnd) || timestamp.Equal(windowEnd))
+	
+	if !isWithin {
+		log.Printf("Attendance window check: time=%s, window=%s-%s, result=outside",
+			timestamp.Format("15:04"),
+			windowStart.Format("15:04"),
+			windowEnd.Format("15:04"))
+	}
+	
+	return isWithin
 }
 
 // ShouldSendNotification checks if a notification should be sent based on school settings
