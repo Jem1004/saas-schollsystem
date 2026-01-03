@@ -4,7 +4,6 @@ import {
   Table,
   Button,
   Space,
-  Tag,
   Card,
   Row,
   Col,
@@ -591,26 +590,26 @@ onMounted(() => {
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'className'">
-                <Tag color="blue">{{ (record as AttendanceSummary).className }}</Tag>
+                <span class="class-badge">{{ (record as AttendanceSummary).className }}</span>
               </template>
               <template v-else-if="column.key === 'present'">
-                <Tag color="success">{{ (record as AttendanceSummary).present }}</Tag>
+                <span class="status-badge success">{{ (record as AttendanceSummary).present }}</span>
               </template>
               <template v-else-if="column.key === 'late'">
-                <Tag v-if="(record as AttendanceSummary).late > 0" color="warning">{{ (record as AttendanceSummary).late }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as AttendanceSummary).late > 0" class="status-badge warning">{{ (record as AttendanceSummary).late }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'absent'">
-                <Tag v-if="(record as AttendanceSummary).absent > 0" color="error">{{ (record as AttendanceSummary).absent }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as AttendanceSummary).absent > 0" class="status-badge error">{{ (record as AttendanceSummary).absent }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'sick'">
-                <Tag v-if="(record as AttendanceSummary).sick > 0" color="blue">{{ (record as AttendanceSummary).sick }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as AttendanceSummary).sick > 0" class="status-badge blue">{{ (record as AttendanceSummary).sick }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'excused'">
-                <Tag v-if="(record as AttendanceSummary).excused > 0" color="cyan">{{ (record as AttendanceSummary).excused }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as AttendanceSummary).excused > 0" class="status-badge cyan">{{ (record as AttendanceSummary).excused }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'percentage'">
                 <div class="percentage-cell">
@@ -630,22 +629,22 @@ onMounted(() => {
                 <Table.Summary.Row class="summary-footer">
                   <Table.Summary.Cell :index="0"><Text strong>Total</Text></Table.Summary.Cell>
                   <Table.Summary.Cell :index="1" align="center"><Text strong>{{ dailyStats.totalStudents }}</Text></Table.Summary.Cell>
-                  <Table.Summary.Cell :index="2" align="center"><Tag color="success">{{ dailyStats.totalPresent }}</Tag></Table.Summary.Cell>
+                  <Table.Summary.Cell :index="2" align="center"><span class="status-badge success">{{ dailyStats.totalPresent }}</span></Table.Summary.Cell>
                   <Table.Summary.Cell :index="3" align="center">
-                    <Tag v-if="dailyStats.totalLate > 0" color="warning">{{ dailyStats.totalLate }}</Tag>
-                    <span v-else>0</span>
+                    <span v-if="dailyStats.totalLate > 0" class="status-badge warning">{{ dailyStats.totalLate }}</span>
+                    <span v-else class="text-zero">0</span>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell :index="4" align="center">
-                    <Tag v-if="dailyStats.totalAbsent > 0" color="error">{{ dailyStats.totalAbsent }}</Tag>
-                    <span v-else>0</span>
+                    <span v-if="dailyStats.totalAbsent > 0" class="status-badge error">{{ dailyStats.totalAbsent }}</span>
+                    <span v-else class="text-zero">0</span>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell :index="5" align="center">
-                    <Tag v-if="dailyStats.totalSick > 0" color="blue">{{ dailyStats.totalSick }}</Tag>
-                    <span v-else>0</span>
+                    <span v-if="dailyStats.totalSick > 0" class="status-badge blue">{{ dailyStats.totalSick }}</span>
+                    <span v-else class="text-zero">0</span>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell :index="6" align="center">
-                    <Tag v-if="dailyStats.totalExcused > 0" color="cyan">{{ dailyStats.totalExcused }}</Tag>
-                    <span v-else>0</span>
+                    <span v-if="dailyStats.totalExcused > 0" class="status-badge cyan">{{ dailyStats.totalExcused }}</span>
+                    <span v-else class="text-zero">0</span>
                   </Table.Summary.Cell>
                   <Table.Summary.Cell :index="7">
                     <div class="percentage-cell">
@@ -763,27 +762,27 @@ onMounted(() => {
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'index'">{{ index + 1 }}</template>
               <template v-else-if="column.key === 'total_present'">
-                <Tag color="success">{{ (record as StudentRecapSummary).total_present }}</Tag>
+                <span class="status-badge success">{{ (record as StudentRecapSummary).total_present }}</span>
               </template>
               <template v-else-if="column.key === 'total_late'">
-                <Tag v-if="(record as StudentRecapSummary).total_late > 0" color="warning">{{ (record as StudentRecapSummary).total_late }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as StudentRecapSummary).total_late > 0" class="status-badge warning">{{ (record as StudentRecapSummary).total_late }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'total_very_late'">
-                <Tag v-if="(record as StudentRecapSummary).total_very_late > 0" color="orange">{{ (record as StudentRecapSummary).total_very_late }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as StudentRecapSummary).total_very_late > 0" class="status-badge orange">{{ (record as StudentRecapSummary).total_very_late }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'total_absent'">
-                <Tag v-if="(record as StudentRecapSummary).total_absent > 0" color="error">{{ (record as StudentRecapSummary).total_absent }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as StudentRecapSummary).total_absent > 0" class="status-badge error">{{ (record as StudentRecapSummary).total_absent }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'total_sick'">
-                <Tag v-if="(record as StudentRecapSummary).total_sick > 0" color="blue">{{ (record as StudentRecapSummary).total_sick }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as StudentRecapSummary).total_sick > 0" class="status-badge blue">{{ (record as StudentRecapSummary).total_sick }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'total_excused'">
-                <Tag v-if="(record as StudentRecapSummary).total_excused > 0" color="cyan">{{ (record as StudentRecapSummary).total_excused }}</Tag>
-                <span v-else>0</span>
+                <span v-if="(record as StudentRecapSummary).total_excused > 0" class="status-badge cyan">{{ (record as StudentRecapSummary).total_excused }}</span>
+                <span v-else class="text-zero">0</span>
               </template>
               <template v-else-if="column.key === 'percentage'">
                 <div class="percentage-cell">
@@ -887,14 +886,14 @@ onMounted(() => {
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'status'">
-                <Tag :color="getStatusTag((record as AttendanceCamelCase).status).color">
+                <span class="status-badge" :class="getStatusTag((record as AttendanceCamelCase).status).color">
                   {{ getStatusTag((record as AttendanceCamelCase).status).label }}
-                </Tag>
+                </span>
               </template>
               <template v-else-if="column.key === 'method'">
-                <Tag :color="getMethodTag((record as AttendanceCamelCase).method).color">
+                <span class="status-badge" :class="getMethodTag((record as AttendanceCamelCase).method).color">
                   {{ getMethodTag((record as AttendanceCamelCase).method).label }}
-                </Tag>
+                </span>
               </template>
               <template v-else-if="column.key === 'action'">
                 <Popconfirm
@@ -1000,12 +999,50 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.percentage-cell {
-  min-width: 100px;
+/* Custom Table */
+:deep(.ant-table-thead > tr > th) {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-:deep(.summary-footer) {
-  background: #fafafa;
+:deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 32px;
+}
+
+.status-badge.success { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
+.status-badge.warning { background: #fff7ed; color: #9a3412; border: 1px solid #ffedd5; }
+.status-badge.orange, .status-badge.very_late { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.status-badge.error, .status-badge.absent { background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; }
+.status-badge.blue, .status-badge.sick, .status-badge.rfid { background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
+.status-badge.cyan, .status-badge.excused { background: #ecfeff; color: #155e75; border: 1px solid #cffafe; }
+.status-badge.purple, .status-badge.manual { background: #fdf4ff; color: #86198f; border: 1px solid #fae8ff; }
+
+.class-badge {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.text-zero {
+  color: #cbd5e1;
 }
 
 .export-form {

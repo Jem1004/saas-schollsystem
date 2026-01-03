@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -138,10 +137,15 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// Get level color
-const getLevelColor = (level: string) => {
-  const levelConfig = VIOLATION_LEVELS.find(l => l.value === level)
-  return levelConfig?.color || 'default'
+// Get level class
+const getLevelClass = (level: string) => {
+  switch (level) {
+    case 'ringan': return 'success'
+    case 'sedang': return 'warning'
+    case 'berat': return 'error'
+    case 'sangat_berat': return 'error'
+    default: return 'default'
+  }
 }
 
 // Get level label
@@ -215,8 +219,6 @@ const handleCategoryChange = (categoryName: unknown) => {
     formState.point = category.defaultPoint
   }
 }
-
-
 
 // Handle table change
 const handleTableChange: TableProps['onChange'] = (pag) => {
@@ -335,9 +337,8 @@ const handleExportPDF = () => {
 }
 
 // Filter student options
-const filterStudentOption = (input: string, option: unknown) => {
-  const opt = option as { label?: string }
-  return opt.label?.toLowerCase().includes(input.toLowerCase()) ?? false
+const filterStudentOption = (input: string, option: any) => {
+  return option?.label?.toLowerCase().includes(input.toLowerCase())
 }
 
 onMounted(() => {
@@ -366,15 +367,15 @@ onMounted(() => {
       <Row :gutter="16" class="toolbar" justify="space-between" align="middle">
         <Col :xs="24" :sm="24" :md="18">
           <Space wrap>
-            <Input v-model:value="searchText" placeholder="Cari siswa atau deskripsi..." allow-clear style="width: 220px" @press-enter="handleSearch">
+            <Input v-model:value="searchText" placeholder="Cari siswa atau deskripsi..." allow-clear size="large" style="width: 220px" @press-enter="handleSearch">
               <template #prefix><SearchOutlined /></template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
-            <Select v-model:value="filterLevel" placeholder="Filter Tingkat" allow-clear style="width: 140px" @change="handleFilterChange">
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <Select v-model:value="filterLevel" placeholder="Filter Tingkat" allow-clear size="large" style="width: 140px" @change="handleFilterChange">
               <template #suffixIcon><FilterOutlined /></template>
               <SelectOption v-for="level in VIOLATION_LEVELS" :key="level.value" :value="level.value">{{ level.label }}</SelectOption>
             </Select>
-            <Select v-model:value="filterCategory" placeholder="Filter Kategori" allow-clear style="width: 160px" @change="handleFilterChange">
+            <Select v-model:value="filterCategory" placeholder="Filter Kategori" allow-clear size="large" style="width: 160px" @change="handleFilterChange">
               <SelectOption v-for="cat in categoryNames" :key="cat" :value="cat">{{ cat }}</SelectOption>
             </Select>
           </Space>
@@ -382,36 +383,43 @@ onMounted(() => {
         <Col :xs="24" :sm="24" :md="6" class="toolbar-right">
           <Space>
             <Text type="secondary">Total Poin: <Text strong :style="{ color: '#ef4444' }">{{ totalPoints }}</Text></Text>
-            <Button @click="handleExportPDF"><template #icon><FilePdfOutlined /></template>Export PDF</Button>
-            <Button @click="loadViolations"><template #icon><ReloadOutlined /></template></Button>
-            <Button type="primary" @click="openCreateModal"><template #icon><PlusOutlined /></template>Catat</Button>
+            <Button size="large" @click="handleExportPDF"><template #icon><FilePdfOutlined /></template>Export PDF</Button>
+            <Button size="large" @click="loadViolations"><template #icon><ReloadOutlined /></template></Button>
+            <Button type="primary" size="large" @click="openCreateModal"><template #icon><PlusOutlined /></template>Catat</Button>
           </Space>
         </Col>
       </Row>
 
       <!-- Table -->
-      <Table :columns="columns" :data-source="filteredViolations" :loading="loading"
+      <Table 
+        :columns="columns" 
+        :data-source="filteredViolations" 
+        :loading="loading"
         :pagination="{ current: pagination.current, pageSize: pagination.pageSize, total, showSizeChanger: true, showTotal: (t: number) => `Total ${t} pelanggaran` }"
-        row-key="id" @change="handleTableChange">
+        row-key="id" 
+        @change="handleTableChange"
+        class="custom-table"
+        :scroll="{ x: 800 }"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'createdAt'">{{ formatDate((record as Violation).createdAt) }}</template>
           <template v-else-if="column.key === 'studentName'">
             <a @click="viewStudentProfile((record as Violation).studentId)">{{ (record as Violation).studentName }}</a>
           </template>
           <template v-else-if="column.key === 'studentClass'">
-            <Tag color="blue">{{ (record as Violation).studentClass }}</Tag>
+            <span class="class-badge">{{ (record as Violation).studentClass }}</span>
           </template>
           <template v-else-if="column.key === 'level'">
-            <Tag :color="getLevelColor((record as Violation).level)">{{ getLevelLabel((record as Violation).level) }}</Tag>
+            <span :class="['status-badge', getLevelClass((record as Violation).level)]">{{ getLevelLabel((record as Violation).level) }}</span>
           </template>
           <template v-else-if="column.key === 'point'">
             <Text strong :style="{ color: '#ef4444' }">{{ (record as Violation).point }}</Text>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="viewStudentProfile((record as Violation).studentId)"><template #icon><EyeOutlined /></template></Button>
+              <Button type="text" style="color: #3b82f6" @click="viewStudentProfile((record as Violation).studentId)"><template #icon><EyeOutlined /></template></Button>
               <Popconfirm title="Hapus pelanggaran ini?" description="Data pelanggaran akan dihapus permanen." ok-text="Ya, Hapus" cancel-text="Batal" @confirm="handleDelete(record as Violation)">
-                <Button size="small" danger><template #icon><DeleteOutlined /></template></Button>
+                <Button type="text" danger><template #icon><DeleteOutlined /></template></Button>
               </Popconfirm>
             </Space>
           </template>
@@ -420,14 +428,14 @@ onMounted(() => {
     </Card>
 
     <!-- Create Modal -->
-    <Modal v-model:open="modalVisible" title="Catat Pelanggaran Baru" :confirm-loading="modalLoading" @ok="handleSubmit" @cancel="handleModalCancel" width="600px">
+    <Modal v-model:open="modalVisible" title="Catat Pelanggaran Baru" :confirm-loading="modalLoading" @ok="handleSubmit" @cancel="handleModalCancel" width="600px" wrap-class-name="modern-modal">
       <Form ref="formRef" :model="formState" :rules="formRules" layout="vertical" style="margin-top: 16px">
         <FormItem label="Siswa" name="studentId" required>
-          <Select v-model:value="formState.studentId" placeholder="Pilih siswa" :loading="loadingStudents" show-search :filter-option="filterStudentOption"
+          <Select v-model:value="formState.studentId" placeholder="Pilih siswa" :loading="loadingStudents" show-search :filter-option="filterStudentOption" size="large"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))" />
         </FormItem>
         <FormItem label="Kategori Pelanggaran" name="category" required>
-          <Select v-model:value="formState.category" placeholder="Pilih kategori pelanggaran" :loading="loadingCategories" @change="handleCategoryChange">
+          <Select v-model:value="formState.category" placeholder="Pilih kategori pelanggaran" :loading="loadingCategories" @change="handleCategoryChange" size="large">
             <SelectOption v-for="cat in violationCategories" :key="cat.id" :value="cat.name">
               {{ cat.name }}
             </SelectOption>
@@ -436,7 +444,7 @@ onMounted(() => {
         <Row :gutter="16" v-if="formState.categoryId">
           <Col :span="12">
             <FormItem label="Tingkat">
-              <Tag :color="getLevelColor(formState.level)" style="font-size: 14px; padding: 4px 12px">{{ getLevelLabel(formState.level) }}</Tag>
+              <span :class="['status-badge', getLevelClass(formState.level)]">{{ getLevelLabel(formState.level) }}</span>
             </FormItem>
           </Col>
           <Col :span="12">
@@ -446,7 +454,7 @@ onMounted(() => {
           </Col>
         </Row>
         <FormItem label="Deskripsi" name="description" required>
-          <Textarea v-model:value="formState.description" placeholder="Jelaskan detail pelanggaran..." :rows="4" />
+          <Textarea v-model:value="formState.description" placeholder="Jelaskan detail pelanggaran..." :rows="4" class="custom-textarea" />
         </FormItem>
       </Form>
     </Modal>
@@ -458,5 +466,65 @@ onMounted(() => {
 .page-header { margin-bottom: 24px; }
 .toolbar { margin-bottom: 16px; }
 .toolbar-right { display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+
+/* Custom Table Styles */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  color: #475569;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+}
+
+.custom-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #f8fafc;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.warning {
+  background-color: #fffbe6;
+  color: #faad14;
+  border: 1px solid #ffe58f;
+}
+
+.status-badge.error {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+.status-badge.default {
+  background-color: #f5f5f5;
+  color: #000000d9;
+  border: 1px solid #d9d9d9;
+}
+
+.class-badge {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 @media (max-width: 768px) { .toolbar-right { margin-top: 16px; justify-content: flex-start; flex-wrap: wrap; } }
 </style>

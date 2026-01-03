@@ -530,25 +530,50 @@ onUnmounted(() => {
   </Layout>
 </template>
 
+
 <style scoped>
 .main-layout {
   min-height: 100vh;
+  background: #f8fafc;
 }
 
 .sider {
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
-  overflow: auto;
+  border-right: 1px solid #f1f5f9;
   height: 100vh;
   position: fixed;
   left: 0;
   top: 0;
   bottom: 0;
   z-index: 10;
+  background: #fff;
 }
 
 .sider :deep(.ant-layout-sider-children) {
   display: flex;
   flex-direction: column;
+}
+
+/* Custom Menu Styles */
+.sider :deep(.ant-menu) {
+  border-inline-end: none !important;
+  padding: 16px 0;
+}
+
+.sider :deep(.ant-menu-item) {
+  margin: 4px 12px;
+  width: calc(100% - 24px);
+  border-radius: 8px;
+  color: #64748b; /* Slate 500 */
+}
+
+.sider :deep(.ant-menu-item:hover) {
+  color: #f97316;
+}
+
+.sider :deep(.ant-menu-item-selected) {
+  background-color: #fff7ed !important; /* Orange 50 */
+  color: #f97316 !important; /* Orange 500 */
+  font-weight: 500;
 }
 
 .logo {
@@ -558,7 +583,7 @@ onUnmounted(() => {
   justify-content: center;
   gap: 12px;
   padding: 0 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f1f5f9;
   background: #fff;
 }
 
@@ -569,9 +594,10 @@ onUnmounted(() => {
 
 .logo-text {
   font-size: 18px;
-  font-weight: 600;
-  color: #f97316;
+  font-weight: 700;
+  color: #1e293b; /* Slate 800 */
   white-space: nowrap;
+  letter-spacing: -0.5px;
 }
 
 .header {
@@ -580,7 +606,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid #f1f5f9;
   position: sticky;
   top: 0;
   z-index: 9;
@@ -599,121 +625,146 @@ onUnmounted(() => {
 
 .trigger-btn {
   font-size: 18px;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.trigger-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
 }
 
 .notification-badge {
-  margin-right: 8px;
+  display: flex;
+  align-items: center;
 }
 
 .icon-btn {
-  font-size: 18px;
+  font-size: 20px;
   width: 40px;
   height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  border-radius: 50%;
+  transition: all 0.2s;
 }
 
+.icon-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* User Info */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+  border: 1px solid transparent;
+}
+
+.user-info:hover {
+  background-color: #f8fafc;
+  border-color: #f1f5f9;
+}
+
+.user-avatar {
+  background-color: #fff7ed;
+  color: #f97316;
+  border: 1px solid #fed7aa;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.role-tag {
+  font-size: 11px;
+  padding: 0;
+  line-height: normal;
+  margin: 0;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* Notification Dropdown Styles */
 .notification-dropdown {
   width: 360px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+  overflow: hidden;
 }
 
 .notification-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
 }
 
 .notification-content {
   max-height: 400px;
   overflow-y: auto;
-  padding: 8px 0;
 }
 
 .notification-item {
-  padding: 8px 16px !important;
+  padding: 12px 16px !important;
   cursor: pointer;
+  border-bottom: 1px solid #f8fafc;
   transition: background-color 0.2s;
 }
 
 .notification-item:hover {
-  background-color: #f5f5f5;
+  background-color: #f8fafc;
 }
 
 .notification-item.unread {
-  background-color: #fff7e6;
+  background-color: #fff7ed;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background-color 0.2s;
-}
-
-.user-info:hover {
-  background-color: #f5f5f5;
-}
-
-.user-avatar {
-  background-color: #f97316;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.3;
-}
-
-.username {
-  font-size: 14px;
-  font-weight: 500;
-  color: #262626;
-}
-
-.user-role {
-  font-size: 12px;
-  color: #8c8c8c;
-}
-
-.role-tag {
-  font-size: 11px;
-  padding: 0 6px;
-  line-height: 18px;
-  margin: 0;
-}
-
-.readonly-tag {
-  font-size: 10px;
-  padding: 0 4px;
-  line-height: 16px;
-  margin-left: 8px;
-}
-
+/* Content Area */
 .content {
   margin: 24px;
+  /* Adjust margin-left based on sidebar width + spacing */
   margin-left: calc(240px + 24px);
-  padding: 24px;
-  background: #fff;
-  border-radius: 8px;
+  /* Make content purely structural, no background/padding styling */
+  background: transparent;
   min-height: calc(100vh - 64px - 48px);
   transition: margin-left 0.2s;
   position: relative;
   z-index: 1;
-  overflow: auto;
 }
 
 /* Handle collapsed state */
@@ -723,5 +774,12 @@ onUnmounted(() => {
 
 :deep(.ant-layout-sider-collapsed) + .ant-layout .content {
   margin-left: calc(80px + 24px);
+}
+
+.readonly-tag {
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 4px;
+  margin-left: auto;
 }
 </style>

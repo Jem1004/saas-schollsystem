@@ -193,16 +193,14 @@ func SchoolStaffOnly() fiber.Handler {
 		models.RoleAdminSekolah,
 		models.RoleGuruBK,
 		models.RoleWaliKelas,
-		models.RoleGuru,
 	)
 }
 
-// TeachersOnly restricts access to teachers (BK, homeroom, regular)
+// TeachersOnly restricts access to teachers (BK, homeroom)
 func TeachersOnly() fiber.Handler {
 	return RoleMiddleware(
 		models.RoleGuruBK,
 		models.RoleWaliKelas,
-		models.RoleGuru,
 	)
 }
 

@@ -11,7 +11,6 @@ import {
   ListItem,
   ListItemMeta,
   Typography,
-  Tag,
   Avatar,
   Button,
   Empty,
@@ -80,7 +79,7 @@ const todayFormatted = computed(() => {
   })
 })
 
-// Get violation level color
+// Get violation level color class
 const getViolationLevelColor = (level: string) => {
   switch (level) {
     case 'ringan': return 'warning'
@@ -207,11 +206,11 @@ onMounted(() => {
                     </template>
                     <template #title>
                       <span class="student-name">{{ (item as StudentAttentionItem).studentName }}</span>
-                      <Tag color="blue" style="margin-left: 8px">{{ (item as StudentAttentionItem).className }}</Tag>
+                      <span class="class-badge" style="margin-left: 8px">{{ (item as StudentAttentionItem).className }}</span>
                     </template>
                     <template #description>
                       <div class="student-stats">
-                        <Tag color="error">{{ (item as StudentAttentionItem).violationCount }} pelanggaran</Tag>
+                        <span class="status-badge error">{{ (item as StudentAttentionItem).violationCount }} pelanggaran</span>
                         <span style="margin-left: 8px; color: #8c8c8c">{{ (item as StudentAttentionItem).reason }}</span>
                       </div>
                     </template>
@@ -254,9 +253,9 @@ onMounted(() => {
                     </template>
                     <template #title>
                       <span>{{ (item as Violation).studentName }}</span>
-                      <Tag :color="getViolationLevelColor((item as Violation).level)" style="margin-left: 8px">
+                      <span class="status-badge" :class="getViolationLevelColor((item as Violation).level)" style="margin-left: 8px">
                         {{ (item as Violation).level }}
-                      </Tag>
+                      </span>
                     </template>
                     <template #description>
                       <div>{{ (item as Violation).category }} - {{ (item as Violation).description }}</div>
@@ -292,7 +291,7 @@ onMounted(() => {
                     </template>
                     <template #title>
                       <span>{{ (item as Achievement).studentName }}</span>
-                      <Tag color="success" style="margin-left: 8px">+{{ (item as Achievement).point }} poin</Tag>
+                      <span class="status-badge success" style="margin-left: 8px">+{{ (item as Achievement).point }} poin</span>
                     </template>
                     <template #description>
                       <div>{{ (item as Achievement).title }}</div>
@@ -375,6 +374,56 @@ onMounted(() => {
   font-size: 12px;
   display: block;
   margin-top: 4px;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.warning {
+  background-color: #fffbe6;
+  color: #faad14;
+  border: 1px solid #ffe58f;
+}
+
+.status-badge.error {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+.status-badge.orange {
+  background-color: #fff7e6;
+  color: #fa8c16;
+  border: 1px solid #ffd591;
+}
+
+.status-badge.default {
+  background-color: #f5f5f5;
+  color: #000000d9;
+  border: 1px solid #d9d9d9;
+}
+
+.class-badge {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 @media (max-width: 768px) {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import {
-  Table, Button, Input, Space, Tag, Modal, Form, FormItem, Select, SelectOption,
+  Table, Button, Input, Space, Modal, Form, FormItem, Select, SelectOption,
   message, Popconfirm, Card, Row, Col, Typography, Textarea, InputNumber, Switch,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
@@ -49,9 +49,14 @@ const columns: TableProps['columns'] = [
   { title: 'Aksi', key: 'action', width: 120, align: 'center' },
 ]
 
-const getLevelColor = (level: string) => {
-  const config = VIOLATION_LEVELS.find(l => l.value === level)
-  return config?.color || 'default'
+const getLevelClass = (level: string) => {
+  switch (level) {
+    case 'ringan': return 'success'
+    case 'sedang': return 'warning'
+    case 'berat': return 'error'
+    case 'sangat_berat': return 'error'
+    default: return 'default'
+  }
 }
 
 const getLevelLabel = (level: string) => {
@@ -189,34 +194,42 @@ onMounted(() => {
         </Col>
         <Col>
           <Space>
-            <Button @click="loadCategories"><template #icon><ReloadOutlined /></template></Button>
-            <Button type="primary" @click="openCreateModal"><template #icon><PlusOutlined /></template>Tambah Kategori</Button>
+            <Button size="large" @click="loadCategories"><template #icon><ReloadOutlined /></template></Button>
+            <Button type="primary" size="large" @click="openCreateModal"><template #icon><PlusOutlined /></template>Tambah Kategori</Button>
           </Space>
         </Col>
       </Row>
 
-      <Table :columns="columns" :data-source="categories" :loading="loading" :pagination="false" row-key="id">
+      <Table 
+        :columns="columns" 
+        :data-source="categories" 
+        :loading="loading" 
+        :pagination="false" 
+        row-key="id"
+        class="custom-table"
+        :scroll="{ x: 800 }"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'defaultPoint'">
             <Text strong :style="{ color: '#ef4444' }">{{ (record as ViolationCategory).defaultPoint }}</Text>
           </template>
           <template v-else-if="column.key === 'defaultLevel'">
-            <Tag :color="getLevelColor((record as ViolationCategory).defaultLevel)">
+            <span :class="['status-badge', getLevelClass((record as ViolationCategory).defaultLevel)]">
               {{ getLevelLabel((record as ViolationCategory).defaultLevel) }}
-            </Tag>
+            </span>
           </template>
           <template v-else-if="column.key === 'isActive'">
-            <Tag :color="(record as ViolationCategory).isActive ? 'success' : 'default'">
+            <span :class="['status-badge', (record as ViolationCategory).isActive ? 'success' : 'default']">
               {{ (record as ViolationCategory).isActive ? 'Aktif' : 'Tidak Aktif' }}
-            </Tag>
+            </span>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="openEditModal(record as ViolationCategory)">
+              <Button type="text" style="color: #3b82f6" @click="openEditModal(record as ViolationCategory)">
                 <template #icon><EditOutlined /></template>
               </Button>
               <Popconfirm title="Hapus kategori ini?" description="Kategori akan dihapus permanen." ok-text="Ya, Hapus" cancel-text="Batal" @confirm="handleDelete(record as ViolationCategory)">
-                <Button size="small" danger><template #icon><DeleteOutlined /></template></Button>
+                <Button type="text" danger><template #icon><DeleteOutlined /></template></Button>
               </Popconfirm>
             </Space>
           </template>
@@ -225,30 +238,30 @@ onMounted(() => {
     </Card>
 
     <!-- Create/Edit Modal -->
-    <Modal v-model:open="modalVisible" :title="isEditing ? 'Edit Kategori' : 'Tambah Kategori Baru'" :confirm-loading="modalLoading" @ok="handleSubmit" @cancel="handleModalCancel" width="500px">
+    <Modal v-model:open="modalVisible" :title="isEditing ? 'Edit Kategori' : 'Tambah Kategori Baru'" :confirm-loading="modalLoading" @ok="handleSubmit" @cancel="handleModalCancel" width="500px" wrap-class-name="modern-modal">
       <Form ref="formRef" :model="formState" :rules="formRules" layout="vertical" style="margin-top: 16px">
         <FormItem label="Nama Kategori" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Contoh: Keterlambatan, Bolos, dll" />
+          <Input v-model:value="formState.name" placeholder="Contoh: Keterlambatan, Bolos, dll" size="large" />
         </FormItem>
         <Row :gutter="16">
           <Col :span="12">
             <FormItem label="Poin Default" name="defaultPoint" required>
-              <InputNumber v-model:value="formState.defaultPoint" :max="0" style="width: 100%" />
+              <InputNumber v-model:value="formState.defaultPoint" :max="0" style="width: 100%" size="large" />
               <Text type="secondary" style="font-size: 12px">Harus 0 atau negatif</Text>
             </FormItem>
           </Col>
           <Col :span="12">
             <FormItem label="Tingkat Default" name="defaultLevel" required>
-              <Select v-model:value="formState.defaultLevel">
+              <Select v-model:value="formState.defaultLevel" size="large">
                 <SelectOption v-for="level in VIOLATION_LEVELS" :key="level.value" :value="level.value">
-                  <Tag :color="level.color">{{ level.label }}</Tag>
+                   {{ level.label }}
                 </SelectOption>
               </Select>
             </FormItem>
           </Col>
         </Row>
         <FormItem label="Deskripsi" name="description">
-          <Textarea v-model:value="formState.description" placeholder="Deskripsi kategori (opsional)" :rows="3" />
+          <Textarea v-model:value="formState.description" placeholder="Deskripsi kategori (opsional)" :rows="3" class="custom-textarea" />
         </FormItem>
         <FormItem v-if="isEditing" label="Status">
           <Switch v-model:checked="formState.isActive" />
@@ -263,4 +276,54 @@ onMounted(() => {
 .category-management { padding: 0; }
 .page-header { margin-bottom: 24px; }
 .toolbar { margin-bottom: 16px; }
+
+/* Custom Table Styles */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  color: #475569;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+}
+
+.custom-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #f8fafc;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.warning {
+  background-color: #fffbe6;
+  color: #faad14;
+  border: 1px solid #ffe58f;
+}
+
+.status-badge.error {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+.status-badge.default {
+  background-color: #f5f5f5;
+  color: #000000d9;
+  border: 1px solid #d9d9d9;
+}
 </style>

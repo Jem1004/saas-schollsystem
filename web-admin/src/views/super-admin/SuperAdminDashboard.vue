@@ -133,8 +133,10 @@ onMounted(() => {
 <template>
   <div class="super-admin-dashboard">
     <div class="page-header">
-      <Title :level="2" style="margin: 0">Dashboard Super Admin</Title>
-      <Text type="secondary">Overview sistem dan statistik platform</Text>
+      <div class="header-content">
+        <Title :level="2" class="page-title">Dashboard Super Admin</Title>
+        <Text class="page-subtitle">Overview sistem dan statistik platform</Text>
+      </div>
     </div>
 
     <Spin :spinning="loading">
@@ -150,53 +152,53 @@ onMounted(() => {
       <!-- Statistics Cards -->
       <Row :gutter="[24, 24]" class="stats-row">
         <Col :xs="24" :sm="12" :lg="6">
-          <Card class="stat-card">
+          <Card class="stat-card" :bordered="false">
             <Statistic
               title="Total Sekolah"
               :value="tenantStats.totalSchools"
-              :value-style="{ color: '#f97316' }"
+              :value-style="{ color: '#0f172a', fontWeight: '600' }"
             >
               <template #prefix>
-                <BankOutlined />
+                <BankOutlined class="stat-icon primary" />
               </template>
             </Statistic>
           </Card>
         </Col>
         <Col :xs="24" :sm="12" :lg="6">
-          <Card class="stat-card">
+          <Card class="stat-card" :bordered="false">
             <Statistic
               title="Sekolah Aktif"
               :value="tenantStats.activeSchools"
-              :value-style="{ color: '#22c55e' }"
+              :value-style="{ color: '#0f172a', fontWeight: '600' }"
             >
               <template #prefix>
-                <CheckCircleOutlined />
+                <CheckCircleOutlined class="stat-icon success" />
               </template>
             </Statistic>
           </Card>
         </Col>
         <Col :xs="24" :sm="12" :lg="6">
-          <Card class="stat-card">
+          <Card class="stat-card" :bordered="false">
             <Statistic
               title="Total Device"
               :value="deviceStats.totalDevices"
-              :value-style="{ color: '#3b82f6' }"
+              :value-style="{ color: '#0f172a', fontWeight: '600' }"
             >
               <template #prefix>
-                <DesktopOutlined />
+                <DesktopOutlined class="stat-icon primary" />
               </template>
             </Statistic>
           </Card>
         </Col>
         <Col :xs="24" :sm="12" :lg="6">
-          <Card class="stat-card">
+          <Card class="stat-card" :bordered="false">
             <Statistic
               title="Device Online"
               :value="deviceStats.onlineDevices"
-              :value-style="{ color: '#22c55e' }"
+              :value-style="{ color: '#0f172a', fontWeight: '600' }"
             >
               <template #prefix>
-                <WifiOutlined />
+                <WifiOutlined class="stat-icon success" />
               </template>
             </Statistic>
           </Card>
@@ -206,60 +208,70 @@ onMounted(() => {
       <!-- System Status -->
       <Row :gutter="[24, 24]" style="margin-top: 24px">
         <Col :xs="24" :lg="12">
-          <Card title="Status Sistem" class="status-card">
-            <div class="status-item">
-              <span class="status-label">Database</span>
-              <Tag color="success">
-                <CheckCircleOutlined /> Online
-              </Tag>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Redis Queue</span>
-              <Tag color="success">
-                <CheckCircleOutlined /> Online
-              </Tag>
-            </div>
-            <div class="status-item">
-              <span class="status-label">FCM Service</span>
-              <Tag color="success">
-                <CheckCircleOutlined /> Online
-              </Tag>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Notification Worker</span>
-              <Tag color="success">
-                <CheckCircleOutlined /> Running
-              </Tag>
+          <Card title="Status Sistem" class="content-card" :bordered="false">
+            <div class="status-list">
+              <div class="status-item">
+                <span class="status-label">Database</span>
+                <Tag color="success" class="status-tag">
+                  <CheckCircleOutlined /> Online
+                </Tag>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Redis Queue</span>
+                <Tag color="success" class="status-tag">
+                  <CheckCircleOutlined /> Online
+                </Tag>
+              </div>
+              <div class="status-item">
+                <span class="status-label">FCM Service</span>
+                <Tag color="success" class="status-tag">
+                  <CheckCircleOutlined /> Online
+                </Tag>
+              </div>
+              <div class="status-item">
+                <span class="status-label">Notification Worker</span>
+                <Tag color="success" class="status-tag">
+                  <CheckCircleOutlined /> Running
+                </Tag>
+              </div>
             </div>
           </Card>
         </Col>
         <Col :xs="24" :lg="12">
-          <Card title="Ringkasan" class="summary-card">
-            <div class="summary-item">
-              <TeamOutlined class="summary-icon" />
-              <div class="summary-content">
-                <Text strong>{{ tenantStats.activeSchools }}</Text>
-                <Text type="secondary"> sekolah aktif dari </Text>
-                <Text strong>{{ tenantStats.totalSchools }}</Text>
-                <Text type="secondary"> total</Text>
+          <Card title="Ringkasan" class="content-card" :bordered="false">
+            <div class="summary-list">
+              <div class="summary-item">
+                <div class="summary-icon-wrapper">
+                  <TeamOutlined class="summary-icon" />
+                </div>
+                <div class="summary-content">
+                  <Text strong>{{ tenantStats.activeSchools }}</Text>
+                  <Text type="secondary"> sekolah aktif dari </Text>
+                  <Text strong>{{ tenantStats.totalSchools }}</Text>
+                  <Text type="secondary"> total terdaftar</Text>
+                </div>
               </div>
-            </div>
-            <div class="summary-item">
-              <DesktopOutlined class="summary-icon" />
-              <div class="summary-content">
-                <Text strong>{{ deviceStats.activeDevices }}</Text>
-                <Text type="secondary"> device aktif, </Text>
-                <Text strong>{{ deviceStats.onlineDevices }}</Text>
-                <Text type="secondary"> online</Text>
+              <div class="summary-item">
+                <div class="summary-icon-wrapper">
+                  <DesktopOutlined class="summary-icon" />
+                </div>
+                <div class="summary-content">
+                  <Text strong>{{ deviceStats.activeDevices }}</Text>
+                  <Text type="secondary"> device aktif, </Text>
+                  <Text strong>{{ deviceStats.onlineDevices }}</Text>
+                  <Text type="secondary"> sedang online</Text>
+                </div>
               </div>
-            </div>
-            <div class="summary-item">
-              <CloseCircleOutlined class="summary-icon inactive" />
-              <div class="summary-content">
-                <Text strong>{{ tenantStats.inactiveSchools }}</Text>
-                <Text type="secondary"> sekolah nonaktif, </Text>
-                <Text strong>{{ deviceStats.inactiveDevices }}</Text>
-                <Text type="secondary"> device nonaktif</Text>
+              <div class="summary-item">
+                <div class="summary-icon-wrapper inactive">
+                  <CloseCircleOutlined class="summary-icon" />
+                </div>
+                <div class="summary-content">
+                  <Text strong>{{ tenantStats.inactiveSchools }}</Text>
+                  <Text type="secondary"> sekolah nonaktif, </Text>
+                  <Text strong>{{ deviceStats.inactiveDevices }}</Text>
+                  <Text type="secondary"> device nonaktif</Text>
+                </div>
               </div>
             </div>
           </Card>
@@ -269,24 +281,30 @@ onMounted(() => {
       <!-- Recent Data -->
       <Row :gutter="[24, 24]" style="margin-top: 24px">
         <Col :xs="24" :lg="12">
-          <Card title="Sekolah Terbaru" class="list-card">
+          <Card title="Sekolah Terbaru" class="content-card" :bordered="false">
             <List
               :data-source="recentSchools"
               :loading="loading"
               size="small"
+              item-layout="horizontal"
             >
               <template #renderItem="{ item }">
-                <ListItem>
-                  <ListItemMeta
-                    :title="item.name"
-                    :description="item.email || 'No email'"
-                  >
+                <ListItem class="recent-list-item">
+                  <ListItemMeta>
+                    <template #title>
+                      <span class="list-title">{{ item.name }}</span>
+                    </template>
+                    <template #description>
+                      <span class="list-subtitle">{{ item.email || 'No email' }}</span>
+                    </template>
                     <template #avatar>
-                      <BankOutlined class="list-icon" />
+                      <div class="list-avatar">
+                        <BankOutlined />
+                      </div>
                     </template>
                   </ListItemMeta>
                   <template #actions>
-                    <Tag :color="item.isActive ? 'success' : 'default'">
+                    <Tag :color="item.isActive ? 'success' : 'default'" :bordered="false">
                       {{ item.isActive ? 'Aktif' : 'Nonaktif' }}
                     </Tag>
                   </template>
@@ -296,27 +314,30 @@ onMounted(() => {
           </Card>
         </Col>
         <Col :xs="24" :lg="12">
-          <Card title="Device Terbaru" class="list-card">
+          <Card title="Device Terbaru" class="content-card" :bordered="false">
             <List
               :data-source="recentDevices"
               :loading="loading"
               size="small"
+              item-layout="horizontal"
             >
               <template #renderItem="{ item }">
-                <ListItem>
-                  <ListItemMeta
-                    :title="item.deviceCode"
-                    :description="item.schoolName || `School ID: ${item.schoolId}`"
-                  >
+                <ListItem class="recent-list-item">
+                  <ListItemMeta>
+                    <template #title>
+                      <span class="list-title">{{ item.deviceCode }}</span>
+                    </template>
+                    <template #description>
+                      <span class="list-subtitle">{{ item.schoolName || `School: ${item.schoolId}` }}</span>
+                    </template>
                     <template #avatar>
-                      <component
-                        :is="isDeviceOnline(item) ? WifiOutlined : DisconnectOutlined"
-                        :class="['list-icon', isDeviceOnline(item) ? 'online' : 'offline']"
-                      />
+                      <div class="list-avatar" :class="{ 'online': isDeviceOnline(item) }">
+                        <component :is="isDeviceOnline(item) ? WifiOutlined : DisconnectOutlined" />
+                      </div>
                     </template>
                   </ListItemMeta>
                   <template #actions>
-                    <Tag :color="item.isActive ? (isDeviceOnline(item) ? 'success' : 'warning') : 'default'">
+                    <Tag :color="item.isActive ? (isDeviceOnline(item) ? 'success' : 'warning') : 'default'" :bordered="false">
                       {{ item.isActive ? (isDeviceOnline(item) ? 'Online' : 'Offline') : 'Nonaktif' }}
                     </Tag>
                   </template>
@@ -333,90 +354,187 @@ onMounted(() => {
 <style scoped>
 .super-admin-dashboard {
   padding: 0;
+  max-width: 1600px;
+  margin: 0 auto;
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
+.page-title {
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  margin-bottom: 8px !important;
+  letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* Stat Cards */
 .stat-card {
   height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
+  transition: all 0.2s ease;
 }
 
-.stat-card :deep(.ant-statistic-title) {
-  font-size: 14px;
-  color: #8c8c8c;
+.stat-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border-color: #e2e8f0;
 }
 
-.stat-card :deep(.ant-statistic-content-prefix) {
-  margin-right: 8px;
+.stat-icon {
+  font-size: 20px;
+  padding: 10px;
+  border-radius: 10px;
 }
 
-.status-card,
-.summary-card,
-.list-card {
+.stat-icon.primary {
+  color: #f97316;
+  background-color: #fff7ed;
+}
+
+.stat-icon.success {
+  color: #22c55e;
+  background-color: #f0fdf4;
+}
+
+/* Content Cards */
+.content-card {
   height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
+}
+
+.content-card :deep(.ant-card-head) {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 16px 24px;
+}
+
+.content-card :deep(.ant-card-head-title) {
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.content-card :deep(.ant-card-body) {
+  padding: 24px;
+}
+
+/* Status List */
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .status-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f8fafc;
 }
 
 .status-item:last-child {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
 .status-label {
   font-weight: 500;
+  color: #475569;
+}
+
+.status-tag {
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Summary List */
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .summary-item {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.summary-item:last-child {
-  border-bottom: none;
+.summary-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: #fff7ed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summary-icon-wrapper.inactive {
+  background-color: #f1f5f9;
 }
 
 .summary-icon {
-  font-size: 24px;
+  font-size: 18px;
   color: #f97316;
 }
 
-.summary-icon.inactive {
-  color: #8c8c8c;
+.summary-icon-wrapper.inactive .summary-icon {
+  color: #64748b;
 }
 
 .summary-content {
-  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #475569;
 }
 
-.list-icon {
-  font-size: 20px;
-  color: #f97316;
+/* Recent List */
+.recent-list-item {
+  padding: 12px 0 !important;
+  border-bottom: 1px solid #f8fafc !important;
 }
 
-.list-icon.online {
+.recent-list-item:last-child {
+  border-bottom: none !important;
+}
+
+.list-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.list-avatar.online {
+  background-color: #f0fdf4;
   color: #22c55e;
 }
 
-.list-icon.offline {
-  color: #8c8c8c;
+.list-title {
+  font-weight: 500;
+  color: #334155;
+  font-size: 14px;
 }
 
-.list-card :deep(.ant-list-item) {
-  padding: 12px 0;
-}
-
-.list-card :deep(.ant-list-item-meta-title) {
-  margin-bottom: 0;
+.list-subtitle {
+  color: #94a3b8;
+  font-size: 13px;
 }
 </style>

@@ -6,7 +6,6 @@ import {
   Input,
   InputNumber,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -299,8 +298,8 @@ const viewStudentProfile = (studentId: number) => {
 }
 
 // Filter student options
-const filterStudentOption = (input: string, option: { label: string }) => {
-  return option.label.toLowerCase().includes(input.toLowerCase())
+const filterStudentOption = (input: string, option: any) => {
+  return option?.label?.toLowerCase().includes(input.toLowerCase())
 }
 
 onMounted(() => {
@@ -351,6 +350,7 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa atau prestasi..."
               allow-clear
+              size="large"
               style="width: 250px"
               @press-enter="handleSearch"
             >
@@ -358,19 +358,19 @@ onMounted(() => {
                 <SearchOutlined />
               </template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
           </Space>
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
-            <Button @click="handleExportPDF">
+            <Button size="large" @click="handleExportPDF">
               <template #icon><FilePdfOutlined /></template>
               Export PDF
             </Button>
-            <Button @click="loadAchievements">
+            <Button size="large" @click="loadAchievements">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" @click="openCreateModal">
+            <Button type="primary" size="large" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
               Catat Prestasi
             </Button>
@@ -392,6 +392,8 @@ onMounted(() => {
         }"
         row-key="id"
         @change="handleTableChange"
+        class="custom-table"
+        :scroll="{ x: 800 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'createdAt'">
@@ -403,14 +405,14 @@ onMounted(() => {
             </a>
           </template>
           <template v-else-if="column.key === 'studentClass'">
-            <Tag color="blue">{{ (record as Achievement).studentClass }}</Tag>
+            <span class="class-badge">{{ (record as Achievement).studentClass }}</span>
           </template>
           <template v-else-if="column.key === 'point'">
-            <Tag color="success">+{{ (record as Achievement).point }}</Tag>
+            <span class="status-badge success">+{{ (record as Achievement).point }}</span>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="viewStudentProfile((record as Achievement).studentId)">
+              <Button type="text" style="color: #3b82f6" @click="viewStudentProfile((record as Achievement).studentId)">
                 <template #icon><EyeOutlined /></template>
               </Button>
               <Popconfirm
@@ -420,7 +422,7 @@ onMounted(() => {
                 cancel-text="Batal"
                 @confirm="handleDelete(record as Achievement)"
               >
-                <Button size="small" danger>
+                <Button type="text" danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>
@@ -438,6 +440,7 @@ onMounted(() => {
       @ok="handleSubmit"
       @cancel="handleModalCancel"
       width="600px"
+      wrap-class-name="modern-modal"
     >
       <Form
         ref="formRef"
@@ -452,18 +455,20 @@ onMounted(() => {
             placeholder="Pilih siswa"
             :loading="loadingStudents"
             show-search
+            size="large"
             :filter-option="filterStudentOption"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))"
           />
         </FormItem>
         <FormItem label="Judul Prestasi" name="title" required>
-          <Input v-model:value="formState.title" placeholder="Contoh: Juara 1 Olimpiade Matematika" />
+          <Input v-model:value="formState.title" size="large" placeholder="Contoh: Juara 1 Olimpiade Matematika" />
         </FormItem>
         <FormItem label="Poin" name="point" required>
           <InputNumber
             v-model:value="formState.point"
             :min="1"
             :max="1000"
+            size="large"
             style="width: 100%"
             placeholder="Masukkan poin prestasi"
           />
@@ -473,6 +478,7 @@ onMounted(() => {
             v-model:value="formState.description"
             placeholder="Jelaskan detail prestasi..."
             :rows="3"
+            class="custom-textarea"
           />
         </FormItem>
       </Form>
@@ -496,6 +502,47 @@ onMounted(() => {
 .toolbar-right {
   display: flex;
   justify-content: flex-end;
+}
+
+/* Custom Table Styles */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  color: #475569;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+}
+
+.custom-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #f8fafc;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.class-badge {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 @media (max-width: 768px) {

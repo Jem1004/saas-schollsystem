@@ -4,7 +4,6 @@ import {
   Table,
   Button,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -331,42 +330,45 @@ onMounted(() => {
         :loading="loading"
         :pagination="false"
         row-key="id"
+        class="custom-table"
+        :scroll="{ x: 800 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'name'">
-            <Space direction="vertical" size="small">
+            <div style="display: flex; flex-direction: column;">
               <Text strong>{{ (record as DisplayToken).name }}</Text>
-              <Text v-if="(record as DisplayToken).displayUrl" type="secondary" style="font-size: 12px">
+              <Text v-if="(record as DisplayToken).displayUrl" type="secondary" style="font-size: 12px; color: #94a3b8;">
                 <LinkOutlined /> {{ (record as DisplayToken).displayUrl }}
               </Text>
-            </Space>
+            </div>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="getStatusColor(record as DisplayToken)">
+            <span class="status-badge" :class="getStatusColor(record as DisplayToken)">
               {{ getStatusText(record as DisplayToken) }}
-            </Tag>
+            </span>
           </template>
           <template v-else-if="column.key === 'lastAccessed'">
-            <Text>{{ formatRelativeTime((record as DisplayToken).lastAccessedAt) }}</Text>
+            <span class="text-secondary">{{ formatRelativeTime((record as DisplayToken).lastAccessedAt) }}</span>
           </template>
           <template v-else-if="column.key === 'expires'">
-            <Text v-if="(record as DisplayToken).expiresAt" :type="isExpired(record as DisplayToken) ? 'danger' : undefined">
+            <span v-if="(record as DisplayToken).expiresAt" :class="isExpired(record as DisplayToken) ? 'text-red-500' : 'text-secondary'">
               {{ formatDate((record as DisplayToken).expiresAt) }}
-            </Text>
-            <Text v-else type="secondary">Tidak ada</Text>
+            </span>
+            <span v-else class="text-secondary">Tidak ada</span>
           </template>
           <template v-else-if="column.key === 'created'">
-            <Text>{{ formatDate((record as DisplayToken).createdAt) }}</Text>
+            <span class="text-secondary">{{ formatDate((record as DisplayToken).createdAt) }}</span>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
               <Tooltip title="Salin URL Display">
                 <Button 
-                  size="small" 
+                  size="small"
+                  type="text"
                   :disabled="!(record as DisplayToken).displayUrl"
                   @click="copyDisplayUrl((record as DisplayToken).displayUrl)"
                 >
-                  <template #icon><CopyOutlined /></template>
+                  <template #icon><CopyOutlined style="color: #3b82f6;" /></template>
                 </Button>
               </Tooltip>
               <Tooltip title="Regenerate Token">
@@ -377,8 +379,8 @@ onMounted(() => {
                   cancel-text="Batal"
                   @confirm="handleRegenerate(record as DisplayToken)"
                 >
-                  <Button size="small">
-                    <template #icon><SyncOutlined /></template>
+                  <Button size="small" type="text">
+                    <template #icon><SyncOutlined style="color: #f59e0b;" /></template>
                   </Button>
                 </Popconfirm>
               </Tooltip>
@@ -390,7 +392,7 @@ onMounted(() => {
                   cancel-text="Batal"
                   @confirm="handleRevoke(record as DisplayToken)"
                 >
-                  <Button size="small" danger>
+                  <Button size="small" type="text" danger>
                     <template #icon><StopOutlined /></template>
                   </Button>
                 </Popconfirm>
@@ -400,9 +402,10 @@ onMounted(() => {
                 description="Token akan dihapus permanen."
                 ok-text="Ya, Hapus"
                 cancel-text="Batal"
+                ok-type="danger"
                 @confirm="handleDelete(record as DisplayToken)"
               >
-                <Button size="small" danger>
+                <Button size="small" type="text" danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>
@@ -418,6 +421,7 @@ onMounted(() => {
       title="Buat Display Token Baru"
       :confirm-loading="createModalLoading"
       width="500px"
+      wrap-class-name="modern-modal"
       @ok="handleCreate"
       @cancel="handleCreateModalCancel"
     >
@@ -426,12 +430,13 @@ onMounted(() => {
         :model="formState"
         :rules="formRules"
         layout="vertical"
-        style="margin-top: 16px"
+        class="modern-form"
       >
         <FormItem label="Nama Display" name="name" required>
           <Input 
             v-model:value="formState.name" 
             placeholder="Contoh: Display Pintu Utama, LCD Lobby" 
+            size="large"
           />
           <Text type="secondary" style="font-size: 12px">
             Nama untuk mengidentifikasi lokasi display
@@ -444,6 +449,7 @@ onMounted(() => {
             format="DD MMMM YYYY"
             placeholder="Pilih tanggal"
             style="width: 100%"
+            size="large"
             :disabled-date="(current: dayjs.Dayjs) => current && current < dayjs().startOf('day')"
           />
           <Text type="secondary" style="font-size: 12px">
@@ -461,11 +467,12 @@ onMounted(() => {
       :closable="false"
       :maskClosable="false"
       width="600px"
+      wrap-class-name="modern-modal"
     >
       <Alert
         type="warning"
         show-icon
-        style="margin-bottom: 16px"
+        style="margin-bottom: 24px"
       >
         <template #icon><ExclamationCircleOutlined /></template>
         <template #message>Simpan token ini sekarang!</template>
@@ -487,10 +494,12 @@ onMounted(() => {
               :value="newTokenData.token"
               readonly
               style="flex: 1"
+              size="large"
             />
             <Button 
               :type="tokenCopied ? 'primary' : 'default'"
               @click="copyToken"
+              size="large"
             >
               <template #icon>
                 <CheckOutlined v-if="tokenCopied" />
@@ -508,10 +517,12 @@ onMounted(() => {
               :value="newTokenData.displayUrl"
               readonly
               style="flex: 1"
+              size="large"
             />
             <Button 
               :type="urlCopied ? 'primary' : 'default'"
               @click="copyDisplayUrl()"
+              size="large"
             >
               <template #icon>
                 <CheckOutlined v-if="urlCopied" />
@@ -520,14 +531,14 @@ onMounted(() => {
               {{ urlCopied ? 'Tersalin' : 'Salin' }}
             </Button>
           </div>
-          <Text type="secondary" style="font-size: 12px; margin-top: 4px; display: block">
+          <Text type="secondary" style="font-size: 13px; margin-top: 8px; display: block">
             Gunakan URL ini untuk mengakses public display di browser
           </Text>
         </div>
       </div>
 
-      <div style="margin-top: 24px; text-align: right">
-        <Button type="primary" @click="handleSecretModalClose">
+      <div style="margin-top: 32px; text-align: right">
+        <Button type="primary" size="large" @click="handleSecretModalClose">
           Saya Sudah Menyimpan Token
         </Button>
       </div>
@@ -586,5 +597,48 @@ onMounted(() => {
   .token-value {
     flex-direction: column;
   }
+}
+
+/* Custom Table */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.status-badge.success { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
+.status-badge.warning { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
+.status-badge.error { background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; }
+
+/* Text Styles */
+.text-secondary {
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* Token Info in Modal */
+.token-info {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
 }
 </style>

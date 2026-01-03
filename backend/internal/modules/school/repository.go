@@ -648,7 +648,6 @@ func (r *repository) ValidateHomeroomTeacher(ctx context.Context, schoolID uint,
 	// Check if user has a valid role for homeroom teacher
 	validRoles := []models.UserRole{
 		models.RoleWaliKelas,
-		models.RoleGuru,
 		models.RoleAdminSekolah,
 	}
 
@@ -689,11 +688,10 @@ func (r *repository) GetSchoolStats(ctx context.Context, schoolID uint) (*School
 		return nil, err
 	}
 
-	// Count total teachers (users with role guru, wali_kelas, or guru_bk)
+	// Count total teachers (users with role wali_kelas or guru_bk)
 	if err := r.db.WithContext(ctx).
 		Model(&models.User{}).
 		Where("school_id = ? AND role IN ?", schoolID, []models.UserRole{
-			models.RoleGuru,
 			models.RoleWaliKelas,
 			models.RoleGuruBK,
 		}).

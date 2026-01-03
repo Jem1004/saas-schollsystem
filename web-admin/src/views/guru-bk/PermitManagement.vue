@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -432,13 +431,13 @@ const viewStudentProfile = (studentId: number) => {
 }
 
 // Filter student options
-const filterStudentOption = (input: string, option: { label: string }) => {
-  return option.label.toLowerCase().includes(input.toLowerCase())
+const filterStudentOption = (input: string, option: any) => {
+  return option?.label?.toLowerCase().includes(input.toLowerCase())
 }
 
 // Filter teacher options
-const filterTeacherOption = (input: string, option: { label: string }) => {
-  return option.label.toLowerCase().includes(input.toLowerCase())
+const filterTeacherOption = (input: string, option: any) => {
+  return option?.label?.toLowerCase().includes(input.toLowerCase())
 }
 
 onMounted(() => {
@@ -463,6 +462,7 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa atau alasan..."
               allow-clear
+              size="large"
               style="width: 220px"
               @press-enter="handleSearch"
             >
@@ -470,11 +470,12 @@ onMounted(() => {
                 <SearchOutlined />
               </template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
             <Select
               v-model:value="filterStatus"
               placeholder="Filter Status"
               allow-clear
+              size="large"
               style="width: 150px"
               @change="handleFilterChange"
             >
@@ -485,14 +486,14 @@ onMounted(() => {
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
-            <Button @click="handleExportPDF">
+            <Button size="large" @click="handleExportPDF">
               <template #icon><FilePdfOutlined /></template>
               Export PDF
             </Button>
-            <Button @click="loadPermits">
+            <Button size="large" @click="loadPermits">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" @click="openCreateModal">
+            <Button type="primary" size="large" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
               Buat Izin
             </Button>
@@ -514,6 +515,8 @@ onMounted(() => {
         }"
         row-key="id"
         @change="handleTableChange"
+        class="custom-table"
+        :scroll="{ x: 800 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'createdAt'">
@@ -525,19 +528,19 @@ onMounted(() => {
             </a>
           </template>
           <template v-else-if="column.key === 'studentClass'">
-            <Tag color="blue">{{ (record as Permit).studentClass }}</Tag>
+            <span class="class-badge">{{ (record as Permit).studentClass }}</span>
           </template>
           <template v-else-if="column.key === 'exitTime'">
             {{ formatTime((record as Permit).exitTime) }}
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag :color="(record as Permit).returnTime ? 'success' : 'processing'">
+            <span :class="['status-badge', (record as Permit).returnTime ? 'success' : 'processing']">
               {{ (record as Permit).returnTime ? 'Sudah Kembali' : 'Belum Kembali' }}
-            </Tag>
+            </span>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="openPreviewModal(record as Permit)">
+              <Button type="text" style="color: #3b82f6" @click="openPreviewModal(record as Permit)">
                 <template #icon><EyeOutlined /></template>
               </Button>
               <Button
@@ -556,7 +559,7 @@ onMounted(() => {
                 cancel-text="Batal"
                 @confirm="handleDelete(record as Permit)"
               >
-                <Button size="small" danger>
+                <Button type="text" danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>
@@ -574,6 +577,7 @@ onMounted(() => {
       @ok="handleSubmit"
       @cancel="handleModalCancel"
       width="600px"
+      wrap-class-name="modern-modal"
     >
       <Form
         ref="formRef"
@@ -588,6 +592,7 @@ onMounted(() => {
             placeholder="Pilih siswa"
             :loading="loadingStudents"
             show-search
+            size="large"
             :filter-option="filterStudentOption"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))"
           />
@@ -597,6 +602,7 @@ onMounted(() => {
             v-model:value="formState.reason"
             placeholder="Jelaskan alasan izin keluar..."
             :rows="3"
+            class="custom-textarea"
           />
         </FormItem>
         <Row :gutter="16">
@@ -605,6 +611,7 @@ onMounted(() => {
               <TimePicker
                 v-model:value="formState.exitTimeValue"
                 format="HH:mm"
+                size="large"
                 style="width: 100%"
                 placeholder="Pilih waktu"
               />
@@ -617,6 +624,7 @@ onMounted(() => {
                 placeholder="Pilih guru"
                 :loading="loadingTeachers"
                 show-search
+                size="large"
                 :filter-option="filterTeacherOption"
                 :options="teachers.map(t => ({ value: t.id, label: t.name || t.username }))"
               />
@@ -634,6 +642,7 @@ onMounted(() => {
       @ok="handleRecordReturn"
       @cancel="handleReturnModalCancel"
       width="400px"
+      wrap-class-name="modern-modal"
     >
       <div v-if="selectedPermit" style="margin-bottom: 16px">
         <Text strong>{{ selectedPermit.studentName }}</Text>
@@ -649,6 +658,7 @@ onMounted(() => {
           <TimePicker
             v-model:value="returnFormState.returnTimeValue"
             format="HH:mm"
+            size="large"
             style="width: 100%"
             placeholder="Pilih waktu kembali"
           />
@@ -662,6 +672,7 @@ onMounted(() => {
       title="Detail Izin Keluar"
       :footer="null"
       width="600px"
+      wrap-class-name="modern-modal"
     >
       <div v-if="selectedPermit" class="permit-preview">
         <div class="permit-header">
@@ -682,7 +693,7 @@ onMounted(() => {
             <span v-if="selectedPermit.returnTime">
               {{ formatDate(selectedPermit.returnTime) }} {{ formatTime(selectedPermit.returnTime) }}
             </span>
-            <Tag v-else color="processing">Belum Kembali</Tag>
+            <span v-else class="status-badge processing">Belum Kembali</span>
           </DescriptionsItem>
           <DescriptionsItem label="Guru Penanggung Jawab">
             {{ selectedPermit.responsibleTeacherName }}
@@ -694,7 +705,7 @@ onMounted(() => {
         </Descriptions>
 
         <div class="permit-actions">
-          <Button type="primary" @click="handlePrintPermit">
+          <Button type="primary" size="large" @click="handlePrintPermit">
             <template #icon><PrinterOutlined /></template>
             Cetak Dokumen
           </Button>
@@ -743,6 +754,53 @@ onMounted(() => {
   margin-top: 24px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* Custom Table Styles */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  color: #475569;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+}
+
+.custom-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #f8fafc;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.processing {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+}
+
+.class-badge {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 @media (max-width: 768px) {

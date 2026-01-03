@@ -12,7 +12,6 @@ import {
   ListItem,
   ListItemMeta,
   Typography,
-  Tag,
 } from 'ant-design-vue'
 import {
   TeamOutlined,
@@ -207,34 +206,43 @@ onMounted(() => {
                   type="circle"
                   :percent="attendancePercentage"
                   :stroke-color="attendancePercentage >= 95 ? '#22c55e' : attendancePercentage >= 85 ? '#f97316' : '#ef4444'"
-                  :size="120"
+                  :size="140"
+                  :stroke-width="8"
                 >
                   <template #format="percent">
-                    <span class="progress-text">{{ percent }}%</span>
+                    <div class="progress-content">
+                      <span class="progress-text">{{ percent }}%</span>
+                      <span class="progress-label">hadir</span>
+                    </div>
                   </template>
                 </Progress>
-                <Text type="secondary" style="margin-top: 8px">Kehadiran</Text>
               </div>
               <div class="attendance-details">
                 <div class="attendance-item">
-                  <CheckCircleOutlined class="icon success" />
+                  <div class="icon-wrapper success">
+                    <CheckCircleOutlined />
+                  </div>
                   <div class="item-content">
-                    <Text strong>{{ stats.todayAttendance.present }}</Text>
-                    <Text type="secondary">Hadir</Text>
+                    <Text strong class="stat-value">{{ stats.todayAttendance.present }}</Text>
+                    <Text type="secondary" class="stat-label">Hadir</Text>
                   </div>
                 </div>
                 <div class="attendance-item">
-                  <ClockCircleOutlined class="icon warning" />
+                  <div class="icon-wrapper warning">
+                    <ClockCircleOutlined />
+                  </div>
                   <div class="item-content">
-                    <Text strong>{{ stats.todayAttendance.late }}</Text>
-                    <Text type="secondary">Terlambat</Text>
+                    <Text strong class="stat-value">{{ stats.todayAttendance.late }}</Text>
+                    <Text type="secondary" class="stat-label">Terlambat</Text>
                   </div>
                 </div>
                 <div class="attendance-item">
-                  <CloseCircleOutlined class="icon danger" />
+                  <div class="icon-wrapper danger">
+                    <CloseCircleOutlined />
+                  </div>
                   <div class="item-content">
-                    <Text strong>{{ stats.todayAttendance.absent }}</Text>
-                    <Text type="secondary">Tidak Hadir</Text>
+                    <Text strong class="stat-value">{{ stats.todayAttendance.absent }}</Text>
+                    <Text type="secondary" class="stat-label">Absen</Text>
                   </div>
                 </div>
               </div>
@@ -246,16 +254,20 @@ onMounted(() => {
             <List
               :data-source="todayAttendanceByClass"
               :loading="loading"
-              size="small"
+              size="large"
+              item-layout="horizontal"
             >
               <template #renderItem="{ item }">
-                <ListItem>
-                  <ListItemMeta :title="item.className">
+                <ListItem class="attendance-list-item">
+                  <ListItemMeta>
+                    <template #title>
+                      <span class="class-name">{{ item.className }}</span>
+                    </template>
                     <template #description>
                       <div class="class-attendance-stats">
-                        <Tag color="success">{{ item.present }} hadir</Tag>
-                        <Tag v-if="item.late > 0" color="warning">{{ item.late }} terlambat</Tag>
-                        <Tag v-if="item.absent > 0" color="error">{{ item.absent }} absen</Tag>
+                        <span class="stat-pill success">{{ item.present }} hadir</span>
+                        <span v-if="item.late > 0" class="stat-pill warning">{{ item.late }} terlambat</span>
+                        <span v-if="item.absent > 0" class="stat-pill error">{{ item.absent }} absen</span>
                       </div>
                     </template>
                   </ListItemMeta>
@@ -286,19 +298,24 @@ onMounted(() => {
             >
               <template #renderItem="{ item }">
                 <ListItem>
-                  <Card size="small" class="class-item-card">
+                  <Card size="small" class="class-item-card" :bordered="false">
                     <div class="class-info">
-                      <BookOutlined class="class-icon" />
+                      <div class="class-icon-wrapper">
+                         <BookOutlined />
+                      </div>
                       <div class="class-details">
-                        <Text strong>{{ item.name }}</Text>
+                        <Text strong style="font-size: 16px;">{{ item.name }}</Text>
                         <Text type="secondary" class="class-meta">
                           {{ item.studentCount || 0 }} siswa
                         </Text>
                       </div>
                     </div>
                     <div class="class-teacher" v-if="item.homeroomTeacherName">
-                      <UserOutlined />
-                      <Text type="secondary">{{ item.homeroomTeacherName }}</Text>
+                      <UserOutlined style="color: #64748b;" />
+                      <Text type="secondary" style="font-size: 13px;">{{ item.homeroomTeacherName }}</Text>
+                    </div>
+                    <div class="class-teacher empty" v-else>
+                      <Text type="secondary" style="font-size: 13px; font-style: italic;">Belum ada wali kelas</Text>
                     </div>
                   </Card>
                 </ListItem>
@@ -327,27 +344,38 @@ onMounted(() => {
 
 .stat-card {
   height: 100%;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .stat-card :deep(.ant-statistic-title) {
-  font-size: 14px;
-  color: #8c8c8c;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.stat-card :deep(.ant-statistic-content) {
+  font-weight: 600;
 }
 
 .stat-card :deep(.ant-statistic-content-prefix) {
-  margin-right: 8px;
+  margin-right: 12px;
 }
 
+/* Attendance Card */
 .attendance-card,
 .class-attendance-card,
 .classes-card {
   height: 100%;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .attendance-overview {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 48px;
+  padding: 16px 0;
 }
 
 .attendance-progress {
@@ -356,65 +384,120 @@ onMounted(() => {
   align-items: center;
 }
 
+.progress-content {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
 .progress-text {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .attendance-details {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .attendance-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.attendance-item .icon {
-  font-size: 24px;
+.icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
 }
 
-.attendance-item .icon.success {
-  color: #22c55e;
-}
-
-.attendance-item .icon.warning {
-  color: #f97316;
-}
-
-.attendance-item .icon.danger {
-  color: #ef4444;
-}
+.icon-wrapper.success { background: #ecfdf5; color: #10b981; }
+.icon-wrapper.warning { background: #fffbeb; color: #f59e0b; }
+.icon-wrapper.danger { background: #fef2f2; color: #ef4444; }
 
 .item-content {
   display: flex;
   flex-direction: column;
 }
 
-.class-attendance-stats {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+.stat-value { font-size: 18px; line-height: 1.2; }
+.stat-label { font-size: 13px; }
+
+/* Class Attendance List */
+.attendance-list-item {
+  padding: 16px;
+  border-bottom: 1px solid #f8fafc;
 }
 
+.class-name {
+  font-weight: 600;
+  color: #334155;
+}
+
+.class-attendance-stats {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.stat-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.stat-pill.success { background: #f0fdf4; color: #166534; }
+.stat-pill.warning { background: #fff7ed; color: #9a3412; }
+.stat-pill.error { background: #fef2f2; color: #991b1b; }
+
+/* Class Grid Items */
 .class-item-card {
   height: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.class-item-card:hover {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .class-info {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.class-icon {
-  font-size: 24px;
+.class-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  background: #fff7ed;
   color: #f97316;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
 }
 
 .class-details {
@@ -430,27 +513,26 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #8c8c8c;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
 }
 
 @media (max-width: 768px) {
   .attendance-overview {
     flex-direction: column;
-    gap: 24px;
+    gap: 32px;
   }
 
   .attendance-details {
     flex-direction: row;
-    justify-content: space-around;
+    justify-content: space-between;
     width: 100%;
   }
 
   .attendance-item {
     flex-direction: column;
     text-align: center;
+    gap: 8px;
   }
 }
 </style>

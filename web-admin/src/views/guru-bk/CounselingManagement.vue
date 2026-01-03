@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -294,8 +293,8 @@ const viewStudentProfile = (studentId: number) => {
 }
 
 // Filter student options
-const filterStudentOption = (input: string, option: { label: string }) => {
-  return option.label.toLowerCase().includes(input.toLowerCase())
+const filterStudentOption = (input: string, option: any) => {
+  return option?.label?.toLowerCase().includes(input.toLowerCase())
 }
 
 // Sensitive data access confirmation
@@ -363,6 +362,7 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa..."
               allow-clear
+              size="large"
               style="width: 220px"
               @press-enter="handleSearch"
             >
@@ -370,19 +370,19 @@ onMounted(() => {
                 <SearchOutlined />
               </template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
           </Space>
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
-            <Button @click="handleExportPDF">
+            <Button size="large" @click="handleExportPDF">
               <template #icon><FilePdfOutlined /></template>
               Export PDF
             </Button>
-            <Button @click="loadCounselingNotes">
+            <Button size="large" @click="loadCounselingNotes">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" @click="openCreateModal">
+            <Button type="primary" size="large" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
               Buat Catatan
             </Button>
@@ -404,6 +404,8 @@ onMounted(() => {
         }"
         row-key="id"
         @change="handleTableChange"
+        class="custom-table"
+        :scroll="{ x: 800 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'createdAt'">
@@ -415,7 +417,7 @@ onMounted(() => {
             </a>
           </template>
           <template v-else-if="column.key === 'studentClass'">
-            <Tag color="blue">{{ (record as CounselingNote).studentClass }}</Tag>
+            <span class="class-badge">{{ (record as CounselingNote).studentClass }}</span>
           </template>
           <template v-else-if="column.key === 'parentSummary'">
             <span v-if="(record as CounselingNote).parentSummary">
@@ -424,16 +426,16 @@ onMounted(() => {
             <Text v-else type="secondary" italic>Tidak ada ringkasan untuk orang tua</Text>
           </template>
           <template v-else-if="column.key === 'status'">
-            <Tag v-if="(record as CounselingNote).parentSummary" color="success">
+            <span v-if="(record as CounselingNote).parentSummary" class="status-badge success">
               <UnlockOutlined /> Dibagikan
-            </Tag>
-            <Tag v-else color="default">
+            </span>
+            <span v-else class="status-badge default">
               <LockOutlined /> Internal
-            </Tag>
+            </span>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="requestViewInternalNote(record as CounselingNote)">
+              <Button type="text" style="color: #3b82f6" @click="requestViewInternalNote(record as CounselingNote)">
                 <template #icon><EyeOutlined /></template>
               </Button>
               <Popconfirm
@@ -443,7 +445,7 @@ onMounted(() => {
                 cancel-text="Batal"
                 @confirm="handleDelete(record as CounselingNote)"
               >
-                <Button size="small" danger>
+                <Button type="text" danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>
@@ -461,6 +463,7 @@ onMounted(() => {
       @ok="handleSubmit"
       @cancel="handleModalCancel"
       width="700px"
+      wrap-class-name="modern-modal"
     >
       <Form
         ref="formRef"
@@ -475,6 +478,7 @@ onMounted(() => {
             placeholder="Pilih siswa"
             :loading="loadingStudents"
             show-search
+            size="large"
             :filter-option="filterStudentOption"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))"
           />
@@ -495,6 +499,7 @@ onMounted(() => {
             v-model:value="formState.internalNote"
             placeholder="Tuliskan catatan detail hasil konseling. Catatan ini bersifat rahasia dan tidak akan dibagikan kepada orang tua atau wali kelas..."
             :rows="6"
+            class="custom-textarea"
           />
         </FormItem>
 
@@ -513,6 +518,7 @@ onMounted(() => {
             v-model:value="formState.parentSummary"
             placeholder="Tuliskan ringkasan yang aman untuk dibagikan kepada orang tua. Hindari informasi sensitif..."
             :rows="4"
+            class="custom-textarea"
           />
         </FormItem>
       </Form>
@@ -524,11 +530,12 @@ onMounted(() => {
       title="Detail Catatan Konseling"
       :footer="null"
       width="700px"
+      wrap-class-name="modern-modal"
     >
       <div v-if="selectedNote" class="counseling-detail">
         <div class="student-info">
           <Text strong>{{ selectedNote.studentName }}</Text>
-          <Tag color="blue" style="margin-left: 8px">{{ selectedNote.studentClass }}</Tag>
+          <span class="class-badge" style="margin-left: 8px">{{ selectedNote.studentClass }}</span>
           <Text type="secondary" style="margin-left: 16px">
             {{ formatDate(selectedNote.createdAt) }}
           </Text>
@@ -623,6 +630,54 @@ onMounted(() => {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #f0f0f0;
+}
+
+/* Custom Table Styles */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  color: #475569;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+}
+
+.custom-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #f8fafc;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.default {
+  background-color: #f5f5f5;
+  color: #000000d9;
+  border: 1px solid #d9d9d9;
+}
+
+.class-badge {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 @media (max-width: 768px) {

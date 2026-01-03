@@ -17,8 +17,6 @@ import {
   Card,
   Typography,
   Spin,
-  Tag,
-  Badge,
   Progress,
   List,
   ListItem,
@@ -446,19 +444,7 @@ const formatTime = (timeStr: string): string => {
   return dayjs(timeStr).format('HH:mm:ss')
 }
 
-// Get rank badge color
-const getRankColor = (rank: number): string => {
-  switch (rank) {
-    case 1:
-      return '#ffd700' // Gold
-    case 2:
-      return '#c0c0c0' // Silver
-    case 3:
-      return '#cd7f32' // Bronze
-    default:
-      return '#3b82f6'
-  }
-}
+
 
 // Start time update interval
 const startTimeUpdate = () => {
@@ -518,7 +504,6 @@ onUnmounted(() => {
     <!-- Main Display Content -->
     <div v-else-if="displayData" class="display-content">
       <!-- Header Section -->
-      <!-- Requirements: 5.7, 5.8 - Show school name, current date and time -->
       <header class="display-header">
         <div class="header-left">
           <Title :level="1" class="school-name">{{ displayData.schoolName }}</Title>
@@ -526,26 +511,24 @@ onUnmounted(() => {
         </div>
         <div class="header-right">
           <div class="time-display">{{ formattedTime }}</div>
-          <Badge 
-            :status="connectionStatus.connected ? 'success' : 'error'" 
+          <div 
             class="connection-badge"
+            :title="connectionStatus.connected ? 'Terhubung' : 'Terputus'"
           >
-            <template #text>
-              <component 
-                :is="connectionStatus.connected ? WifiOutlined : DisconnectOutlined" 
-                class="connection-icon"
-              />
-            </template>
-          </Badge>
+            <component 
+              :is="connectionStatus.connected ? WifiOutlined : DisconnectOutlined" 
+              class="connection-icon"
+              :style="{ color: connectionStatus.connected ? '#22c55e' : '#ef4444' }"
+            />
+          </div>
         </div>
       </header>
 
       <!-- Stats Section -->
-      <!-- Requirements: 5.5 - Show real-time statistics -->
       <section class="stats-section">
         <Row :gutter="[24, 24]">
           <Col :xs="12" :sm="8" :md="4">
-            <Card class="stat-card stat-total">
+            <Card class="stat-card stat-total" :bordered="false">
               <div class="stat-content">
                 <UserOutlined class="stat-icon" />
                 <div class="stat-value">{{ displayData.stats.totalStudents }}</div>
@@ -554,7 +537,7 @@ onUnmounted(() => {
             </Card>
           </Col>
           <Col :xs="12" :sm="8" :md="4">
-            <Card class="stat-card stat-present">
+            <Card class="stat-card stat-present" :bordered="false">
               <div class="stat-content">
                 <CheckCircleOutlined class="stat-icon" />
                 <div class="stat-value">{{ displayData.stats.present }}</div>
@@ -563,7 +546,7 @@ onUnmounted(() => {
             </Card>
           </Col>
           <Col :xs="12" :sm="8" :md="4">
-            <Card class="stat-card stat-late">
+            <Card class="stat-card stat-late" :bordered="false">
               <div class="stat-content">
                 <ClockCircleOutlined class="stat-icon" />
                 <div class="stat-value">{{ displayData.stats.late }}</div>
@@ -572,7 +555,7 @@ onUnmounted(() => {
             </Card>
           </Col>
           <Col :xs="12" :sm="8" :md="4">
-            <Card class="stat-card stat-very-late">
+            <Card class="stat-card stat-very-late" :bordered="false">
               <div class="stat-content">
                 <ExclamationCircleOutlined class="stat-icon" />
                 <div class="stat-value">{{ displayData.stats.veryLate }}</div>
@@ -581,7 +564,7 @@ onUnmounted(() => {
             </Card>
           </Col>
           <Col :xs="12" :sm="8" :md="4">
-            <Card class="stat-card stat-absent">
+            <Card class="stat-card stat-absent" :bordered="false">
               <div class="stat-content">
                 <CloseCircleOutlined class="stat-icon" />
                 <div class="stat-value">{{ displayData.stats.absent }}</div>
@@ -590,14 +573,15 @@ onUnmounted(() => {
             </Card>
           </Col>
           <Col :xs="12" :sm="8" :md="4">
-            <Card class="stat-card stat-percentage">
+            <Card class="stat-card stat-percentage" :bordered="false">
               <div class="stat-content percentage-content">
                 <Progress
                   type="circle"
                   :percent="Math.round(displayData.stats.percentage)"
-                  :size="80"
+                  :size="50"
                   :stroke-color="displayData.stats.percentage >= 90 ? '#22c55e' : displayData.stats.percentage >= 75 ? '#f97316' : '#ef4444'"
                   :stroke-width="8"
+                  :trail-color="'#f1f5f9'"
                 />
                 <div class="stat-label">Kehadiran</div>
               </div>
@@ -608,16 +592,15 @@ onUnmounted(() => {
 
       <!-- Main Content: Live Feed and Leaderboard -->
       <section class="main-content">
-        <Row :gutter="[24, 24]">
+        <Row :gutter="[24, 24]" style="height: 100%">
           <!-- Live Feed Section -->
-          <!-- Requirements: 5.4 - Show live feed of recent attendance (last 10 records) -->
-          <Col :xs="24" :lg="14">
-            <Card class="content-card live-feed-card">
+          <Col :xs="24" :lg="14" style="height: 100%">
+            <Card class="content-card live-feed-card" :bordered="false">
               <template #title>
                 <div class="card-title">
                   <SyncOutlined v-if="connectionStatus.connected" spin class="live-icon" />
                   <span>Absensi Terbaru</span>
-                  <Tag v-if="connectionStatus.connected" color="success" class="live-tag">LIVE</Tag>
+                  <span v-if="connectionStatus.connected" class="status-badge success" style="font-size: 11px; padding: 2px 8px;">LIVE</span>
                 </div>
               </template>
               
@@ -629,7 +612,6 @@ onUnmounted(() => {
                       <div class="feed-item-content">
                         <Avatar 
                           :style="{ backgroundColor: getStatusColor(item.status) }"
-                          size="large"
                           class="feed-avatar"
                         >
                           {{ item.studentName.charAt(0).toUpperCase() }}
@@ -637,13 +619,13 @@ onUnmounted(() => {
                         <div class="feed-info">
                           <div class="feed-name">{{ item.studentName }}</div>
                           <div class="feed-meta">
-                            <Tag color="blue">{{ item.className }}</Tag>
+                            <span class="class-badge">{{ item.className }}</span>
                             <span class="feed-time">{{ formatTime(item.time) }}</span>
                           </div>
                         </div>
-                        <Tag :color="getStatusTagColor(item.status)" class="feed-status">
+                        <span :class="['status-badge', getStatusTagColor(item.status)]" class="feed-status">
                           {{ getStatusLabel(item.status) }}
-                        </Tag>
+                        </span>
                       </div>
                     </ListItem>
                   </template>
@@ -653,9 +635,8 @@ onUnmounted(() => {
           </Col>
 
           <!-- Leaderboard Section -->
-          <!-- Requirements: 5.6 - Show leaderboard of top 10 earliest arrivals -->
-          <Col :xs="24" :lg="10">
-            <Card class="content-card leaderboard-card">
+          <Col :xs="24" :lg="10" style="height: 100%">
+            <Card class="content-card leaderboard-card" :bordered="false">
               <template #title>
                 <div class="card-title">
                   <TrophyOutlined class="trophy-icon" />
@@ -671,14 +652,14 @@ onUnmounted(() => {
                       <div class="leaderboard-item-content">
                         <div 
                           class="rank-badge"
-                          :style="{ backgroundColor: getRankColor(item.rank) }"
+                          :class="item.rank <= 3 ? `rank-badge-${item.rank}` : 'rank-badge-other'"
                         >
                           {{ item.rank }}
                         </div>
                         <div class="leaderboard-info">
                           <div class="leaderboard-name">{{ item.studentName }}</div>
                           <div class="leaderboard-meta">
-                            <Tag color="blue">{{ item.className }}</Tag>
+                            <span class="class-badge">{{ item.className }}</span>
                           </div>
                         </div>
                         <div class="leaderboard-time">
@@ -702,10 +683,11 @@ onUnmounted(() => {
 /* Requirements: 5.12 - Use full-screen optimized layout with large fonts */
 .public-display {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  color: #ffffff;
-  padding: 24px;
+  background: #f8fafc;
+  color: #1e293b;
+  padding: 16px;
   overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 /* Loading State */
@@ -717,12 +699,12 @@ onUnmounted(() => {
 }
 
 .loading-container :deep(.ant-spin-text) {
-  color: #ffffff;
-  font-size: 18px;
+  color: #64748b;
+  font-size: 16px;
+  margin-top: 16px;
 }
 
 /* Error State */
-/* Requirements: 5.13 - Show error message if token is invalid */
 .error-container {
   display: flex;
   justify-content: center;
@@ -732,79 +714,83 @@ onUnmounted(() => {
 
 .error-content {
   text-align: center;
-  max-width: 500px;
-  padding: 48px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
+  max-width: 480px;
+  padding: 32px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
 }
 
 .error-icon {
-  font-size: 80px;
+  font-size: 48px;
   color: #ef4444;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .error-title {
-  color: #ffffff !important;
-  margin-bottom: 16px !important;
+  color: #1e293b !important;
+  font-size: 24px !important;
+  margin-bottom: 12px !important;
 }
 
 .error-code {
   display: block;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6) !important;
-  margin-bottom: 16px;
+  font-size: 13px;
+  color: #64748b !important;
+  margin-bottom: 12px;
+  font-family: monospace;
 }
 
 .error-hint {
   display: block;
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.8) !important;
-  margin-bottom: 24px;
+  font-size: 14px;
+  color: #475569 !important;
+  margin-bottom: 20px;
 }
 
 .refresh-button {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 /* Display Content */
 .display-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  height: calc(100vh - 48px);
+  gap: 16px;
+  height: calc(100vh - 32px);
 }
 
 /* Header Section */
-/* Requirements: 5.7, 5.8 - Show school name, date, time */
 .display-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  backdrop-filter: blur(10px);
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #f1f5f9;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .school-name {
-  color: #ffffff !important;
+  color: #1e293b !important;
   margin: 0 !important;
-  font-size: 32px !important;
+  font-size: 24px !important;
   font-weight: 700 !important;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.5px;
 }
 
 .date-text {
-  font-size: 20px;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .header-right {
@@ -814,38 +800,49 @@ onUnmounted(() => {
 }
 
 .time-display {
-  font-size: 48px;
+  font-size: 32px;
   font-weight: 700;
-  font-family: 'Courier New', monospace;
-  color: #22c55e;
-  text-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+  font-variant-numeric: tabular-nums;
+  color: #f97316;
+  letter-spacing: -0.5px;
+  background: #fff7ed;
+  padding: 4px 16px;
+  border-radius: 8px;
+  border: 1px solid #ffedd5;
 }
 
 .connection-badge {
-  font-size: 24px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .connection-icon {
-  font-size: 24px;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 20px;
+  color: #94a3b8;
 }
 
 /* Stats Section */
-/* Requirements: 5.5 - Show real-time statistics */
 .stats-section {
   flex-shrink: 0;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: none !important;
-  border-radius: 16px !important;
-  backdrop-filter: blur(10px);
+  background: #ffffff !important;
+  border: 1px solid #f1f5f9 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card :deep(.ant-card-body) {
-  padding: 20px !important;
+  padding: 16px !important;
 }
 
 .stat-content {
@@ -856,41 +853,42 @@ onUnmounted(() => {
 }
 
 .stat-icon {
-  font-size: 32px;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 24px;
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 2px;
 }
 
 .stat-value {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 700;
-  color: #ffffff;
+  color: #1e293b;
+  line-height: 1;
 }
 
 .stat-label {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
-.stat-total .stat-icon { color: #3b82f6; }
-.stat-total .stat-value { color: #3b82f6; }
+/* Stat Variants */
+.stat-total .stat-icon { color: #3b82f6; background: #eff6ff; }
+.stat-total .stat-value { color: #1e293b; }
 
-.stat-present .stat-icon { color: #22c55e; }
-.stat-present .stat-value { color: #22c55e; }
+.stat-present .stat-icon { color: #22c55e; background: #f0fdf4; }
+.stat-present .stat-value { color: #1e293b; }
 
-.stat-late .stat-icon { color: #f97316; }
-.stat-late .stat-value { color: #f97316; }
+.stat-late .stat-icon { color: #f97316; background: #fff7ed; }
+.stat-late .stat-value { color: #1e293b; }
 
-.stat-very-late .stat-icon { color: #ef4444; }
-.stat-very-late .stat-value { color: #ef4444; }
+.stat-very-late .stat-icon { color: #ef4444; background: #fef2f2; }
+.stat-very-late .stat-value { color: #1e293b; }
 
-.stat-absent .stat-icon { color: #6b7280; }
-.stat-absent .stat-value { color: #6b7280; }
-
-.percentage-content {
-  padding: 8px 0;
-}
+.stat-absent .stat-icon { color: #64748b; background: #f8fafc; }
+.stat-absent .stat-value { color: #1e293b; }
 
 /* Main Content */
 .main-content {
@@ -900,280 +898,231 @@ onUnmounted(() => {
 }
 
 .content-card {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: none !important;
-  border-radius: 16px !important;
-  backdrop-filter: blur(10px);
+  background: #ffffff !important;
+  border: 1px solid #f1f5f9 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .content-card :deep(.ant-card-head) {
-  background: transparent !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-  padding: 16px 24px !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 12px 16px !important;
+  min-height: 56px;
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
 }
 
 .content-card :deep(.ant-card-head-title) {
-  color: #ffffff !important;
-  font-size: 20px !important;
-  font-weight: 600 !important;
+  padding: 0;
 }
 
 .content-card :deep(.ant-card-body) {
-  padding: 16px 24px !important;
-  height: calc(100% - 65px);
-  overflow-y: auto;
+  padding: 0 !important;
+  flex: 1;
+  overflow: hidden;
+  background: #ffffff;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 .card-title {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #ffffff;
+  gap: 10px;
+  color: #1e293b;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .live-icon {
   color: #22c55e;
-  font-size: 20px;
-}
-
-.live-tag {
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .trophy-icon {
-  color: #ffd700;
-  font-size: 24px;
+  color: #eab308;
+  font-size: 20px;
 }
 
-/* Live Feed */
-/* Requirements: 5.4 - Show live feed of recent attendance */
-.feed-container {
+/* Feed & Leaderboard Containers */
+.feed-container,
+.leaderboard-container {
   height: 100%;
   overflow-y: auto;
+  padding: 0 16px;
 }
 
-.feed-item {
-  padding: 12px 0 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+/* List Items */
+.feed-item,
+.leaderboard-item {
+  padding: 10px 0 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  transition: background-color 0.2s;
 }
 
-.feed-item:last-child {
+.feed-item:last-child,
+.leaderboard-item:last-child {
   border-bottom: none !important;
 }
 
-.feed-item-content {
+.feed-item-content,
+.leaderboard-item-content {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
 }
 
 .feed-avatar {
   flex-shrink: 0;
-  font-size: 20px !important;
   font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  font-size: 14px !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
 }
 
-.feed-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.feed-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.feed-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-}
-
-.feed-time {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: 'Courier New', monospace;
-}
-
-.feed-status {
-  flex-shrink: 0;
-  font-size: 14px;
-}
-
-/* Leaderboard */
-/* Requirements: 5.6 - Show leaderboard of top 10 earliest arrivals */
-.leaderboard-container {
-  height: 100%;
-  overflow-y: auto;
-}
-
-.leaderboard-item {
-  padding: 12px 0 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-.leaderboard-item:last-child {
-  border-bottom: none !important;
-}
-
-.leaderboard-item-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-}
-
-.rank-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1a2e;
-  flex-shrink: 0;
-}
-
+.feed-info,
 .leaderboard-info {
   flex: 1;
   min-width: 0;
 }
 
+.feed-name,
 .leaderboard-name {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
+  color: #1e293b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 2px;
 }
 
+.feed-meta,
 .leaderboard-meta {
-  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feed-time,
+.leaderboard-time {
+  font-size: 12px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .leaderboard-time {
-  font-size: 18px;
-  font-weight: 600;
-  color: #22c55e;
-  font-family: 'Courier New', monospace;
-  flex-shrink: 0;
+  font-size: 14px;
+  color: #15803d;
+  font-weight: 700;
 }
+
+/* Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.status-badge.success { background: #f0fdf4; color: #166534; border-color: #dcfce7; }
+.status-badge.warning { background: #fff7ed; color: #9a3412; border-color: #ffedd5; }
+.status-badge.error { background: #fef2f2; color: #991b1b; border-color: #fee2e2; }
+.status-badge.default { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+
+.class-badge {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+}
+
+.rank-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Rank Colors */
+.rank-badge-1 { background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%); }
+.rank-badge-2 { background: linear-gradient(135deg, #94a3b8 0%, #475569 100%); }
+.rank-badge-3 { background: linear-gradient(135deg, #d97706 0%, #b45309 100%); }
+.rank-badge-other { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
 /* Empty State */
 .content-card :deep(.ant-empty-description) {
-  color: rgba(255, 255, 255, 0.6);
+  color: #94a3b8;
 }
 
 /* Scrollbar Styling */
 .feed-container::-webkit-scrollbar,
-.leaderboard-container::-webkit-scrollbar,
-.content-card :deep(.ant-card-body)::-webkit-scrollbar {
-  width: 6px;
+.leaderboard-container::-webkit-scrollbar {
+  width: 4px;
 }
 
 .feed-container::-webkit-scrollbar-track,
-.leaderboard-container::-webkit-scrollbar-track,
-.content-card :deep(.ant-card-body)::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+.leaderboard-container::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .feed-container::-webkit-scrollbar-thumb,
-.leaderboard-container::-webkit-scrollbar-thumb,
-.content-card :deep(.ant-card-body)::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
+.leaderboard-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
 }
 
 .feed-container::-webkit-scrollbar-thumb:hover,
-.leaderboard-container::-webkit-scrollbar-thumb:hover,
-.content-card :deep(.ant-card-body)::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+.leaderboard-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Responsive Design */
 @media (max-width: 1200px) {
-  .school-name {
-    font-size: 28px !important;
-  }
-
-  .time-display {
-    font-size: 40px;
-  }
-
-  .stat-value {
-    font-size: 28px;
-  }
+  .school-name { font-size: 20px !important; }
+  .time-display { font-size: 28px; }
+  .stat-value { font-size: 24px; }
 }
 
 @media (max-width: 992px) {
-  .public-display {
-    padding: 16px;
-  }
-
-  .display-header {
-    flex-direction: column;
-    gap: 16px;
-    text-align: center;
-  }
-
-  .header-right {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .school-name {
-    font-size: 24px !important;
-  }
-
-  .time-display {
-    font-size: 36px;
-  }
-
-  .stat-value {
-    font-size: 24px;
-  }
-
-  .stat-icon {
-    font-size: 24px;
-  }
+  .public-display { padding: 12px; }
+  .display-header { flex-direction: column; gap: 12px; text-align: center; }
+  .header-right { flex-direction: column; gap: 8px; }
+  .school-name { font-size: 20px !important; }
+  .time-display { font-size: 28px; }
 }
 
 @media (max-width: 576px) {
-  .school-name {
-    font-size: 20px !important;
-  }
-
-  .date-text {
-    font-size: 16px;
-  }
-
-  .time-display {
-    font-size: 28px;
-  }
-
-  .stat-value {
-    font-size: 20px;
-  }
-
-  .feed-name,
-  .leaderboard-name {
-    font-size: 16px;
-  }
-
-  .feed-time,
-  .leaderboard-time {
-    font-size: 14px;
-  }
+  .school-name { font-size: 18px !important; }
+  .date-text { font-size: 13px; }
+  .time-display { font-size: 24px; }
+  .stat-value { font-size: 20px; }
+  .feed-name, .leaderboard-name { font-size: 13px; }
+  .feed-time, .leaderboard-time { font-size: 11px; }
 }
 </style>
+```

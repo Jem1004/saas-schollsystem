@@ -14,7 +14,6 @@ const (
 	RoleAdminSekolah UserRole = "admin_sekolah"
 	RoleGuruBK       UserRole = "guru_bk"
 	RoleWaliKelas    UserRole = "wali_kelas"
-	RoleGuru         UserRole = "guru"
 	RoleParent       UserRole = "parent"
 	RoleStudent      UserRole = "student"
 )
@@ -22,7 +21,7 @@ const (
 // IsValid checks if the user role is valid
 func (r UserRole) IsValid() bool {
 	switch r {
-	case RoleSuperAdmin, RoleAdminSekolah, RoleGuruBK, RoleWaliKelas, RoleGuru, RoleParent, RoleStudent:
+	case RoleSuperAdmin, RoleAdminSekolah, RoleGuruBK, RoleWaliKelas, RoleParent, RoleStudent:
 		return true
 	}
 	return false
@@ -86,11 +85,6 @@ func (u *User) IsGuruBK() bool {
 // IsWaliKelas checks if the user is a homeroom teacher
 func (u *User) IsWaliKelas() bool {
 	return u.Role == RoleWaliKelas
-}
-
-// IsGuru checks if the user is a teacher
-func (u *User) IsGuru() bool {
-	return u.Role == RoleGuru
 }
 
 // IsParent checks if the user is a parent

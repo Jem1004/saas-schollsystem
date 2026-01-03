@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -168,7 +167,7 @@ const loadTeachers = async () => {
 }
 
 // Filter option for teacher select
-const filterTeacherOption = (input: string, option: { label?: string }) => {
+const filterTeacherOption = (input: string, option: any) => {
   return option?.label?.toLowerCase().includes(input.toLowerCase()) ?? false
 }
 
@@ -338,37 +337,51 @@ onMounted(() => {
         }"
         row-key="id"
         @change="handleTableChange"
+        class="custom-table"
+        :scroll="{ x: 800 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'grade'">
-            <Tag color="blue">{{ getGradeLabel((record as Class).grade) }}</Tag>
+            <span class="grade-badge">{{ getGradeLabel((record as Class).grade) }}</span>
+          </template>
+          <template v-else-if="column.key === 'name'">
+            <span style="font-weight: 600;">{{ (record as Class).name }}</span>
           </template>
           <template v-else-if="column.key === 'homeroomTeacherName'">
-            <span v-if="(record as Class).homeroomTeacherName">
-              <UserOutlined /> {{ (record as Class).homeroomTeacherName }}
+            <span v-if="(record as Class).homeroomTeacherName" class="teacher-info">
+              <UserOutlined style="color: #64748b;" />
+              {{ (record as Class).homeroomTeacherName }}
             </span>
-            <Tag v-else color="default">Belum ditentukan</Tag>
+            <span v-else class="text-secondary" style="font-style: italic;">
+              Belum ditentukan
+            </span>
           </template>
           <template v-else-if="column.key === 'studentCount'">
-            <Tag>{{ (record as Class).studentCount || 0 }} siswa</Tag>
+            <span class="student-count-badge">
+               {{ (record as Class).studentCount || 0 }} Siswa
+            </span>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="openEditModal(record as Class)">
-                <template #icon><EditOutlined /></template>
-                Edit
-              </Button>
-              <Popconfirm
-                title="Hapus kelas ini?"
-                description="Semua data terkait kelas ini akan dihapus."
-                ok-text="Ya, Hapus"
-                cancel-text="Batal"
-                @confirm="handleDelete(record as Class)"
-              >
-                <Button size="small" danger>
-                  <template #icon><DeleteOutlined /></template>
+               <Tooltip title="Edit">
+                <Button size="small" type="text" @click="openEditModal(record as Class)">
+                  <template #icon><EditOutlined style="color: #64748b;" /></template>
                 </Button>
-              </Popconfirm>
+              </Tooltip>
+              <Tooltip title="Hapus">
+                <Popconfirm
+                  title="Hapus kelas ini?"
+                  description="Semua data terkait kelas ini akan dihapus."
+                  ok-text="Ya, Hapus"
+                  cancel-text="Batal"
+                  ok-type="danger"
+                  @confirm="handleDelete(record as Class)"
+                >
+                  <Button size="small" type="text" danger>
+                    <template #icon><DeleteOutlined /></template>
+                  </Button>
+                </Popconfirm>
+              </Tooltip>
             </Space>
           </template>
         </template>
@@ -380,6 +393,10 @@ onMounted(() => {
       v-model:open="modalVisible"
       :title="isEditing ? 'Edit Kelas' : 'Tambah Kelas Baru'"
       :confirm-loading="modalLoading"
+      :ok-text="isEditing ? 'Simpan' : 'Buat Kelas'"
+      cancel-text="Batal"
+      width="550px"
+      wrap-class-name="modern-modal"
       @ok="handleSubmit"
       @cancel="handleModalCancel"
     >
@@ -388,15 +405,15 @@ onMounted(() => {
         :model="formState"
         :rules="formRules"
         layout="vertical"
-        style="margin-top: 16px"
+        class="modern-form"
       >
         <FormItem label="Nama Kelas" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Contoh: VII-A, VIII-B" />
+          <Input v-model:value="formState.name" placeholder="Contoh: VII-A, VIII-B" size="large" />
         </FormItem>
         <Row :gutter="16">
           <Col :span="12">
             <FormItem label="Tingkat" name="grade" required>
-              <Select v-model:value="formState.grade" placeholder="Pilih tingkat">
+              <Select v-model:value="formState.grade" placeholder="Pilih tingkat" size="large">
                 <SelectOption :value="7">VII (Kelas 7)</SelectOption>
                 <SelectOption :value="8">VIII (Kelas 8)</SelectOption>
                 <SelectOption :value="9">IX (Kelas 9)</SelectOption>
@@ -408,7 +425,7 @@ onMounted(() => {
           </Col>
           <Col :span="12">
             <FormItem label="Tahun Ajaran" name="year" required>
-              <Input v-model:value="formState.year" placeholder="Contoh: 2024/2025" />
+              <Input v-model:value="formState.year" placeholder="Contoh: 2024/2025" size="large" />
             </FormItem>
           </Col>
         </Row>
@@ -420,6 +437,7 @@ onMounted(() => {
             show-search
             :filter-option="filterTeacherOption"
             :loading="loadingTeachers"
+            size="large"
           >
             <SelectOption
               v-for="teacher in teachers"
@@ -428,9 +446,9 @@ onMounted(() => {
               :label="teacher.name || teacher.username"
             >
               {{ teacher.name || teacher.username }}
-              <Tag v-if="teacher.role === 'wali_kelas'" size="small" color="blue" style="margin-left: 8px">
+              <span v-if="teacher.role === 'wali_kelas'" class="select-badge">
                 Wali Kelas
-              </Tag>
+              </span>
             </SelectOption>
           </Select>
         </FormItem>
@@ -448,13 +466,68 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
+/* Toolbar */
 .toolbar {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .toolbar-right {
   display: flex;
   justify-content: flex-end;
+}
+
+/* Custom Table */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* Badges */
+.grade-badge {
+  display: inline-block;
+  background: #eff6ff;
+  color: #3b82f6;
+  border: 1px solid #dbeafe;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.student-count-badge {
+  color: #64748b;
+  font-size: 13px;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.teacher-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+}
+
+.text-secondary {
+  color: #94a3b8;
+}
+
+.select-badge {
+  font-size: 10px;
+  background: #e0f2fe;
+  color: #0284c7;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  border: 1px solid #bae6fd;
 }
 
 @media (max-width: 576px) {

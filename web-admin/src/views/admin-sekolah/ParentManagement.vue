@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -19,9 +18,6 @@ import {
   Alert,
   Upload,
   Divider,
-  List,
-  ListItem,
-  ListItemMeta,
   Progress,
 } from 'ant-design-vue'
 import type { TableProps, UploadProps } from 'ant-design-vue'
@@ -557,42 +553,41 @@ onMounted(() => {
         }"
         row-key="id"
         @change="handleTableChange"
+        class="custom-table"
+        :scroll="{ x: 800 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'name'">
-            <Space>
-              <UserOutlined />
-              {{ (record as Parent).name }}
-            </Space>
+            <div class="user-info">
+              <div class="user-avatar">
+                <UserOutlined />
+              </div>
+              <span class="user-name">{{ (record as Parent).name }}</span>
+            </div>
           </template>
           <template v-else-if="column.key === 'phone'">
-            <Tag color="blue">{{ (record as Parent).phone || '-' }}</Tag>
+            <span class="phone-badge">{{ (record as Parent).phone || '-' }}</span>
           </template>
           <template v-else-if="column.key === 'email'">
-            {{ (record as Parent).email || '-' }}
+            <span class="text-secondary">{{ (record as Parent).email || '-' }}</span>
           </template>
           <template v-else-if="column.key === 'studentNames'">
-            <Space wrap>
-              <Tag
+            <div class="student-list">
+              <span
                 v-for="(name, index) in (record as Parent).studentNames"
                 :key="index"
-                color="green"
+                class="student-badge"
               >
-                <LinkOutlined /> {{ name }}
-              </Tag>
-              <Tag v-if="!(record as Parent).studentNames?.length" color="default">
+                {{ name }}
+              </span>
+              <span v-if="!(record as Parent).studentNames?.length" class="text-secondary italic">
                 Belum ada anak
-              </Tag>
-            </Space>
+              </span>
+            </div>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Tooltip title="Edit">
-                <Button size="small" @click="openEditModal(record as Parent)">
-                  <template #icon><EditOutlined /></template>
-                </Button>
-              </Tooltip>
-              <Tooltip title="Reset Password">
+               <Tooltip title="Reset Password">
                 <Popconfirm
                   title="Reset password orang tua ini?"
                   description="Password baru akan di-generate otomatis."
@@ -600,10 +595,15 @@ onMounted(() => {
                   cancel-text="Batal"
                   @confirm="handleResetPassword(record as Parent)"
                 >
-                  <Button size="small">
-                    <template #icon><KeyOutlined /></template>
+                  <Button size="small" type="text">
+                    <template #icon><KeyOutlined style="color: #f59e0b;" /></template>
                   </Button>
                 </Popconfirm>
+              </Tooltip>
+              <Tooltip title="Edit">
+                <Button size="small" type="text" @click="openEditModal(record as Parent)">
+                  <template #icon><EditOutlined style="color: #64748b;" /></template>
+                </Button>
               </Tooltip>
               <Tooltip title="Hapus">
                 <Popconfirm
@@ -611,9 +611,10 @@ onMounted(() => {
                   description="Akun orang tua akan dihapus."
                   ok-text="Ya, Hapus"
                   cancel-text="Batal"
+                  ok-type="danger"
                   @confirm="handleDelete(record as Parent)"
                 >
-                  <Button size="small" danger>
+                  <Button size="small" type="text" danger>
                     <template #icon><DeleteOutlined /></template>
                   </Button>
                 </Popconfirm>
@@ -630,6 +631,7 @@ onMounted(() => {
       :title="isEditing ? 'Edit Orang Tua' : 'Tambah Orang Tua Baru'"
       :confirm-loading="modalLoading"
       width="600px"
+      wrap-class-name="modern-modal"
       @ok="handleSubmit"
       @cancel="handleModalCancel"
     >
@@ -638,10 +640,10 @@ onMounted(() => {
         :model="formState"
         :rules="formRules"
         layout="vertical"
-        style="margin-top: 16px"
+        class="modern-form"
       >
         <FormItem label="Nama Lengkap" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Nama lengkap orang tua" />
+          <Input v-model:value="formState.name" placeholder="Nama lengkap orang tua" size="large" />
         </FormItem>
         <Row :gutter="16">
           <Col :span="12">
@@ -655,12 +657,13 @@ onMounted(() => {
                 v-model:value="formState.phone" 
                 placeholder="Contoh: 081234567890"
                 :disabled="isEditing"
+                size="large"
               />
             </FormItem>
           </Col>
           <Col :span="12">
             <FormItem label="Email" name="email">
-              <Input v-model:value="formState.email" placeholder="email@example.com" />
+              <Input v-model:value="formState.email" placeholder="email@example.com" size="large" />
             </FormItem>
           </Col>
         </Row>
@@ -668,10 +671,10 @@ onMounted(() => {
           v-if="!isEditing"
         >
           <template #label>
-            <Space>
+            <div class="form-label-with-tag">
               <span>Password</span>
-              <Tag color="blue">Default</Tag>
-            </Space>
+              <span class="default-badge">Default</span>
+            </div>
           </template>
           <div class="password-info">
             <Text type="secondary">
@@ -693,6 +696,7 @@ onMounted(() => {
             v-model:value="studentSearchQuery"
             placeholder="Cari siswa berdasarkan NISN atau nama..."
             allow-clear
+            size="large"
             @input="(e: Event) => handleStudentSearch((e.target as HTMLInputElement).value)"
             style="margin-bottom: 8px"
           >
@@ -720,8 +724,8 @@ onMounted(() => {
                   NISN: {{ student.nisn }} | NIS: {{ student.nis }}
                 </span>
               </div>
-              <Tag v-if="student.className" size="small" color="blue">{{ student.className }}</Tag>
-              <Tag v-else size="small" color="orange">Belum ada kelas</Tag>
+              <span v-if="student.className" class="class-badge-small blue">{{ student.className }}</span>
+              <span v-else class="class-badge-small orange">Belum ada kelas</span>
             </div>
           </div>
           
@@ -738,16 +742,14 @@ onMounted(() => {
               </Text>
             </Divider>
             <div class="selected-students-list">
-              <Tag
+              <div
                 v-for="studentId in formState.student_ids"
                 :key="studentId"
-                closable
-                color="green"
-                @close="removeStudentFromSelection(studentId)"
-                style="margin-bottom: 4px"
+                class="student-chip"
               >
                 {{ getStudentDisplayName(studentId) }}
-              </Tag>
+                <CloseCircleOutlined @click="removeStudentFromSelection(studentId)" class="remove-icon" />
+              </div>
             </div>
           </div>
           
@@ -965,7 +967,7 @@ onMounted(() => {
               <ListItem>
                 <ListItemMeta>
                   <template #title>
-                    <Tag color="red">Baris {{ (item as ImportError).row }}</Tag>
+                    <span class="row-badge error">Baris {{ (item as ImportError).row }}</span>
                     {{ (item as ImportError).field }}
                   </template>
                   <template #description>
@@ -992,7 +994,7 @@ onMounted(() => {
               <ListItem>
                 <ListItemMeta>
                   <template #title>
-                    <Tag color="orange">Baris {{ (item as ImportWarning).row }}</Tag>
+                    <span class="row-badge warning">Baris {{ (item as ImportWarning).row }}</span>
                     {{ (item as ImportWarning).field }}
                   </template>
                   <template #description>
@@ -1023,8 +1025,9 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
+/* Toolbar */
 .toolbar {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .toolbar-right {
@@ -1032,36 +1035,119 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.student-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Custom Table */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-/* Student Search Styles */
-.student-search-results {
-  border: 1px solid #d9d9d9;
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+/* User Info */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: #eff6ff;
+  color: #3b82f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.user-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+/* Badges */
+.phone-badge {
+  background: #f8fafc;
+  color: #64748b;
+  padding: 2px 8px;
   border-radius: 6px;
+  font-family: monospace;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+}
+
+.text-secondary {
+  color: #94a3b8;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.student-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-badge {
+  background: #f0fdf4;
+  color: #166534;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  border: 1px solid #dcfce7;
+}
+
+/* Form Styles */
+.form-label-with-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.default-badge {
+  background: #eff6ff;
+  color: #3b82f6;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid #dbeafe;
+}
+
+/* Student Search */
+.student-search-results {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   max-height: 200px;
   overflow-y: auto;
   margin-bottom: 8px;
+  background: white;
 }
 
 .student-search-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 10px 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.student-search-item:last-child {
+  border-bottom: none;
 }
 
 .student-search-item:hover {
-  background-color: #f5f5f5;
-}
-
-.student-search-item:not(:last-child) {
-  border-bottom: 1px solid #f0f0f0;
+  background-color: #f8fafc;
 }
 
 .student-search-info {
@@ -1071,31 +1157,60 @@ onMounted(() => {
 
 .student-name {
   font-weight: 500;
+  color: #334155;
 }
 
 .student-details {
-  font-size: 12px;
-  color: #8c8c8c;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
-.student-search-empty {
-  text-align: center;
-  padding: 12px;
-  background: #fafafa;
-  border-radius: 6px;
-  margin-bottom: 8px;
+.class-badge-small {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
-.selected-students {
-  margin-top: 8px;
+.class-badge-small.blue {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.class-badge-small.orange {
+  background: #fff7ed;
+  color: #f97316;
 }
 
 .selected-students-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
 }
 
+.student-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #15803d;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 13px;
+  border: 1px solid #dcfce7;
+}
+
+.remove-icon {
+  font-size: 12px;
+  cursor: pointer;
+  color: #15803d;
+  opacity: 0.7;
+}
+
+.remove-icon:hover {
+  opacity: 1;
+}
+
+/* Credential */
 .credential-info {
   text-align: center;
 }
@@ -1107,17 +1222,19 @@ onMounted(() => {
 .credential-card {
   text-align: left;
   margin-bottom: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
 }
 
 .credential-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 12px 0;
 }
 
 .credential-item:not(:last-child) {
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .credential-value {
@@ -1131,22 +1248,16 @@ onMounted(() => {
   padding: 12px;
   border-radius: 6px;
   text-align: left;
+  border: 1px solid #ffe58f;
 }
 
-.password-info {
-  padding: 8px 12px;
-  background: #f6ffed;
-  border-radius: 4px;
-  border: 1px solid #b7eb8f;
-}
-
-/* Import styles */
+/* Import Styles */
 .import-info {
   text-align: center;
 }
 
 .import-header {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .import-result {
@@ -1155,36 +1266,47 @@ onMounted(() => {
 
 .result-card {
   text-align: center;
+  height: 100%;
 }
 
-.result-card.success {
-  background: #f6ffed;
-  border-color: #b7eb8f;
-}
-
-.result-card.warning {
-  background: #fffbe6;
-  border-color: #ffe58f;
-}
-
-.result-card.error {
-  background: #fff2f0;
-  border-color: #ffccc7;
-}
+.result-card.success .result-number { color: #22c55e; }
+.result-card.error .result-number { color: #ef4444; }
 
 .result-number {
   font-size: 24px;
-  font-weight: bold;
-  color: #262626;
+  font-weight: 700;
+  color: #334155;
+  line-height: 1.2;
 }
 
 .result-label {
   font-size: 12px;
-  color: #8c8c8c;
+  color: #64748b;
+  margin-top: 4px;
 }
 
 .result-section {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+}
+
+.row-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-right: 8px;
+}
+
+.row-badge.error {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fee2e2;
+}
+
+.row-badge.warning {
+  background: #fffbeb;
+  color: #f59e0b;
+  border: 1px solid #fef3c7;
 }
 
 @media (max-width: 576px) {

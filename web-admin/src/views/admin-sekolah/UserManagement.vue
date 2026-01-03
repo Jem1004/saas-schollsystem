@@ -5,7 +5,6 @@ import {
   Button,
   Input,
   Space,
-  Tag,
   Modal,
   Form,
   FormItem,
@@ -18,6 +17,7 @@ import {
   Col,
   Typography,
   Switch,
+  Alert,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -28,6 +28,7 @@ import {
   ReloadOutlined,
   KeyOutlined,
   UserOutlined,
+  CheckOutlined,
 } from '@ant-design/icons-vue'
 import { schoolService } from '@/services'
 import type { SchoolUser, Class, UpdateUserRequest } from '@/types/school'
@@ -83,11 +84,11 @@ const formRules = {
   ],
 }
 
-// Role options
+// Role options (removed colors as we now use CSS classes)
 const roleOptions = [
-  { value: 'guru', label: 'Guru', color: 'blue' },
-  { value: 'wali_kelas', label: 'Wali Kelas', color: 'green' },
-  { value: 'guru_bk', label: 'Guru BK', color: 'purple' },
+  { value: 'guru', label: 'Guru' },
+  { value: 'wali_kelas', label: 'Wali Kelas' },
+  { value: 'guru_bk', label: 'Guru BK' },
 ]
 
 // Table columns
@@ -415,47 +416,56 @@ onMounted(() => {
           showSizeChanger: true,
           showTotal: (total: number) => `Total ${total} user`,
         }"
+        :scroll="{ x: 1000 }"
         row-key="id"
         @change="handleTableChange"
+        class="custom-table"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'username'">
-            <Space>
-              <UserOutlined />
-              {{ (record as SchoolUser).username }}
-            </Space>
+            <div class="user-cell">
+              <div class="user-avatar">
+                <UserOutlined />
+              </div>
+              <div class="user-info">
+                 <Text strong>{{ (record as SchoolUser).username }}</Text>
+                 <Text type="secondary" style="font-size: 12px">{{ (record as SchoolUser).email || '-' }}</Text>
+              </div>
+            </div>
           </template>
           <template v-else-if="column.key === 'role'">
-            <Tag :color="getRoleInfo((record as SchoolUser).role).color">
+            <span :class="['role-badge', `role-${(record as SchoolUser).role}`]">
               {{ getRoleInfo((record as SchoolUser).role).label }}
-            </Tag>
+            </span>
           </template>
           <template v-else-if="column.key === 'assignedClassName'">
             <!-- For wali_kelas: single class -->
-            <Tag v-if="(record as SchoolUser).assignedClassName" color="blue">
+            <span v-if="(record as SchoolUser).assignedClassName" class="class-badge">
               {{ (record as SchoolUser).assignedClassName }}
-            </Tag>
+            </span>
             <!-- For guru_bk: multiple classes -->
             <template v-else-if="(record as SchoolUser).assignedClasses?.length">
-              <Tag v-for="cls in (record as SchoolUser).assignedClasses" :key="cls.id" color="purple" style="margin-bottom: 2px;">
-                {{ cls.name }}
-              </Tag>
+              <div class="class-tags-wrapper">
+                <span v-for="cls in (record as SchoolUser).assignedClasses" :key="cls.id" class="class-badge">
+                  {{ cls.name }}
+                </span>
+              </div>
             </template>
-            <span v-else>-</span>
+            <span v-else class="text-secondary">-</span>
           </template>
           <template v-else-if="column.key === 'isActive'">
-            <Tag :color="(record as SchoolUser).isActive ? 'success' : 'default'">
-              {{ (record as SchoolUser).isActive ? 'Aktif' : 'Nonaktif' }}
-            </Tag>
+            <div class="status-indicator">
+              <span :class="['status-dot', (record as SchoolUser).isActive ? 'active' : 'inactive']"></span>
+              <span>{{ (record as SchoolUser).isActive ? 'Aktif' : 'Nonaktif' }}</span>
+            </div>
           </template>
           <template v-else-if="column.key === 'lastLoginAt'">
-            {{ formatDate((record as SchoolUser).lastLoginAt) }}
+            <span class="text-secondary">{{ formatDate((record as SchoolUser).lastLoginAt) }}</span>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="openEditModal(record as SchoolUser)">
-                <template #icon><EditOutlined /></template>
-                Edit
+              <Button size="small" type="text" @click="openEditModal(record as SchoolUser)">
+                <template #icon><EditOutlined style="color: #64748b;" /></template>
               </Button>
               <Popconfirm
                 title="Reset password user ini?"
@@ -464,8 +474,8 @@ onMounted(() => {
                 cancel-text="Batal"
                 @confirm="handleResetPassword(record as SchoolUser)"
               >
-                <Button size="small">
-                  <template #icon><KeyOutlined /></template>
+                <Button size="small" type="text">
+                  <template #icon><KeyOutlined style="color: #f59e0b;" /></template>
                 </Button>
               </Popconfirm>
               <Popconfirm
@@ -473,9 +483,10 @@ onMounted(() => {
                 description="User akan dihapus permanen."
                 ok-text="Ya, Hapus"
                 cancel-text="Batal"
+                ok-type="danger"
                 @confirm="handleDelete(record as SchoolUser)"
               >
-                <Button size="small" danger>
+                <Button size="small" type="text" danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>
@@ -490,6 +501,10 @@ onMounted(() => {
       v-model:open="modalVisible"
       :title="isEditing ? 'Edit User' : 'Tambah User Baru'"
       :confirm-loading="modalLoading"
+      :ok-text="isEditing ? 'Simpan' : 'Buat User'"
+      cancel-text="Batal"
+      width="600px"
+      wrap-class-name="modern-modal"
       @ok="handleSubmit"
       @cancel="handleModalCancel"
     >
@@ -498,10 +513,15 @@ onMounted(() => {
         :model="formState"
         :rules="formRules"
         layout="vertical"
-        style="margin-top: 16px"
+        class="modern-form"
       >
         <FormItem label="Role" name="role" required>
-          <Select v-model:value="formState.role" placeholder="Pilih role" :disabled="isEditing">
+          <Select 
+            v-model:value="formState.role" 
+            placeholder="Pilih role" 
+            :disabled="isEditing"
+            size="large"
+          >
             <SelectOption v-for="role in roleOptions" :key="role.value" :value="role.value">
               {{ role.label }}
             </SelectOption>
@@ -512,40 +532,41 @@ onMounted(() => {
             <FormItem label="Username" name="username" required>
               <Input
                 v-model:value="formState.username"
-                placeholder="Username untuk login"
+                placeholder="Username"
                 :disabled="isEditing"
+                size="large"
               />
             </FormItem>
           </Col>
           <Col :span="12">
             <FormItem label="Email" name="email">
-              <Input v-model:value="formState.email" placeholder="email@sekolah.id" />
+              <Input v-model:value="formState.email" placeholder="email@sekolah.id" size="large" />
             </FormItem>
           </Col>
         </Row>
         <FormItem label="Nama Lengkap" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Nama lengkap" />
+          <Input v-model:value="formState.name" placeholder="Nama lengkap" size="large" />
         </FormItem>
         <FormItem
           v-if="!isEditing"
           label="Password"
           name="password"
           required
-          extra="User akan diminta mengganti password saat login pertama"
         >
-          <Input.Password v-model:value="formState.password" placeholder="Minimal 8 karakter" />
+          <Input.Password v-model:value="formState.password" placeholder="Minimal 8 karakter" size="large" />
+          <Text type="secondary" style="font-size: 12px; margin-top: 4px; display: block;">User akan diminta mengganti password saat login pertama</Text>
         </FormItem>
         <FormItem
           v-if="formState.role === 'wali_kelas'"
           label="Kelas yang Diampu"
           name="assigned_class_id"
-          extra="Pilih kelas yang akan diampu sebagai wali kelas"
         >
           <Select
             v-model:value="formState.assigned_class_id"
             placeholder="Pilih kelas"
             allow-clear
             :loading="loadingClasses"
+            size="large"
           >
             <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
               {{ cls.name }}
@@ -556,7 +577,6 @@ onMounted(() => {
           v-if="formState.role === 'guru_bk'"
           label="Kelas yang Ditangani"
           name="assigned_class_ids"
-          extra="Pilih satu atau lebih kelas yang akan ditangani oleh guru BK"
         >
           <Select
             v-model:value="formState.assigned_class_ids"
@@ -565,6 +585,7 @@ onMounted(() => {
             allow-clear
             :loading="loadingClasses"
             :filter-option="filterClassOption"
+            size="large"
           >
             <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
               {{ cls.name }}
@@ -572,7 +593,12 @@ onMounted(() => {
           </Select>
         </FormItem>
         <FormItem v-if="isEditing" label="Status" name="is_active">
-          <Switch v-model:checked="formState.is_active" checked-children="Aktif" un-checked-children="Nonaktif" />
+           <div class="status-switch-wrapper">
+             <Switch v-model:checked="formState.is_active" />
+             <span :class="['status-label', formState.is_active ? 'active' : 'inactive']">
+               {{ formState.is_active ? 'User Aktif' : 'User Nonaktif' }}
+             </span>
+           </div>
         </FormItem>
       </Form>
     </Modal>
@@ -582,15 +608,24 @@ onMounted(() => {
       v-model:open="passwordModalVisible"
       title="Password Berhasil Direset"
       :footer="null"
+      width="400px"
+      wrap-class-name="modern-modal"
     >
       <div class="password-result">
-        <Text>Password baru:</Text>
-        <div class="password-display">
-          <Text strong copyable>{{ newPassword }}</Text>
+        <div class="success-icon">
+          <CheckOutlined />
         </div>
-        <Text type="secondary">
-          Salin password ini dan berikan kepada user. Password harus diganti saat login pertama.
-        </Text>
+        <Text strong style="font-size: 16px; margin-bottom: 8px; display: block;">Password Baru</Text>
+        <div class="password-display">
+          <Text strong copyable class="password-text">{{ newPassword }}</Text>
+        </div>
+        <Alert
+          message="Penting"
+          description="Salin password ini dan berikan kepada user. Password harus diganti saat login pertama."
+          type="warning"
+          show-icon
+          style="text-align: left; border-radius: 8px;"
+        />
       </div>
     </Modal>
   </div>
@@ -606,7 +641,7 @@ onMounted(() => {
 }
 
 .toolbar {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .toolbar-right {
@@ -614,23 +649,210 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+/* Custom Component Styles */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.text-secondary {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* Role Badges */
+.role-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  border: 1px solid transparent;
+}
+
+.role-guru {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.role-wali_kelas {
+  background-color: #fff7ed;
+  color: #c2410c;
+  border-color: #ffedd5;
+}
+
+.role-guru_bk {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border-color: #e0f2fe;
+}
+
+/* Class Tags */
+.class-badge {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  display: inline-block;
+}
+
+.class-tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Status Indicator */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-dot.active {
+  background-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.status-dot.inactive {
+  background-color: #94a3b8;
+}
+
+/* Password Result */
 .password-result {
   text-align: center;
   padding: 16px 0;
 }
 
+.success-icon {
+  width: 48px;
+  height: 48px;
+  background: #ecfdf5;
+  color: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin: 0 auto 16px auto;
+}
+
 .password-display {
-  background: #f5f5f5;
+  background: #f8fafc;
   padding: 16px;
   border-radius: 8px;
-  margin: 16px 0;
-  font-size: 18px;
+  margin-bottom: 24px;
+  border: 1px solid #e2e8f0;
 }
+
+.password-text {
+  font-family: monospace;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.status-switch-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-label {
+  font-size: 14px;
+}
+
+.status-label.active { color: #22c55e; font-weight: 500; }
+.status-label.inactive { color: #64748b; }
 
 @media (max-width: 768px) {
   .toolbar-right {
     margin-top: 16px;
     justify-content: flex-start;
   }
+}
+
+/* Custom Table Styles */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+</style>
+
+<!-- Global Styles for Modals -->
+<style>
+.modern-modal .ant-modal-content {
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.modern-modal .ant-modal-header {
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 20px 24px !important;
+  background: #fff !important;
+}
+
+.modern-modal .ant-modal-title {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}
+
+.modern-modal .ant-modal-body {
+  padding: 24px !important;
+}
+
+.modern-modal .ant-modal-footer {
+  border-top: 1px solid #f1f5f9 !important;
+  padding: 16px 24px !important;
+  background: #ffffff !important;
+}
+
+.modern-modal .ant-btn {
+  border-radius: 8px !important;
+  height: 40px !important;
+  font-weight: 500 !important;
+}
+
+.modern-modal .ant-btn-primary {
+  box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2) !important;
 }
 </style>

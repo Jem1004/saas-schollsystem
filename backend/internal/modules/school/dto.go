@@ -316,7 +316,7 @@ type UserListResponse struct {
 
 // CreateUserRequest represents the request to create a new user
 type CreateUserRequest struct {
-	Role             string `json:"role" validate:"required,oneof=guru wali_kelas guru_bk admin_sekolah"`
+	Role             string `json:"role" validate:"required,oneof=wali_kelas guru_bk admin_sekolah"`
 	Username         string `json:"username" validate:"required"`
 	Email            string `json:"email"`
 	Name             string `json:"name"`

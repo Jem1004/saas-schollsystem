@@ -10,7 +10,6 @@ import {
   Spin,
   Alert,
   Typography,
-  Tag,
   Avatar,
   Statistic,
   Timeline,
@@ -121,8 +120,8 @@ const formatDateTime = (dateStr: string) => {
   return `${formatDate(dateStr)} ${formatTime(dateStr)}`
 }
 
-// Get violation level color
-const getViolationLevelColor = (level: string) => {
+// Get violation level class
+const getViolationLevelClass = (level: string) => {
   switch (level) {
     case 'ringan': return 'warning'
     case 'sedang': return 'orange'
@@ -186,7 +185,7 @@ onMounted(() => {
           <Col :xs="24" :sm="18" :md="12">
             <Title :level="3" style="margin: 0">{{ student.name }}</Title>
             <div class="student-meta">
-              <Tag color="blue">{{ student.className }}</Tag>
+              <span class="class-badge">{{ student.className }}</span>
               <Text type="secondary">NIS: {{ student.nis }}</Text>
               <Text type="secondary">NISN: {{ student.nisn }}</Text>
             </div>
@@ -240,10 +239,10 @@ onMounted(() => {
                 <div class="timeline-content">
                   <div class="timeline-header">
                     <Text strong>{{ violation.category }}</Text>
-                    <Tag :color="getViolationLevelColor(violation.level)">
+                    <span :class="['status-badge', getViolationLevelClass(violation.level)]">
                       {{ getViolationLevelLabel(violation.level) }}
-                    </Tag>
-                    <Tag color="error">{{ violation.point }} poin</Tag>
+                    </span>
+                    <span class="status-badge error">{{ violation.point }} poin</span>
                   </div>
                   <Text>{{ violation.description }}</Text>
                   <div class="timeline-meta">
@@ -274,7 +273,7 @@ onMounted(() => {
                 <div class="timeline-content">
                   <div class="timeline-header">
                     <Text strong>{{ achievement.title }}</Text>
-                    <Tag color="success">+{{ achievement.point }} poin</Tag>
+                    <span class="status-badge success">+{{ achievement.point }} poin</span>
                   </div>
                   <Text v-if="achievement.description">{{ achievement.description }}</Text>
                   <div class="timeline-meta">
@@ -305,9 +304,9 @@ onMounted(() => {
                 <div class="timeline-content">
                   <div class="timeline-header">
                     <Text strong>{{ permit.reason }}</Text>
-                    <Tag :color="permit.returnTime ? 'success' : 'processing'">
+                    <span :class="['status-badge', permit.returnTime ? 'success' : 'processing']">
                       {{ permit.returnTime ? 'Sudah Kembali' : 'Belum Kembali' }}
-                    </Tag>
+                    </span>
                   </div>
                   <Descriptions :column="1" size="small" style="margin-top: 8px">
                     <DescriptionsItem label="Waktu Keluar">
@@ -438,6 +437,62 @@ onMounted(() => {
   border-radius: 4px;
   padding: 8px 12px;
   margin-top: 4px;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.warning {
+  background-color: #fffbe6;
+  color: #faad14;
+  border: 1px solid #ffe58f;
+}
+
+.status-badge.orange {
+  background-color: #fff7e6;
+  color: #fa8c16;
+  border: 1px solid #ffd591;
+}
+
+.status-badge.error {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+.status-badge.processing {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+}
+
+.status-badge.default {
+  background-color: #f5f5f5;
+  color: #000000d9;
+  border: 1px solid #d9d9d9;
+}
+
+.class-badge {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 @media (max-width: 768px) {

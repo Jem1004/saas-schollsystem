@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import {
-  Table, Button, Input, Space, Tag, Card, Row, Col, Typography, Avatar, Statistic,
+  Table, Button, Input, Space, Card, Row, Col, Typography, Avatar, Statistic,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -162,22 +162,29 @@ onMounted(() => { loadData() })
       <Row :gutter="16" class="toolbar" justify="space-between" align="middle">
         <Col :xs="24" :md="16">
           <Space wrap>
-            <Input v-model:value="searchText" placeholder="Cari nama atau NIS..." allow-clear style="width: 250px" @press-enter="handleSearch">
+            <Input v-model:value="searchText" placeholder="Cari nama atau NIS..." allow-clear size="large" style="width: 250px" @press-enter="handleSearch">
               <template #prefix><SearchOutlined /></template>
             </Input>
-            <a-select v-model:value="filterClassId" placeholder="Filter Kelas" allow-clear style="width: 150px" @change="handleSearch">
+            <a-select v-model:value="filterClassId" placeholder="Filter Kelas" allow-clear size="large" style="width: 150px" @change="handleSearch">
               <a-select-option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
             </a-select>
           </Space>
         </Col>
         <Col :xs="24" :md="8" class="toolbar-right">
-          <Button @click="loadData"><template #icon><ReloadOutlined /></template></Button>
+          <Button size="large" @click="loadData"><template #icon><ReloadOutlined /></template></Button>
         </Col>
       </Row>
 
-      <Table :columns="columns" :data-source="filteredStudents" :loading="loading"
+      <Table 
+        :columns="columns" 
+        :data-source="filteredStudents" 
+        :loading="loading"
         :pagination="{ current: pagination.current, pageSize: pagination.pageSize, total, showSizeChanger: true, showTotal: (t: number) => `Total ${t} siswa` }"
-        row-key="id" @change="handleTableChange">
+        row-key="id" 
+        @change="handleTableChange"
+        class="custom-table"
+        :scroll="{ x: 800 }"
+      >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'student'">
             <div class="student-cell">
@@ -189,13 +196,13 @@ onMounted(() => { loadData() })
             </div>
           </template>
           <template v-else-if="column.key === 'className'">
-            <Tag color="blue">{{ (record as Student).className }}</Tag>
+            <span class="class-badge">{{ (record as Student).className }}</span>
           </template>
           <template v-else-if="column.key === 'violations'">
-            <Tag color="error">{{ getStudentProfile((record as Student).id)?.violationCount || 0 }}</Tag>
+            <span class="status-badge error">{{ getStudentProfile((record as Student).id)?.violationCount || 0 }}</span>
           </template>
           <template v-else-if="column.key === 'achievements'">
-            <Tag color="success">{{ getStudentProfile((record as Student).id)?.achievementCount || 0 }}</Tag>
+            <span class="status-badge success">{{ getStudentProfile((record as Student).id)?.achievementCount || 0 }}</span>
           </template>
           <template v-else-if="column.key === 'points'">
             <span :class="['points', getStudentTotalPoints((record as Student).id) >= 0 ? 'positive' : 'negative']">
@@ -203,8 +210,8 @@ onMounted(() => { loadData() })
             </span>
           </template>
           <template v-else-if="column.key === 'action'">
-            <Button type="primary" size="small" @click="viewStudentProfile((record as Student).id)">
-              <template #icon><EyeOutlined /></template> Detail
+            <Button type="text" style="color: #3b82f6" @click="viewStudentProfile((record as Student).id)">
+              <template #icon><EyeOutlined /></template>
             </Button>
           </template>
         </template>
@@ -225,5 +232,53 @@ onMounted(() => { loadData() })
 .points { font-weight: 600; }
 .points.positive { color: #22c55e; }
 .points.negative { color: #ef4444; }
+
+/* Custom Table Styles */
+.custom-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  color: #475569;
+}
+
+.custom-table :deep(.ant-table-tbody > tr > td) {
+  padding: 16px;
+}
+
+.custom-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #f8fafc;
+}
+
+/* Badge Styles */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-badge.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+  border: 1px solid #b7eb8f;
+}
+
+.status-badge.error {
+  background-color: #fff2f0;
+  color: #ff4d4f;
+  border: 1px solid #ffccc7;
+}
+
+.class-badge {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 @media (max-width: 768px) { .toolbar-right { margin-top: 16px; justify-content: flex-start; } }
 </style>

@@ -38,10 +38,6 @@ func (p *accessPolicy) CanAccessStudent(ctx context.Context, user *UserContext, 
 		// Wali kelas can access students in their assigned class
 		return p.IsStudentInUserClass(ctx, user, studentID)
 
-	case models.RoleGuru:
-		// Regular teacher can access students in their school (limited)
-		return p.isStudentInSchool(ctx, studentID, user.SchoolID)
-
 	case models.RoleParent:
 		// Parent can only access their linked children
 		return p.isParentOfStudent(ctx, user.UserID, studentID)
@@ -133,7 +129,7 @@ func (p *accessPolicy) CanAccessGrade(ctx context.Context, user *UserContext, st
 		}
 		return AccessLevelNone, nil
 
-	case models.RoleGuruBK, models.RoleGuru:
+	case models.RoleGuruBK:
 		// Can view grades in their school
 		inSchool, err := p.isStudentInSchool(ctx, studentID, user.SchoolID)
 		if err != nil {
