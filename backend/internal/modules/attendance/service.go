@@ -118,10 +118,28 @@ func (s *service) RecordRFIDAttendance(ctx context.Context, req RFIDAttendanceRe
 		return nil, ErrInvalidRFIDCode
 	}
 
-	// Use current time if timestamp is zero
-	timestamp := req.Timestamp
-	if timestamp.IsZero() {
-		timestamp = time.Now()
+	// Get school to determine timezone
+	school, err := s.repo.FindSchoolByID(ctx, student.SchoolID)
+	if err != nil {
+		log.Printf("Warning: Failed to get school for timezone: %v, using server time", err)
+	}
+
+	// Use current time in school's timezone
+	var timestamp time.Time
+	if req.Timestamp.IsZero() {
+		if school != nil {
+			timestamp = school.GetCurrentTime()
+			log.Printf("Using school timezone: %s, current time: %s", school.Timezone, timestamp.Format("15:04:05"))
+		} else {
+			timestamp = time.Now()
+		}
+	} else {
+		// If timestamp provided, convert to school's timezone
+		if school != nil {
+			timestamp = req.Timestamp.In(school.GetLocation())
+		} else {
+			timestamp = req.Timestamp
+		}
 	}
 
 	// Get date from timestamp

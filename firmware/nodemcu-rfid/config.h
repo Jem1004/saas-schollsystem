@@ -20,7 +20,7 @@
 #define WIFI_PASSWORD   "makangabus"
 
 // Backend Server URL (tanpa trailing slash)
-#define SERVER_URL      "http://192.168.100.42:3000"
+#define SERVER_URL      "http://192.168.100.43:3000"
 
 // Device API Key (dari web admin saat register device)
 #define API_KEY         "828c2b1b55befe80ad8a919ad7dfdcb8b6997a397b87b5f69425c49845cc29f4"

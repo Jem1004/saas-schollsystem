@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import SuperAdminDashboard from '@/views/super-admin/SuperAdminDashboard.vue'
 import AdminSekolahDashboard from '@/views/admin-sekolah/AdminSekolahDashboard.vue'
 import GuruBKDashboard from '@/views/guru-bk/GuruBKDashboard.vue'
+import WaliKelasDashboard from '@/views/wali-kelas/WaliKelasDashboard.vue'
 
 const authStore = useAuthStore()
 
@@ -26,6 +27,9 @@ onMounted(() => {
     
     <!-- Guru BK Dashboard -->
     <GuruBKDashboard v-else-if="userRole === 'guru_bk'" />
+    
+    <!-- Wali Kelas Dashboard -->
+    <WaliKelasDashboard v-else-if="userRole === 'wali_kelas'" />
     
     <!-- Placeholder for other roles (will be implemented in later tasks) -->
     <div v-else class="placeholder-dashboard">

@@ -9,6 +9,8 @@ import {
   Modal,
   Form,
   FormItem,
+  Select,
+  SelectOption,
   message,
   Popconfirm,
   Card,
@@ -84,11 +86,19 @@ const formState = reactive<CreateSchoolRequest>({
   address: '',
   phone: '',
   email: '',
+  timezone: 'Asia/Makassar',
   adminUsername: '',
   adminPassword: '',
   adminName: '',
   adminEmail: '',
 })
+
+// Timezone options
+const timezoneOptions = [
+  { value: 'Asia/Jakarta', label: 'WIB - Waktu Indonesia Barat (UTC+7)' },
+  { value: 'Asia/Makassar', label: 'WITA - Waktu Indonesia Tengah (UTC+8)' },
+  { value: 'Asia/Jayapura', label: 'WIT - Waktu Indonesia Timur (UTC+9)' },
+]
 
 // Form rules
 const formRules = {
@@ -197,6 +207,7 @@ const openEditModal = (school: School) => {
   formState.address = school.address || ''
   formState.phone = school.phone || ''
   formState.email = school.email || ''
+  formState.timezone = school.timezone || 'Asia/Makassar'
   formState.adminUsername = ''
   formState.adminPassword = ''
   formState.adminName = ''
@@ -231,6 +242,7 @@ const resetForm = () => {
   formState.address = ''
   formState.phone = ''
   formState.email = ''
+  formState.timezone = 'Asia/Makassar'
   formState.adminUsername = ''
   formState.adminPassword = ''
   formState.adminName = ''
@@ -260,6 +272,7 @@ const handleSubmit = async () => {
         address: formState.address || undefined,
         phone: formState.phone || undefined,
         email: formState.email || undefined,
+        timezone: formState.timezone || undefined,
       }
       await tenantService.updateSchool(editingSchool.value.id, updateData)
       message.success('Sekolah berhasil diperbarui')
@@ -498,6 +511,17 @@ onMounted(() => {
             </FormItem>
           </Col>
         </Row>
+        <FormItem label="Zona Waktu" name="timezone">
+          <Select v-model:value="formState.timezone" placeholder="Pilih zona waktu">
+            <SelectOption 
+              v-for="tz in timezoneOptions" 
+              :key="tz.value" 
+              :value="tz.value"
+            >
+              {{ tz.label }}
+            </SelectOption>
+          </Select>
+        </FormItem>
 
         <!-- Admin Section (only for create) -->
         <template v-if="!isEditing">
@@ -663,6 +687,12 @@ onMounted(() => {
             <Tag :color="schoolDetail.isActive ? 'success' : 'default'">
               {{ schoolDetail.isActive ? 'Aktif' : 'Nonaktif' }}
             </Tag>
+          </DescriptionsItem>
+          <DescriptionsItem label="Zona Waktu">
+            {{ schoolDetail.timezone === 'Asia/Jakarta' ? 'WIB (UTC+7)' : 
+               schoolDetail.timezone === 'Asia/Makassar' ? 'WITA (UTC+8)' : 
+               schoolDetail.timezone === 'Asia/Jayapura' ? 'WIT (UTC+9)' : 
+               schoolDetail.timezone || 'WITA (UTC+8)' }}
           </DescriptionsItem>
           <DescriptionsItem label="Tanggal Dibuat">
             {{ formatDate(schoolDetail.createdAt) }}

@@ -91,36 +91,37 @@ func (r *repository) FindAll(ctx context.Context, schoolID uint, filter NoteFilt
 	var notes []models.HomeroomNote
 	var total int64
 
-	query := r.db.WithContext(ctx).
+	// Build base query for counting
+	countQuery := r.db.WithContext(ctx).
 		Model(&models.HomeroomNote{}).
 		Joins("JOIN students ON students.id = homeroom_notes.student_id").
 		Where("students.school_id = ?", schoolID)
 
-	// Apply filters
+	// Apply filters to count query
 	if filter.StudentID != nil {
-		query = query.Where("homeroom_notes.student_id = ?", *filter.StudentID)
+		countQuery = countQuery.Where("homeroom_notes.student_id = ?", *filter.StudentID)
 	}
 	if filter.ClassID != nil {
-		query = query.Where("students.class_id = ?", *filter.ClassID)
+		countQuery = countQuery.Where("students.class_id = ?", *filter.ClassID)
 	}
 	if filter.TeacherID != nil {
-		query = query.Where("homeroom_notes.teacher_id = ?", *filter.TeacherID)
+		countQuery = countQuery.Where("homeroom_notes.teacher_id = ?", *filter.TeacherID)
 	}
 	if filter.StartDate != nil {
 		startDate, err := time.Parse("2006-01-02", *filter.StartDate)
 		if err == nil {
-			query = query.Where("homeroom_notes.created_at >= ?", startDate)
+			countQuery = countQuery.Where("homeroom_notes.created_at >= ?", startDate)
 		}
 	}
 	if filter.EndDate != nil {
 		endDate, err := time.Parse("2006-01-02", *filter.EndDate)
 		if err == nil {
-			query = query.Where("homeroom_notes.created_at <= ?", endDate.Add(24*time.Hour))
+			countQuery = countQuery.Where("homeroom_notes.created_at <= ?", endDate.Add(24*time.Hour))
 		}
 	}
 
 	// Count total
-	if err := query.Count(&total).Error; err != nil {
+	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -133,16 +134,56 @@ func (r *repository) FindAll(ctx context.Context, schoolID uint, filter NoteFilt
 		filter.PageSize = 100
 	}
 
-	// Fetch records
+	// Build fetch query - get note IDs first, then fetch with preloads
+	var noteIDs []uint
+	idQuery := r.db.WithContext(ctx).
+		Model(&models.HomeroomNote{}).
+		Select("homeroom_notes.id").
+		Joins("JOIN students ON students.id = homeroom_notes.student_id").
+		Where("students.school_id = ?", schoolID)
+
+	// Apply same filters
+	if filter.StudentID != nil {
+		idQuery = idQuery.Where("homeroom_notes.student_id = ?", *filter.StudentID)
+	}
+	if filter.ClassID != nil {
+		idQuery = idQuery.Where("students.class_id = ?", *filter.ClassID)
+	}
+	if filter.TeacherID != nil {
+		idQuery = idQuery.Where("homeroom_notes.teacher_id = ?", *filter.TeacherID)
+	}
+	if filter.StartDate != nil {
+		startDate, err := time.Parse("2006-01-02", *filter.StartDate)
+		if err == nil {
+			idQuery = idQuery.Where("homeroom_notes.created_at >= ?", startDate)
+		}
+	}
+	if filter.EndDate != nil {
+		endDate, err := time.Parse("2006-01-02", *filter.EndDate)
+		if err == nil {
+			idQuery = idQuery.Where("homeroom_notes.created_at <= ?", endDate.Add(24*time.Hour))
+		}
+	}
+
+	if err := idQuery.
+		Order("homeroom_notes.created_at DESC").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Pluck("homeroom_notes.id", &noteIDs).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if len(noteIDs) == 0 {
+		return notes, total, nil
+	}
+
+	// Fetch notes with preloads using the IDs
 	err := r.db.WithContext(ctx).
 		Preload("Student").
 		Preload("Student.Class").
 		Preload("Teacher").
-		Joins("JOIN students ON students.id = homeroom_notes.student_id").
-		Where("students.school_id = ?", schoolID).
-		Order("homeroom_notes.created_at DESC").
-		Offset(offset).
-		Limit(filter.PageSize).
+		Where("id IN ?", noteIDs).
+		Order("created_at DESC").
 		Find(&notes).Error
 
 	if err != nil {

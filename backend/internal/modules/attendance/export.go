@@ -319,6 +319,10 @@ func translateStatus(status string) string {
 		return "Sangat Terlambat"
 	case "absent":
 		return "Tidak Hadir"
+	case "sick":
+		return "Sakit"
+	case "excused":
+		return "Izin"
 	default:
 		return status
 	}

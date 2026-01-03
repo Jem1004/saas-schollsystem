@@ -95,13 +95,13 @@ const routes: RouteRecordRaw[] = [
         path: 'attendance',
         name: 'AttendanceReport',
         component: () => import('@/views/admin-sekolah/AttendanceReport.vue'),
-        meta: { title: 'Laporan Absensi', roles: ['admin_sekolah', 'wali_kelas'] },
+        meta: { title: 'Laporan Absensi', roles: ['admin_sekolah'] },
       },
       {
         path: 'attendance/live',
         name: 'LiveAttendance',
         component: () => import('@/views/admin-sekolah/LiveAttendance.vue'),
-        meta: { title: 'Absensi Real-Time', roles: ['admin_sekolah', 'wali_kelas', 'guru_bk'] },
+        meta: { title: 'Absensi Real-Time', roles: ['admin_sekolah', 'guru_bk'] },
       },
       {
         path: 'settings',

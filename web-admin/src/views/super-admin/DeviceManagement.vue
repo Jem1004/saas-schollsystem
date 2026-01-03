@@ -199,10 +199,19 @@ const handleSubmit = async () => {
   }
 }
 
-const handleShowApiKey = (device: Device) => {
-  selectedDevice.value = device
-  showApiKey.value = false
-  apiKeyModalVisible.value = true
+const handleShowApiKey = async (device: Device) => {
+  try {
+    const apiKeyData = await deviceService.getDeviceApiKey(device.id)
+    selectedDevice.value = {
+      ...device,
+      apiKey: apiKeyData.apiKey,
+    }
+    showApiKey.value = false
+    apiKeyModalVisible.value = true
+  } catch (error: unknown) {
+    const err = error as { message?: string }
+    message.error(err.message || 'Gagal mengambil API Key')
+  }
 }
 
 const copyApiKey = async () => {

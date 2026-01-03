@@ -25,6 +25,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	devices.Get("", h.GetDevices)
 	devices.Get("/grouped", h.GetDevicesGrouped)
 	devices.Get("/:id", h.GetDevice)
+	devices.Get("/:id/api-key", h.GetDeviceAPIKey)
 	devices.Put("/:id", h.UpdateDevice)
 	devices.Post("/:id/revoke", h.RevokeAPIKey)
 	devices.Post("/:id/regenerate", h.RegenerateAPIKey)
@@ -38,6 +39,7 @@ func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
 	router.Get("", h.GetDevices)
 	router.Get("/grouped", h.GetDevicesGrouped)
 	router.Get("/:id", h.GetDevice)
+	router.Get("/:id/api-key", h.GetDeviceAPIKey)
 	router.Put("/:id", h.UpdateDevice)
 	router.Post("/:id/revoke", h.RevokeAPIKey)
 	router.Post("/:id/regenerate", h.RegenerateAPIKey)
@@ -206,6 +208,41 @@ func (h *Handler) GetDevice(c *fiber.Ctx) error {
 	}
 
 	response, err := h.service.GetDeviceByID(c.Context(), uint(id))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// GetDeviceAPIKey handles getting a device's API key
+// @Summary Get device API key
+// @Description Get the API key for a specific device (Super Admin only)
+// @Tags Devices
+// @Produce json
+// @Param id path int true "Device ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/devices/{id}/api-key [get]
+func (h *Handler) GetDeviceAPIKey(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "VAL_INVALID_FORMAT",
+				"message": "ID perangkat tidak valid",
+			},
+		})
+	}
+
+	response, err := h.service.GetDeviceAPIKey(c.Context(), uint(id))
 	if err != nil {
 		return h.handleError(c, err)
 	}

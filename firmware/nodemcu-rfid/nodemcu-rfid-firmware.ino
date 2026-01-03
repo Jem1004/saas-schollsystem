@@ -30,9 +30,9 @@ APIClient apiClient;
 StateMachine stateMachine;
 
 #define SERIAL_BAUD 115200
-#define PAIRING_CHECK_INTERVAL 2000
-#define CARD_COOLDOWN 2000
-#define RESULT_DISPLAY_TIME 3000
+#define PAIRING_CHECK_INTERVAL 3000  // Check pairing every 3 seconds (reduced network load)
+#define CARD_COOLDOWN 1000           // 1 second cooldown between taps (backend handles duplicates)
+#define RESULT_DISPLAY_TIME 1500     // Show result for 1.5 seconds (enough to read)
 #define DISPLAY_UPDATE_INTERVAL 1000
 
 unsigned long lastPairingCheck = 0;
@@ -312,9 +312,10 @@ void handlePairingTap(const String& uid) {
 }
 
 String mapStatusToIndonesian(const String& status) {
-  if (status == "on_time" || status == "check_in") return F("Tepat Waktu");
+  if (status == "on_time") return F("Tepat Waktu");
   if (status == "late") return F("Terlambat");
   if (status == "very_late") return F("Sangat Terlambat");
+  if (status == "check_in") return F("Masuk");
   if (status == "check_out") return F("Pulang");
   if (status == "already_checked_in") return F("Sudah Masuk");
   if (status == "already_checked_out") return F("Sudah Pulang");

@@ -81,16 +81,6 @@ let notificationInterval: ReturnType<typeof setInterval> | null = null
 // Check if user is super admin
 const isSuperAdmin = computed(() => authStore.userRole === 'super_admin')
 
-// Update selected keys based on current route
-watch(
-  () => route.path,
-  (path) => {
-    const key = path.split('/')[1] || 'dashboard'
-    selectedKeys.value = [key]
-  },
-  { immediate: true }
-)
-
 // Role-based menu configuration
 const allMenuItems: MenuItemConfig[] = [
   {
@@ -149,14 +139,14 @@ const allMenuItems: MenuItemConfig[] = [
     icon: ScheduleOutlined,
     label: 'Laporan Absensi',
     path: '/attendance',
-    roles: ['admin_sekolah', 'wali_kelas'],
+    roles: ['admin_sekolah'],
   },
   {
     key: 'live-attendance',
     icon: SyncOutlined,
     label: 'Absensi Real-Time',
     path: '/attendance/live',
-    roles: ['admin_sekolah', 'wali_kelas', 'guru_bk'],
+    roles: ['admin_sekolah', 'guru_bk'],
   },
   // Note: School settings removed from super_admin menu as they don't have school context
   // Super admin should manage school settings through tenant management
@@ -248,6 +238,23 @@ const allMenuItems: MenuItemConfig[] = [
     readOnly: true,
   },
 ]
+
+// Update selected keys based on current route
+watch(
+  () => route.path,
+  (path) => {
+    // Find matching menu item by path
+    const matchingItem = allMenuItems.find(item => item.path === path)
+    if (matchingItem) {
+      selectedKeys.value = [matchingItem.key]
+    } else {
+      // Fallback to first segment
+      const key = path.split('/')[1] || 'dashboard'
+      selectedKeys.value = [key]
+    }
+  },
+  { immediate: true }
+)
 
 // Filter menu items based on user role
 const menuItems = computed(() => {
@@ -515,7 +522,9 @@ onUnmounted(() => {
       </LayoutHeader>
 
       <LayoutContent class="content">
-        <router-view />
+        <router-view v-slot="{ Component, route }">
+          <component :is="Component" :key="route.fullPath" />
+        </router-view>
       </LayoutContent>
     </Layout>
   </Layout>
@@ -702,6 +711,9 @@ onUnmounted(() => {
   border-radius: 8px;
   min-height: calc(100vh - 64px - 48px);
   transition: margin-left 0.2s;
+  position: relative;
+  z-index: 1;
+  overflow: auto;
 }
 
 /* Handle collapsed state */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   Table,
   Button,
@@ -19,6 +19,7 @@ import {
   TabPane,
   Empty,
   message,
+  Popconfirm,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -30,19 +31,25 @@ import {
   DownloadOutlined,
   BarChartOutlined,
   UnorderedListOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  ExclamationCircleOutlined,
+  MedicineBoxOutlined,
+  FileProtectOutlined,
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
-import { schoolService, exportService } from '@/services'
+import { schoolService, exportService, attendanceService } from '@/services'
 import type { AttendanceSummary, Class } from '@/types/school'
 import type { MonthlyRecapResponse, StudentRecapSummary } from '@/types/export'
+import type { AttendanceCamelCase } from '@/types/attendance'
 import { MONTH_OPTIONS, getYearOptions, getMonthName } from '@/types/export'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
 
 // ==================== SHARED STATE ====================
-const activeTab = ref<'daily' | 'monthly'>('daily')
+const activeTab = ref<'daily' | 'monthly' | 'detail'>('daily')
 const classes = ref<Class[]>([])
 const loadingClasses = ref(false)
 const filterClassId = ref<number | undefined>(undefined)
@@ -64,6 +71,20 @@ const recapData = ref<MonthlyRecapResponse | null>(null)
 const selectedMonth = ref<number>(new Date().getMonth() + 1)
 const selectedYear = ref<number>(new Date().getFullYear())
 
+// ==================== DETAIL TAB STATE ====================
+const detailLoading = ref(false)
+const detailData = ref<AttendanceCamelCase[]>([])
+const detailDateRange = ref<[Dayjs, Dayjs]>([dayjs(), dayjs()])
+const detailClassId = ref<number | undefined>(undefined)
+const detailStatus = ref<string | undefined>(undefined)
+const detailPagination = ref({
+  current: 1,
+  pageSize: 20,
+  total: 0,
+})
+const selectedRowKeys = ref<number[]>([])
+const deleting = ref(false)
+
 // Year options for monthly
 const yearOptions = getYearOptions()
 
@@ -74,6 +95,8 @@ const dailyColumns: TableProps['columns'] = [
   { title: 'Hadir', dataIndex: 'present', key: 'present', width: 100, align: 'center' },
   { title: 'Terlambat', dataIndex: 'late', key: 'late', width: 100, align: 'center' },
   { title: 'Tidak Hadir', dataIndex: 'absent', key: 'absent', width: 100, align: 'center' },
+  { title: 'Sakit', dataIndex: 'sick', key: 'sick', width: 100, align: 'center' },
+  { title: 'Izin', dataIndex: 'excused', key: 'excused', width: 100, align: 'center' },
   { title: 'Persentase Kehadiran', key: 'percentage', width: 200 },
 ]
 
@@ -87,7 +110,32 @@ const monthlyColumns: TableProps['columns'] = [
   { title: 'Terlambat', dataIndex: 'total_late', key: 'total_late', width: 100, align: 'center' },
   { title: 'Sangat Terlambat', dataIndex: 'total_very_late', key: 'total_very_late', width: 130, align: 'center' },
   { title: 'Tidak Hadir', dataIndex: 'total_absent', key: 'total_absent', width: 100, align: 'center' },
+  { title: 'Sakit', dataIndex: 'total_sick', key: 'total_sick', width: 80, align: 'center' },
+  { title: 'Izin', dataIndex: 'total_excused', key: 'total_excused', width: 80, align: 'center' },
   { title: 'Persentase', key: 'percentage', width: 150, align: 'center' },
+]
+
+// ==================== DETAIL TABLE COLUMNS ====================
+const detailColumns: TableProps['columns'] = [
+  { title: 'Tanggal', dataIndex: 'date', key: 'date', width: 120 },
+  { title: 'Nama Siswa', dataIndex: 'studentName', key: 'studentName', ellipsis: true },
+  { title: 'NIS', dataIndex: 'studentNis', key: 'studentNis', width: 100 },
+  { title: 'Kelas', dataIndex: 'className', key: 'className', width: 100 },
+  { title: 'Jadwal', dataIndex: 'scheduleName', key: 'scheduleName', width: 120 },
+  { title: 'Waktu Masuk', dataIndex: 'checkInTime', key: 'checkInTime', width: 100, align: 'center' },
+  { title: 'Status', key: 'status', width: 120, align: 'center' },
+  { title: 'Metode', key: 'method', width: 80, align: 'center' },
+  { title: 'Aksi', key: 'action', width: 80, align: 'center', fixed: 'right' },
+]
+
+// Status options for filter
+const statusOptions = [
+  { value: 'on_time', label: 'Tepat Waktu' },
+  { value: 'late', label: 'Terlambat' },
+  { value: 'very_late', label: 'Sangat Terlambat' },
+  { value: 'absent', label: 'Tidak Hadir' },
+  { value: 'sick', label: 'Sakit' },
+  { value: 'excused', label: 'Izin' },
 ]
 
 // ==================== COMPUTED: DAILY STATS ====================
@@ -102,12 +150,16 @@ const dailyStats = computed(() => {
   const totalPresent = data.reduce((sum, item) => sum + item.present, 0)
   const totalLate = data.reduce((sum, item) => sum + item.late, 0)
   const totalAbsent = data.reduce((sum, item) => sum + item.absent, 0)
+  const totalSick = data.reduce((sum, item) => sum + (item.sick || 0), 0)
+  const totalExcused = data.reduce((sum, item) => sum + (item.excused || 0), 0)
   
   return {
     totalStudents,
     totalPresent,
     totalLate,
     totalAbsent,
+    totalSick,
+    totalExcused,
     percentage: totalStudents > 0 ? Math.round((totalPresent / totalStudents) * 100) : 0,
   }
 })
@@ -115,7 +167,7 @@ const dailyStats = computed(() => {
 // ==================== COMPUTED: MONTHLY STATS ====================
 const monthlyStats = computed(() => {
   if (!recapData.value || !recapData.value.student_recaps.length) {
-    return { totalStudents: 0, avgPresent: 0, avgLate: 0, avgAbsent: 0, avgPercentage: 0 }
+    return { totalStudents: 0, avgPresent: 0, avgLate: 0, avgAbsent: 0, avgSick: 0, avgExcused: 0, avgPercentage: 0 }
   }
   
   const students = recapData.value.student_recaps
@@ -123,6 +175,8 @@ const monthlyStats = computed(() => {
   const totalPresent = students.reduce((sum, s) => sum + s.total_present, 0)
   const totalLate = students.reduce((sum, s) => sum + s.total_late, 0)
   const totalAbsent = students.reduce((sum, s) => sum + s.total_absent, 0)
+  const totalSick = students.reduce((sum, s) => sum + (s.total_sick || 0), 0)
+  const totalExcused = students.reduce((sum, s) => sum + (s.total_excused || 0), 0)
   const avgPercentage = students.reduce((sum, s) => sum + s.attendance_percent, 0) / totalStudents
   
   return {
@@ -130,6 +184,8 @@ const monthlyStats = computed(() => {
     avgPresent: Math.round(totalPresent / totalStudents),
     avgLate: Math.round(totalLate / totalStudents),
     avgAbsent: Math.round(totalAbsent / totalStudents),
+    avgSick: Math.round(totalSick / totalStudents * 100) / 100,
+    avgExcused: Math.round(totalExcused / totalStudents * 100) / 100,
     avgPercentage: Math.round(avgPercentage * 100) / 100,
   }
 })
@@ -206,6 +262,141 @@ const handleMonthYearChange = () => {
   loadMonthlyRecap()
 }
 
+// ==================== DETAIL FUNCTIONS ====================
+const loadDetailAttendance = async () => {
+  detailLoading.value = true
+  try {
+    const params: Record<string, unknown> = {
+      page: detailPagination.value.current,
+      page_size: detailPagination.value.pageSize,
+    }
+    
+    if (detailDateRange.value && detailDateRange.value.length === 2) {
+      params.start_date = detailDateRange.value[0].format('YYYY-MM-DD')
+      params.end_date = detailDateRange.value[1].format('YYYY-MM-DD')
+    }
+    
+    if (detailClassId.value) {
+      params.class_id = detailClassId.value
+    }
+    
+    if (detailStatus.value) {
+      params.status = detailStatus.value
+    }
+    
+    const response = await attendanceService.getAttendance(params)
+    
+    // Map response data (snake_case) to detailData (camelCase for display)
+    detailData.value = response.attendances.map((item) => ({
+      id: item.id,
+      studentId: item.student_id,
+      studentName: item.student_name,
+      studentNis: item.student_nis,
+      className: item.class_name,
+      scheduleId: item.schedule_id,
+      scheduleName: item.schedule_name || '-',
+      date: item.date,
+      checkInTime: item.check_in_time,
+      checkOutTime: item.check_out_time,
+      status: item.status,
+      method: item.method,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+    })) as AttendanceCamelCase[]
+    
+    detailPagination.value.total = response.pagination?.total || 0
+    selectedRowKeys.value = []
+  } catch (err) {
+    console.error('Failed to load detail attendance:', err)
+    message.error('Gagal memuat data absensi')
+    detailData.value = []
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+const handleDetailDateChange = () => {
+  detailPagination.value.current = 1
+  loadDetailAttendance()
+}
+
+const handleDetailFilterChange = () => {
+  detailPagination.value.current = 1
+  loadDetailAttendance()
+}
+
+const handleDetailTableChange = (pagination: { current?: number; pageSize?: number }) => {
+  detailPagination.value.current = pagination.current || 1
+  detailPagination.value.pageSize = pagination.pageSize || 20
+  loadDetailAttendance()
+}
+
+const handleDeleteAttendance = async (id: number) => {
+  try {
+    await attendanceService.deleteAttendance(id)
+    message.success('Data absensi berhasil dihapus')
+    loadDetailAttendance()
+  } catch (err) {
+    console.error('Failed to delete attendance:', err)
+    message.error('Gagal menghapus data absensi')
+  }
+}
+
+const handleBulkDelete = () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('Pilih data yang akan dihapus')
+    return
+  }
+  
+  Modal.confirm({
+    title: 'Konfirmasi Hapus',
+    icon: h(ExclamationCircleOutlined),
+    content: `Apakah Anda yakin ingin menghapus ${selectedRowKeys.value.length} data absensi?`,
+    okText: 'Hapus',
+    okType: 'danger',
+    cancelText: 'Batal',
+    async onOk() {
+      deleting.value = true
+      try {
+        // Delete one by one (could be optimized with bulk delete endpoint)
+        for (const id of selectedRowKeys.value) {
+          await attendanceService.deleteAttendance(id)
+        }
+        message.success(`${selectedRowKeys.value.length} data absensi berhasil dihapus`)
+        selectedRowKeys.value = []
+        loadDetailAttendance()
+      } catch (err) {
+        console.error('Failed to bulk delete:', err)
+        message.error('Gagal menghapus beberapa data absensi')
+      } finally {
+        deleting.value = false
+      }
+    },
+  })
+}
+
+const onSelectChange = (keys: (string | number)[]) => {
+  selectedRowKeys.value = keys as number[]
+}
+
+const getStatusTag = (status: string) => {
+  const config: Record<string, { color: string; label: string }> = {
+    on_time: { color: 'success', label: 'Tepat Waktu' },
+    late: { color: 'warning', label: 'Terlambat' },
+    very_late: { color: 'orange', label: 'Sangat Terlambat' },
+    absent: { color: 'error', label: 'Tidak Hadir' },
+    sick: { color: 'blue', label: 'Sakit' },
+    excused: { color: 'cyan', label: 'Izin' },
+  }
+  return config[status] || { color: 'default', label: status }
+}
+
+const getMethodTag = (method: string) => {
+  return method === 'rfid' 
+    ? { color: 'blue', label: 'RFID' }
+    : { color: 'purple', label: 'Manual' }
+}
+
 // ==================== EXPORT FUNCTIONS ====================
 const openExportModal = () => {
   if (activeTab.value === 'daily') {
@@ -263,18 +454,22 @@ const handleClassFilterChange = () => {
 const handleRefresh = () => {
   if (activeTab.value === 'daily') {
     loadDailyAttendance()
-  } else {
+  } else if (activeTab.value === 'monthly') {
     loadMonthlyRecap()
+  } else {
+    loadDetailAttendance()
   }
 }
 
 // ==================== TAB CHANGE ====================
 const handleTabChange = (key: string | number) => {
-  activeTab.value = key as 'daily' | 'monthly'
+  activeTab.value = key as 'daily' | 'monthly' | 'detail'
   if (key === 'daily' && attendanceData.value.length === 0) {
     loadDailyAttendance()
   } else if (key === 'monthly' && !recapData.value) {
     loadMonthlyRecap()
+  } else if (key === 'detail' && detailData.value.length === 0) {
+    loadDetailAttendance()
   }
 }
 
@@ -305,29 +500,43 @@ onMounted(() => {
 
         <!-- Daily Summary Cards -->
         <Row :gutter="[24, 24]" class="summary-row">
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Total Siswa" :value="dailyStats.totalStudents" :value-style="{ color: '#3b82f6' }" />
             </Card>
           </Col>
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Hadir" :value="dailyStats.totalPresent" :value-style="{ color: '#22c55e' }">
                 <template #prefix><CheckCircleOutlined /></template>
               </Statistic>
             </Card>
           </Col>
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Terlambat" :value="dailyStats.totalLate" :value-style="{ color: '#f97316' }">
                 <template #prefix><ClockCircleOutlined /></template>
               </Statistic>
             </Card>
           </Col>
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Tidak Hadir" :value="dailyStats.totalAbsent" :value-style="{ color: '#ef4444' }">
                 <template #prefix><CloseCircleOutlined /></template>
+              </Statistic>
+            </Card>
+          </Col>
+          <Col :xs="24" :sm="12" :lg="4">
+            <Card class="stat-card">
+              <Statistic title="Sakit" :value="dailyStats.totalSick" :value-style="{ color: '#3b82f6' }">
+                <template #prefix><MedicineBoxOutlined /></template>
+              </Statistic>
+            </Card>
+          </Col>
+          <Col :xs="24" :sm="12" :lg="4">
+            <Card class="stat-card">
+              <Statistic title="Izin" :value="dailyStats.totalExcused" :value-style="{ color: '#06b6d4' }">
+                <template #prefix><FileProtectOutlined /></template>
               </Statistic>
             </Card>
           </Col>
@@ -395,6 +604,14 @@ onMounted(() => {
                 <Tag v-if="(record as AttendanceSummary).absent > 0" color="error">{{ (record as AttendanceSummary).absent }}</Tag>
                 <span v-else>0</span>
               </template>
+              <template v-else-if="column.key === 'sick'">
+                <Tag v-if="(record as AttendanceSummary).sick > 0" color="blue">{{ (record as AttendanceSummary).sick }}</Tag>
+                <span v-else>0</span>
+              </template>
+              <template v-else-if="column.key === 'excused'">
+                <Tag v-if="(record as AttendanceSummary).excused > 0" color="cyan">{{ (record as AttendanceSummary).excused }}</Tag>
+                <span v-else>0</span>
+              </template>
               <template v-else-if="column.key === 'percentage'">
                 <div class="percentage-cell">
                   <Progress
@@ -422,7 +639,15 @@ onMounted(() => {
                     <Tag v-if="dailyStats.totalAbsent > 0" color="error">{{ dailyStats.totalAbsent }}</Tag>
                     <span v-else>0</span>
                   </Table.Summary.Cell>
-                  <Table.Summary.Cell :index="5">
+                  <Table.Summary.Cell :index="5" align="center">
+                    <Tag v-if="dailyStats.totalSick > 0" color="blue">{{ dailyStats.totalSick }}</Tag>
+                    <span v-else>0</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell :index="6" align="center">
+                    <Tag v-if="dailyStats.totalExcused > 0" color="cyan">{{ dailyStats.totalExcused }}</Tag>
+                    <span v-else>0</span>
+                  </Table.Summary.Cell>
+                  <Table.Summary.Cell :index="7">
                     <div class="percentage-cell">
                       <Progress :percent="dailyStats.percentage" :stroke-color="getPercentageColor(dailyStats.percentage)" :show-info="true" size="small" />
                     </div>
@@ -442,29 +667,43 @@ onMounted(() => {
 
         <!-- Monthly Summary Cards -->
         <Row :gutter="[24, 24]" class="summary-row">
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Total Siswa" :value="monthlyStats.totalStudents" :value-style="{ color: '#3b82f6' }" />
             </Card>
           </Col>
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Rata-rata Hadir" :value="monthlyStats.avgPresent" suffix="hari" :value-style="{ color: '#22c55e' }">
                 <template #prefix><CheckCircleOutlined /></template>
               </Statistic>
             </Card>
           </Col>
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Rata-rata Terlambat" :value="monthlyStats.avgLate" suffix="hari" :value-style="{ color: '#f97316' }">
                 <template #prefix><ClockCircleOutlined /></template>
               </Statistic>
             </Card>
           </Col>
-          <Col :xs="24" :sm="12" :lg="6">
+          <Col :xs="24" :sm="12" :lg="4">
+            <Card class="stat-card">
+              <Statistic title="Rata-rata Sakit" :value="monthlyStats.avgSick" suffix="hari" :value-style="{ color: '#3b82f6' }">
+                <template #prefix><MedicineBoxOutlined /></template>
+              </Statistic>
+            </Card>
+          </Col>
+          <Col :xs="24" :sm="12" :lg="4">
+            <Card class="stat-card">
+              <Statistic title="Rata-rata Izin" :value="monthlyStats.avgExcused" suffix="hari" :value-style="{ color: '#06b6d4' }">
+                <template #prefix><FileProtectOutlined /></template>
+              </Statistic>
+            </Card>
+          </Col>
+          <Col :xs="24" :sm="12" :lg="4">
             <Card class="stat-card">
               <Statistic title="Rata-rata Kehadiran" :value="monthlyStats.avgPercentage" suffix="%" :value-style="{ color: getPercentageColor(monthlyStats.avgPercentage) }">
-                <template #prefix><CloseCircleOutlined /></template>
+                <template #prefix><CheckCircleOutlined /></template>
               </Statistic>
             </Card>
           </Col>
@@ -538,6 +777,14 @@ onMounted(() => {
                 <Tag v-if="(record as StudentRecapSummary).total_absent > 0" color="error">{{ (record as StudentRecapSummary).total_absent }}</Tag>
                 <span v-else>0</span>
               </template>
+              <template v-else-if="column.key === 'total_sick'">
+                <Tag v-if="(record as StudentRecapSummary).total_sick > 0" color="blue">{{ (record as StudentRecapSummary).total_sick }}</Tag>
+                <span v-else>0</span>
+              </template>
+              <template v-else-if="column.key === 'total_excused'">
+                <Tag v-if="(record as StudentRecapSummary).total_excused > 0" color="cyan">{{ (record as StudentRecapSummary).total_excused }}</Tag>
+                <span v-else>0</span>
+              </template>
               <template v-else-if="column.key === 'percentage'">
                 <div class="percentage-cell">
                   <Progress
@@ -552,6 +799,119 @@ onMounted(() => {
 
             <template #emptyText>
               <Empty description="Tidak ada data rekap untuk periode ini" />
+            </template>
+          </Table>
+        </Card>
+      </TabPane>
+
+      <!-- ==================== TAB DETAIL ==================== -->
+      <TabPane key="detail">
+        <template #tab>
+          <span><FileTextOutlined /> Detail Absensi</span>
+        </template>
+
+        <Card>
+          <!-- Detail Toolbar -->
+          <Row :gutter="16" class="toolbar" justify="space-between" align="middle">
+            <Col :xs="24" :sm="24" :md="18">
+              <Space wrap>
+                <RangePicker
+                  v-model:value="detailDateRange"
+                  format="DD MMM YYYY"
+                  :placeholder="['Tanggal Mulai', 'Tanggal Akhir']"
+                  style="width: 280px"
+                  @change="handleDetailDateChange"
+                />
+                <Select
+                  v-model:value="detailClassId"
+                  placeholder="Semua Kelas"
+                  allow-clear
+                  style="width: 150px"
+                  :loading="loadingClasses"
+                  @change="handleDetailFilterChange"
+                >
+                  <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
+                    {{ cls.name }}
+                  </SelectOption>
+                </Select>
+                <Select
+                  v-model:value="detailStatus"
+                  placeholder="Semua Status"
+                  allow-clear
+                  style="width: 150px"
+                  @change="handleDetailFilterChange"
+                >
+                  <SelectOption v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </SelectOption>
+                </Select>
+              </Space>
+            </Col>
+            <Col :xs="24" :sm="24" :md="6" class="toolbar-right">
+              <Space>
+                <Button 
+                  v-if="selectedRowKeys.length > 0"
+                  danger 
+                  :loading="deleting"
+                  @click="handleBulkDelete"
+                >
+                  <template #icon><DeleteOutlined /></template>
+                  Hapus ({{ selectedRowKeys.length }})
+                </Button>
+                <Button @click="handleRefresh">
+                  <template #icon><ReloadOutlined /></template>
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+
+          <!-- Detail Table -->
+          <Table
+            :columns="detailColumns"
+            :data-source="detailData"
+            :loading="detailLoading"
+            :pagination="{
+              current: detailPagination.current,
+              pageSize: detailPagination.pageSize,
+              total: detailPagination.total,
+              showSizeChanger: true,
+              showTotal: (total: number) => `Total ${total} data`
+            }"
+            :row-selection="{
+              selectedRowKeys: selectedRowKeys,
+              onChange: onSelectChange,
+            }"
+            row-key="id"
+            :scroll="{ x: 1100 }"
+            @change="handleDetailTableChange"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'status'">
+                <Tag :color="getStatusTag((record as AttendanceCamelCase).status).color">
+                  {{ getStatusTag((record as AttendanceCamelCase).status).label }}
+                </Tag>
+              </template>
+              <template v-else-if="column.key === 'method'">
+                <Tag :color="getMethodTag((record as AttendanceCamelCase).method).color">
+                  {{ getMethodTag((record as AttendanceCamelCase).method).label }}
+                </Tag>
+              </template>
+              <template v-else-if="column.key === 'action'">
+                <Popconfirm
+                  title="Hapus data absensi ini?"
+                  ok-text="Hapus"
+                  cancel-text="Batal"
+                  @confirm="handleDeleteAttendance((record as AttendanceCamelCase).id)"
+                >
+                  <Button type="text" danger size="small">
+                    <template #icon><DeleteOutlined /></template>
+                  </Button>
+                </Popconfirm>
+              </template>
+            </template>
+
+            <template #emptyText>
+              <Empty description="Tidak ada data absensi untuk filter ini" />
             </template>
           </Table>
         </Card>

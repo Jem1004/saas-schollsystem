@@ -76,7 +76,7 @@ func Load() (*Config, error) {
 			Password:               getEnv("DB_PASSWORD", "postgres"),
 			Name:                   getEnv("DB_NAME", "school_management"),
 			SSLMode:                getEnv("DB_SSL_MODE", "disable"),
-			Timezone:               getEnv("DB_TIMEZONE", "Asia/Jakarta"),
+			Timezone:               getEnv("DB_TIMEZONE", "Asia/Makassar"),
 			MaxIdleConns:           getEnvAsInt("DB_MAX_IDLE_CONNS", 10),
 			MaxOpenConns:           getEnvAsInt("DB_MAX_OPEN_CONNS", 100),
 			ConnMaxLifetimeMinutes: getEnvAsInt("DB_CONN_MAX_LIFETIME_MINUTES", 60),

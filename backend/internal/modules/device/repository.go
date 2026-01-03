@@ -184,6 +184,7 @@ func (r *repository) Update(ctx context.Context, device *models.Device) error {
 			"device_code": device.DeviceCode,
 			"description": device.Description,
 			"is_active":   device.IsActive,
+			"api_key":     device.APIKey,
 		})
 	if result.Error != nil {
 		return result.Error

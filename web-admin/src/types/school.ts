@@ -81,6 +81,8 @@ export interface AttendanceSummary {
   present: number
   absent: number
   late: number
+  sick: number
+  excused: number
 }
 
 // Backend response for school attendance summary
@@ -94,6 +96,8 @@ export interface SchoolAttendanceSummaryResponse {
     late: number
     very_late: number
     absent: number
+    sick: number
+    excused: number
   }
   by_class: {
     class_id: number
@@ -102,6 +106,8 @@ export interface SchoolAttendanceSummaryResponse {
     present: number
     late: number
     absent: number
+    sick: number
+    excused: number
   }[]
 }
 

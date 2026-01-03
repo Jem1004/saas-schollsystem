@@ -30,12 +30,14 @@ const (
 	AttendanceStatusLate     AttendanceStatus = "late"
 	AttendanceStatusVeryLate AttendanceStatus = "very_late"
 	AttendanceStatusAbsent   AttendanceStatus = "absent"
+	AttendanceStatusSick     AttendanceStatus = "sick"
+	AttendanceStatusExcused  AttendanceStatus = "excused"
 )
 
 // IsValid checks if the attendance status is valid
 func (s AttendanceStatus) IsValid() bool {
 	switch s {
-	case AttendanceStatusOnTime, AttendanceStatusLate, AttendanceStatusVeryLate, AttendanceStatusAbsent:
+	case AttendanceStatusOnTime, AttendanceStatusLate, AttendanceStatusVeryLate, AttendanceStatusAbsent, AttendanceStatusSick, AttendanceStatusExcused:
 		return true
 	}
 	return false

@@ -18,14 +18,22 @@ export interface Grade {
 export interface HomeroomNote {
   id: number
   studentId: number
+  student_id?: number // Backend uses snake_case
   studentName?: string
+  student_name?: string
   studentNis?: string
+  student_nis?: string
   studentClass?: string
+  class_name?: string
   teacherId: number
+  teacher_id?: number
   teacherName?: string
+  teacher_name?: string
   content: string
   createdAt: string
+  created_at?: string
   updatedAt: string
+  updated_at?: string
 }
 
 export interface StudentAttendance {
@@ -36,8 +44,8 @@ export interface StudentAttendance {
   date: string
   checkInTime?: string
   checkOutTime?: string
-  status: 'present' | 'absent' | 'late' | 'excused'
-  method: 'rfid' | 'manual'
+  status: 'present' | 'absent' | 'late' | 'excused' | 'on_time' | 'very_late' | 'sick'
+  method: 'rfid' | 'manual' | ''
   createdAt: string
   updatedAt: string
 }
@@ -70,7 +78,10 @@ export interface HomeroomClass {
   name: string
   grade: number
   year: string
-  studentCount: number
+  totalStudents?: number
+  studentCount?: number
+  homeroomTeacherId?: number
+  homeroomTeacherName?: string
 }
 
 // Request types
@@ -98,10 +109,11 @@ export interface UpdateHomeroomNoteRequest {
 
 export interface ManualAttendanceRequest {
   studentId: number
+  scheduleId: number
   date: string
   checkInTime?: string
   checkOutTime?: string
-  status: 'present' | 'absent' | 'late' | 'excused'
+  status: 'present' | 'absent' | 'late' | 'excused' | 'on_time' | 'very_late' | 'sick'
 }
 
 export interface BatchGradeRequest {
@@ -116,26 +128,51 @@ export interface BatchGradeRequest {
 // Response types
 export interface GradeListResponse {
   data: Grade[]
-  total: number
-  page: number
-  pageSize: number
+  pagination?: {
+    page: number
+    page_size: number
+    total: number
+    total_pages: number
+  }
+  total?: number
+  page?: number
+  pageSize?: number
 }
 
 export interface HomeroomNoteListResponse {
-  data: HomeroomNote[]
-  total: number
-  page: number
-  pageSize: number
+  notes?: HomeroomNote[]
+  data?: HomeroomNote[]
+  pagination?: {
+    page: number
+    page_size: number
+    total: number
+    total_pages: number
+  }
+  total?: number
+  page?: number
+  pageSize?: number
 }
 
 export interface StudentAttendanceListResponse {
   data: StudentAttendance[]
-  total: number
-  page: number
-  pageSize: number
+  pagination?: {
+    page: number
+    page_size: number
+    total: number
+    total_pages: number
+  }
+  total?: number
+  page?: number
+  pageSize?: number
 }
 
 export interface ClassStudentListResponse {
   data: ClassStudent[]
-  total: number
+  pagination?: {
+    page: number
+    page_size: number
+    total: number
+    total_pages: number
+  }
+  total?: number
 }

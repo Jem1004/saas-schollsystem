@@ -86,6 +86,7 @@ type RFIDAttendanceResponse struct {
 
 // AttendanceSummaryResponse represents attendance summary for a class
 // Requirements: 5.4 - WHEN an Admin_Sekolah views attendance dashboard, THE System SHALL display summary statistics
+// Requirements: 5.1, 5.2 - Include sick and excused counts in the response
 type AttendanceSummaryResponse struct {
 	Date       string `json:"date"`
 	TotalCount int    `json:"total_count"`
@@ -93,6 +94,8 @@ type AttendanceSummaryResponse struct {
 	Late       int    `json:"late"`
 	VeryLate   int    `json:"very_late"`
 	Absent     int    `json:"absent"`
+	Sick       int    `json:"sick"`
+	Excused    int    `json:"excused"`
 }
 
 // ClassAttendanceSummaryResponse represents attendance summary for a class with student details
@@ -114,6 +117,7 @@ type SchoolAttendanceSummaryResponse struct {
 }
 
 // ClassSummaryItem represents attendance summary for a single class (for list view)
+// Requirements: 5.3, 5.4 - Include sick and excused counts per class
 type ClassSummaryItem struct {
 	ClassID       uint   `json:"class_id"`
 	ClassName     string `json:"class_name"`
@@ -121,6 +125,8 @@ type ClassSummaryItem struct {
 	Present       int    `json:"present"`
 	Late          int    `json:"late"`
 	Absent        int    `json:"absent"`
+	Sick          int    `json:"sick"`
+	Excused       int    `json:"excused"`
 }
 
 // ==================== Filter DTOs ====================
@@ -176,6 +182,7 @@ type MonthlyRecapResponse struct {
 
 // StudentRecapSummary represents attendance summary for a single student
 // Requirements: 2.1, 2.2 - Summary per student with attendance percentage
+// Requirements: 6.1, 6.2 - Include total_sick and total_excused in each student's recap summary
 type StudentRecapSummary struct {
 	StudentID         uint    `json:"student_id"`
 	StudentNIS        string  `json:"student_nis"`
@@ -186,6 +193,8 @@ type StudentRecapSummary struct {
 	TotalLate         int     `json:"total_late"`
 	TotalVeryLate     int     `json:"total_very_late"`
 	TotalAbsent       int     `json:"total_absent"`
+	TotalSick         int     `json:"total_sick"`
+	TotalExcused      int     `json:"total_excused"`
 	AttendancePercent float64 `json:"attendance_percent"` // (present / total_days) * 100
 }
 

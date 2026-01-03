@@ -38,6 +38,9 @@ type Repository interface {
 	FindStudentByID(ctx context.Context, studentID uint) (*models.Student, error)
 	FindStudentsByClass(ctx context.Context, classID uint) ([]models.Student, error)
 
+	// School lookup
+	FindSchoolByID(ctx context.Context, schoolID uint) (*models.School, error)
+
 	// Summary operations
 	GetAttendanceSummary(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, error)
 	GetAttendanceSummaryByClass(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, []ClassSummaryItem, error)
@@ -351,6 +354,23 @@ func (r *repository) FindStudentByID(ctx context.Context, studentID uint) (*mode
 	return &student, nil
 }
 
+// FindSchoolByID retrieves a school by ID
+func (r *repository) FindSchoolByID(ctx context.Context, schoolID uint) (*models.School, error) {
+	var school models.School
+	err := r.db.WithContext(ctx).
+		Where("id = ?", schoolID).
+		First(&school).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("school not found")
+		}
+		return nil, err
+	}
+
+	return &school, nil
+}
+
 // FindStudentsByClass retrieves all students in a class
 func (r *repository) FindStudentsByClass(ctx context.Context, classID uint) ([]models.Student, error) {
 	var students []models.Student
@@ -364,6 +384,7 @@ func (r *repository) FindStudentsByClass(ctx context.Context, classID uint) ([]m
 
 // GetAttendanceSummary retrieves attendance summary for a school on a specific date
 // Requirements: 5.4 - THE System SHALL display summary statistics (present, absent, late)
+// Requirements: 5.1, 5.2 - Include sick and excused counts in the response
 func (r *repository) GetAttendanceSummary(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, error) {
 	// Normalize date to start of day
 	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
@@ -414,16 +435,21 @@ func (r *repository) GetAttendanceSummary(ctx context.Context, schoolID uint, da
 		case models.AttendanceStatusVeryLate:
 			summary.VeryLate = int(sc.Count)
 			presentCount += sc.Count
+		case models.AttendanceStatusSick:
+			summary.Sick = int(sc.Count)
+		case models.AttendanceStatusExcused:
+			summary.Excused = int(sc.Count)
 		}
 	}
 
-	// Calculate absent (students without attendance record)
-	summary.Absent = int(totalStudents - presentCount)
+	// Calculate absent (students without attendance record, excluding sick and excused)
+	summary.Absent = int(totalStudents) - int(presentCount) - summary.Sick - summary.Excused
 
 	return summary, nil
 }
 
 // GetAttendanceSummaryByClass retrieves attendance summary grouped by class
+// Requirements: 5.3, 5.4 - Include sick and excused counts per class
 func (r *repository) GetAttendanceSummaryByClass(ctx context.Context, schoolID uint, date time.Time) (*AttendanceSummaryResponse, []ClassSummaryItem, error) {
 	// Normalize date to start of day
 	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
@@ -495,10 +521,15 @@ func (r *repository) GetAttendanceSummaryByClass(ctx context.Context, schoolID u
 			case models.AttendanceStatusVeryLate:
 				classSummary.Late += int(sc.Count) // Count very_late as late for simplicity
 				presentCount += sc.Count
+			case models.AttendanceStatusSick:
+				classSummary.Sick += int(sc.Count)
+			case models.AttendanceStatusExcused:
+				classSummary.Excused += int(sc.Count)
 			}
 		}
 
-		classSummary.Absent = int(totalStudents) - int(presentCount)
+		// Calculate absent (students without attendance record, excluding sick and excused)
+		classSummary.Absent = int(totalStudents) - int(presentCount) - classSummary.Sick - classSummary.Excused
 
 		classSummaries = append(classSummaries, classSummary)
 
@@ -507,6 +538,8 @@ func (r *repository) GetAttendanceSummaryByClass(ctx context.Context, schoolID u
 		totalSummary.Present += classSummary.Present
 		totalSummary.Late += classSummary.Late
 		totalSummary.Absent += classSummary.Absent
+		totalSummary.Sick += classSummary.Sick
+		totalSummary.Excused += classSummary.Excused
 	}
 
 	return totalSummary, classSummaries, nil
@@ -617,6 +650,7 @@ func toAttendanceResponse(attendance *models.Attendance) *AttendanceResponse {
 
 // FindActiveSchedule finds the active schedule for a given time and day
 // Requirements: 3.4, 3.5 - Determine which schedule is currently active based on current time
+// STRICT MODE: Only allows attendance within schedule time window
 func (r *repository) FindActiveSchedule(ctx context.Context, schoolID uint, timestamp time.Time) (*models.AttendanceSchedule, error) {
 	var schedules []models.AttendanceSchedule
 	
@@ -655,16 +689,8 @@ func (r *repository) FindActiveSchedule(ctx context.Context, schoolID uint, time
 		}
 	}
 
-	// No active schedule found for current time, try to find default
-	defaultSchedule, err := r.FindDefaultSchedule(ctx, schoolID)
-	if err == nil && defaultSchedule != nil {
-		// Check if default schedule is active on this day
-		if defaultSchedule.IsActive && defaultSchedule.IsActiveOnDay(timestamp.Weekday()) {
-			return defaultSchedule, nil
-		}
-	}
-
-	// Return nil if no schedule matches
+	// STRICT MODE: Return nil if no schedule matches current time
+	// This will cause attendance to be rejected with "no active schedule" error
 	return nil, nil
 }
 
@@ -857,11 +883,15 @@ func (r *repository) GetMonthlyRecap(ctx context.Context, schoolID uint, filter 
 				summary.TotalLate += sc.Count
 			case models.AttendanceStatusVeryLate:
 				summary.TotalVeryLate += sc.Count
+			case models.AttendanceStatusSick:
+				summary.TotalSick += sc.Count
+			case models.AttendanceStatusExcused:
+				summary.TotalExcused += sc.Count
 			}
 		}
 
-		// Calculate absent days
-		totalAttended := summary.TotalPresent + summary.TotalLate + summary.TotalVeryLate
+		// Calculate absent days (excluding sick and excused which are tracked separately)
+		totalAttended := summary.TotalPresent + summary.TotalLate + summary.TotalVeryLate + summary.TotalSick + summary.TotalExcused
 		summary.TotalAbsent = totalDays - totalAttended
 		if summary.TotalAbsent < 0 {
 			summary.TotalAbsent = 0

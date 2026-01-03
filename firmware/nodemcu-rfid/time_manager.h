@@ -2,7 +2,7 @@
  * TimeManager - NTP time synchronization
  * 
  * Handles time synchronization with NTP server.
- * Timezone set to WIB (UTC+7).
+ * Timezone set to WITA (UTC+8).
  */
 
 #ifndef TIME_MANAGER_H
@@ -15,7 +15,7 @@
 // NTP settings
 #define NTP_SERVER          "pool.ntp.org"
 #define NTP_SYNC_INTERVAL   3600000   // 1 hour in milliseconds
-#define NTP_UTC_OFFSET_WIB  25200     // UTC+7 in seconds (7 * 3600)
+#define NTP_UTC_OFFSET_WITA 28800     // UTC+8 in seconds (8 * 3600) - WITA timezone
 
 class TimeManager {
 public:

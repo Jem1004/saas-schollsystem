@@ -23,8 +23,6 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
-  BookOutlined,
-  FormOutlined,
   UserOutlined,
   RightOutlined,
   CalendarOutlined,
@@ -55,38 +53,6 @@ const stats = ref<HomeroomStats>({
 
 const students = ref<ClassStudent[]>([])
 
-// Mock data for development
-const loadMockData = () => {
-  stats.value = {
-    classId: 1,
-    className: 'VII-A',
-    totalStudents: 30,
-    todayAttendance: {
-      present: 26,
-      absent: 2,
-      late: 2,
-      excused: 0,
-    },
-    recentGrades: [
-      { id: 1, studentId: 1, studentName: 'Ahmad Fauzi', studentNis: '2024001', title: 'Ulangan Matematika', score: 85, createdBy: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 2, studentId: 2, studentName: 'Budi Santoso', studentNis: '2024002', title: 'Ulangan Matematika', score: 78, createdBy: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 3, studentId: 3, studentName: 'Citra Dewi', studentNis: '2024003', title: 'Tugas IPA', score: 90, createdBy: 1, createdAt: new Date(Date.now() - 86400000).toISOString(), updatedAt: new Date(Date.now() - 86400000).toISOString() },
-    ],
-    recentNotes: [
-      { id: 1, studentId: 1, studentName: 'Ahmad Fauzi', studentNis: '2024001', teacherId: 1, content: 'Siswa menunjukkan peningkatan dalam partisipasi kelas.', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 2, studentId: 4, studentName: 'Dian Pratama', studentNis: '2024004', teacherId: 1, content: 'Perlu perhatian lebih dalam mata pelajaran Bahasa Inggris.', createdAt: new Date(Date.now() - 86400000).toISOString(), updatedAt: new Date(Date.now() - 86400000).toISOString() },
-    ],
-  }
-
-  students.value = [
-    { id: 1, nis: '2024001', nisn: '0012345678', name: 'Ahmad Fauzi', isActive: true },
-    { id: 2, nis: '2024002', nisn: '0012345679', name: 'Budi Santoso', isActive: true },
-    { id: 3, nis: '2024003', nisn: '0012345680', name: 'Citra Dewi', isActive: true },
-    { id: 4, nis: '2024004', nisn: '0012345681', name: 'Dian Pratama', isActive: true },
-    { id: 5, nis: '2024005', nisn: '0012345682', name: 'Eka Putri', isActive: true },
-  ]
-}
-
 const loadData = async () => {
   loading.value = true
   error.value = null
@@ -98,8 +64,9 @@ const loadData = async () => {
     ])
     stats.value = statsResponse
     students.value = studentsResponse.data
-  } catch {
-    loadMockData()
+  } catch (err) {
+    console.error('Failed to load homeroom data:', err)
+    error.value = 'Gagal memuat data. Pastikan Anda memiliki kelas yang ditugaskan.'
   } finally {
     loading.value = false
   }
@@ -364,34 +331,6 @@ onMounted(() => {
           </Card>
         </Col>
       </Row>
-
-      <!-- Quick Actions -->
-      <Row :gutter="[24, 24]" style="margin-top: 24px">
-        <Col :xs="24">
-          <Card title="Aksi Cepat">
-            <Row :gutter="[16, 16]">
-              <Col :xs="24" :sm="8">
-                <Button type="primary" block size="large" @click="goToAttendance">
-                  <template #icon><CheckCircleOutlined /></template>
-                  Input Absensi Manual
-                </Button>
-              </Col>
-              <Col :xs="24" :sm="8">
-                <Button block size="large" @click="goToGrades">
-                  <template #icon><BookOutlined /></template>
-                  Input Nilai
-                </Button>
-              </Col>
-              <Col :xs="24" :sm="8">
-                <Button block size="large" @click="goToNotes">
-                  <template #icon><FormOutlined /></template>
-                  Tulis Catatan
-                </Button>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-      </Row>
     </Spin>
   </div>
 </template>
@@ -462,6 +401,7 @@ onMounted(() => {
   color: #595959;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

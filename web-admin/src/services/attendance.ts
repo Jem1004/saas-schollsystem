@@ -16,8 +16,8 @@ import type {
 export const attendanceService = {
   // Get attendance list
   async getAttendance(params?: GetAttendanceParams): Promise<AttendanceListResponse> {
-    const response = await api.get<AttendanceListResponse>('/attendance', { params })
-    return response.data
+    const response = await api.get<{ success: boolean; data: AttendanceListResponse }>('/attendance', { params })
+    return response.data.data
   },
 
   // Get single attendance record

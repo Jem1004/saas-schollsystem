@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,9 +13,12 @@ import (
 // Requirements: 4.5 - THE System SHALL enforce role-based access control for all protected resources
 func AuthMiddleware(jwtManager *auth.JWTManager) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		fmt.Printf("[DEBUG AuthMiddleware] Path: %s, Method: %s\n", c.Path(), c.Method())
+		
 		// Get authorization header
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
+			fmt.Printf("[DEBUG AuthMiddleware] No Authorization header\n")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"success": false,
 				"error": fiber.Map{
@@ -27,6 +31,7 @@ func AuthMiddleware(jwtManager *auth.JWTManager) fiber.Handler {
 		// Check Bearer prefix
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			fmt.Printf("[DEBUG AuthMiddleware] Invalid auth header format\n")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"success": false,
 				"error": fiber.Map{
@@ -41,8 +46,12 @@ func AuthMiddleware(jwtManager *auth.JWTManager) fiber.Handler {
 		// Validate token
 		claims, err := jwtManager.ValidateAccessToken(tokenString)
 		if err != nil {
+			fmt.Printf("[DEBUG AuthMiddleware] Token validation error: %v\n", err)
 			return handleTokenError(c, err)
 		}
+
+		fmt.Printf("[DEBUG AuthMiddleware] Token valid - UserID: %d, Role: %s, SchoolID: %v\n", 
+			claims.UserID, claims.Role, claims.SchoolID)
 
 		// Store claims in context for use by handlers
 		// Using both camelCase and snake_case for backward compatibility
@@ -55,9 +64,11 @@ func AuthMiddleware(jwtManager *auth.JWTManager) fiber.Handler {
 		// Store schoolID - handle nil pointer properly
 		if claims.SchoolID != nil {
 			c.Locals("schoolID", claims.SchoolID)
+			fmt.Printf("[DEBUG AuthMiddleware] Set schoolID: %d\n", *claims.SchoolID)
 		} else {
 			// Explicitly set nil for super_admin or users without school
 			c.Locals("schoolID", (*uint)(nil))
+			fmt.Printf("[DEBUG AuthMiddleware] SchoolID is nil\n")
 		}
 
 		return c.Next()

@@ -5,10 +5,11 @@ import "time"
 // CreateSchoolRequest represents the request to create a new school (tenant)
 // Requirements: 1.1 - WHEN a Super_Admin creates a new tenant, THE System SHALL generate a unique school_id
 type CreateSchoolRequest struct {
-	Name    string `json:"name" validate:"required"`
-	Address string `json:"address"`
-	Phone   string `json:"phone"`
-	Email   string `json:"email"`
+	Name     string `json:"name" validate:"required"`
+	Address  string `json:"address"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
+	Timezone string `json:"timezone"` // Asia/Jakarta (WIB), Asia/Makassar (WITA), Asia/Jayapura (WIT)
 	// Admin credentials - optional, will be auto-generated if not provided
 	AdminUsername string `json:"admin_username"`
 	AdminPassword string `json:"admin_password"`
@@ -18,23 +19,25 @@ type CreateSchoolRequest struct {
 
 // UpdateSchoolRequest represents the request to update a school
 type UpdateSchoolRequest struct {
-	Name    *string `json:"name"`
-	Address *string `json:"address"`
-	Phone   *string `json:"phone"`
-	Email   *string `json:"email"`
+	Name     *string `json:"name"`
+	Address  *string `json:"address"`
+	Phone    *string `json:"phone"`
+	Email    *string `json:"email"`
+	Timezone *string `json:"timezone"` // Asia/Jakarta (WIB), Asia/Makassar (WITA), Asia/Jayapura (WIT)
 }
 
 // SchoolResponse represents the school data in responses
 // Requirements: 1.2 - WHEN a Super_Admin views the tenant list, THE System SHALL display all registered schools
 type SchoolResponse struct {
-	ID        uint      `json:"id"`
-	Name      string    `json:"name"`
-	Address   string    `json:"address"`
-	Phone     string    `json:"phone"`
-	Email     string    `json:"email"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uint         `json:"id"`
+	Name      string       `json:"name"`
+	Address   string       `json:"address"`
+	Phone     string       `json:"phone"`
+	Email     string       `json:"email"`
+	Timezone  string       `json:"timezone"`
+	IsActive  bool         `json:"is_active"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
 	Stats     *SchoolStats `json:"stats,omitempty"`
 }
 

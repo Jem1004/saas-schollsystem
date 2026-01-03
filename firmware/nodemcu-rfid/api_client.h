@@ -13,8 +13,8 @@
 #include <ArduinoJson.h>
 
 // API settings
-#define API_TIMEOUT     5000    // 5 seconds timeout - AC2.9
-#define API_MAX_RETRIES 3       // Max retry attempts - AC5.3
+#define API_TIMEOUT     3000    // 3 seconds timeout (backend responds in <500ms normally)
+#define API_MAX_RETRIES 2       // Max retry attempts (reduced from 3 for faster failure)
 
 /**
  * Response structure for API key validation

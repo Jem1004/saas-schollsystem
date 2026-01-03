@@ -567,6 +567,8 @@ export const schoolService = {
       present: item.present,
       late: item.late,
       absent: item.absent,
+      sick: item.sick || 0,
+      excused: item.excused || 0,
     })) || []
 
     return {

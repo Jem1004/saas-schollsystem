@@ -2,12 +2,32 @@
 
 export interface Attendance {
   id: number
+  student_id: number
+  student_name?: string
+  student_nis?: string
+  student_nisn?: string
+  class_name?: string
+  schedule_id?: number
+  schedule_name?: string // Requirements: 3.10 - Show which schedule the attendance belongs to
+  date: string
+  check_in_time?: string
+  check_out_time?: string
+  status: AttendanceStatus
+  method: AttendanceMethod
+  created_at: string
+  updated_at: string
+}
+
+// Alias for camelCase usage in components
+export interface AttendanceCamelCase {
+  id: number
   studentId: number
   studentName?: string
   studentNis?: string
-  studentClass?: string
+  studentNisn?: string
+  className?: string
   scheduleId?: number
-  scheduleName?: string // Requirements: 3.10 - Show which schedule the attendance belongs to
+  scheduleName?: string
   date: string
   checkInTime?: string
   checkOutTime?: string
@@ -17,7 +37,7 @@ export interface Attendance {
   updatedAt: string
 }
 
-export type AttendanceStatus = 'present' | 'absent' | 'late' | 'very_late' | 'excused'
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'very_late' | 'sick' | 'excused'
 export type AttendanceMethod = 'rfid' | 'manual'
 
 export interface AttendanceRecord {
@@ -102,10 +122,13 @@ export interface GetAttendanceParams {
 
 // Response types
 export interface AttendanceListResponse {
-  data: Attendance[]
-  total: number
-  page: number
-  pageSize: number
+  attendances: Attendance[]
+  pagination: {
+    page: number
+    page_size: number
+    total: number
+    total_pages: number
+  }
 }
 
 export interface AttendanceSummaryResponse {
@@ -137,5 +160,6 @@ export const ATTENDANCE_STATUS_CONFIG = {
   absent: { label: 'Tidak Hadir', color: 'error' },
   late: { label: 'Terlambat', color: 'warning' },
   very_late: { label: 'Sangat Terlambat', color: 'orange' },
-  excused: { label: 'Izin', color: 'processing' },
+  sick: { label: 'Sakit', color: 'blue' },
+  excused: { label: 'Izin', color: 'cyan' },
 } as const

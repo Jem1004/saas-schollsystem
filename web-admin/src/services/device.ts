@@ -144,6 +144,20 @@ export const deviceService = {
     throw new Error(result.error?.message || 'Failed to regenerate API key')
   },
 
+  async getDeviceApiKey(id: number): Promise<{ deviceId: number; deviceCode: string; schoolName?: string; apiKey: string }> {
+    const response = await api.get(`/devices/${id}/api-key`)
+    const result = response.data
+    if (result.success && result.data) {
+      return {
+        deviceId: result.data.device_id,
+        deviceCode: result.data.device_code,
+        schoolName: result.data.school_name,
+        apiKey: result.data.api_key,
+      }
+    }
+    throw new Error(result.error?.message || 'Failed to get API key')
+  },
+
   async getStats(): Promise<DeviceStats> {
     // Stats endpoint doesn't exist in backend yet, calculate from devices list
     try {

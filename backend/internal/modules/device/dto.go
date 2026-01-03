@@ -36,6 +36,14 @@ type DeviceWithAPIKeyResponse struct {
 	APIKey string `json:"api_key"`
 }
 
+// DeviceAPIKeyResponse represents the response for getting a device's API key
+type DeviceAPIKeyResponse struct {
+	DeviceID   uint   `json:"device_id"`
+	DeviceCode string `json:"device_code"`
+	SchoolName string `json:"school_name,omitempty"`
+	APIKey     string `json:"api_key"`
+}
+
 // DeviceListResponse represents a paginated list of devices
 type DeviceListResponse struct {
 	Devices    []DeviceResponse `json:"devices"`

@@ -715,32 +715,48 @@ func (r *repository) GetSchoolStats(ctx context.Context, schoolID uint) (*School
 	// Total students for attendance
 	stats.TodayAttendance.Total = stats.TotalStudents
 
-	// Count present (status = 'present' or 'late')
-	var presentCount int64
+	// Count on_time (hadir tepat waktu)
+	var onTimeCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&models.Attendance{}).
 		Joins("JOIN students ON students.id = attendances.student_id").
-		Where("students.school_id = ? AND DATE(attendances.check_in_time) = ?", schoolID, today).
-		Where("attendances.status IN ?", []string{"present", "late"}).
-		Count(&presentCount).Error; err != nil {
+		Where("students.school_id = ? AND attendances.date = ?", schoolID, today).
+		Where("attendances.status = ?", models.AttendanceStatusOnTime).
+		Count(&onTimeCount).Error; err != nil {
 		return nil, err
 	}
-	stats.TodayAttendance.Present = presentCount
 
-	// Count late
+	// Count late (terlambat)
 	var lateCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&models.Attendance{}).
 		Joins("JOIN students ON students.id = attendances.student_id").
-		Where("students.school_id = ? AND DATE(attendances.check_in_time) = ?", schoolID, today).
-		Where("attendances.status = ?", "late").
+		Where("students.school_id = ? AND attendances.date = ?", schoolID, today).
+		Where("attendances.status = ?", models.AttendanceStatusLate).
 		Count(&lateCount).Error; err != nil {
 		return nil, err
 	}
-	stats.TodayAttendance.Late = lateCount
 
-	// Absent = Total - Present (those who haven't checked in)
-	stats.TodayAttendance.Absent = stats.TotalStudents - presentCount
+	// Count very_late (sangat terlambat)
+	var veryLateCount int64
+	if err := r.db.WithContext(ctx).
+		Model(&models.Attendance{}).
+		Joins("JOIN students ON students.id = attendances.student_id").
+		Where("students.school_id = ? AND attendances.date = ?", schoolID, today).
+		Where("attendances.status = ?", models.AttendanceStatusVeryLate).
+		Count(&veryLateCount).Error; err != nil {
+		return nil, err
+	}
+
+	// Present = on_time (hadir tepat waktu saja)
+	stats.TodayAttendance.Present = onTimeCount
+
+	// Late = late + very_late (semua yang terlambat)
+	stats.TodayAttendance.Late = lateCount + veryLateCount
+
+	// Absent = Total - (on_time + late + very_late)
+	totalAttended := onTimeCount + lateCount + veryLateCount
+	stats.TodayAttendance.Absent = stats.TotalStudents - totalAttended
 
 	return stats, nil
 }

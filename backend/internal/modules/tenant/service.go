@@ -90,12 +90,23 @@ func (s *service) CreateSchool(ctx context.Context, req CreateSchoolRequest) (*S
 		return nil, ErrDuplicateSchool
 	}
 
+	// Set default timezone if not provided
+	timezone := strings.TrimSpace(req.Timezone)
+	if timezone == "" {
+		timezone = models.TimezoneWITA // Default to WITA
+	}
+	// Validate timezone
+	if !models.IsValidTimezone(timezone) {
+		return nil, errors.New("invalid timezone, must be one of: Asia/Jakarta (WIB), Asia/Makassar (WITA), Asia/Jayapura (WIT)")
+	}
+
 	// Create school
 	school := &models.School{
 		Name:     name,
 		Address:  strings.TrimSpace(req.Address),
 		Phone:    strings.TrimSpace(req.Phone),
 		Email:    strings.TrimSpace(req.Email),
+		Timezone: timezone,
 		IsActive: true,
 	}
 
@@ -308,6 +319,15 @@ func (s *service) UpdateSchool(ctx context.Context, id uint, req UpdateSchoolReq
 	if req.Email != nil {
 		school.Email = strings.TrimSpace(*req.Email)
 	}
+	if req.Timezone != nil {
+		timezone := strings.TrimSpace(*req.Timezone)
+		if timezone != "" && !models.IsValidTimezone(timezone) {
+			return nil, errors.New("invalid timezone, must be one of: Asia/Jakarta (WIB), Asia/Makassar (WITA), Asia/Jayapura (WIT)")
+		}
+		if timezone != "" {
+			school.Timezone = timezone
+		}
+	}
 
 	if err := s.repo.Update(ctx, school); err != nil {
 		return nil, err
@@ -412,6 +432,7 @@ func toSchoolResponse(school *models.School, stats *SchoolStats) *SchoolResponse
 		Address:   school.Address,
 		Phone:     school.Phone,
 		Email:     school.Email,
+		Timezone:  school.Timezone,
 		IsActive:  school.IsActive,
 		CreatedAt: school.CreatedAt,
 		UpdatedAt: school.UpdatedAt,

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -18,6 +19,9 @@ func TenantMiddleware() fiber.Handler {
 		username, _ := c.Locals("username").(string)
 		userID, _ := c.Locals("userID").(uint)
 
+		fmt.Printf("[DEBUG TenantMiddleware] Path: %s, Method: %s, Role: %s, Username: %s, UserID: %d\n", 
+			c.Path(), c.Method(), role, username, userID)
+
 		// Super admin can access all tenants - but they need to specify which school
 		// For settings, super admin should not access without school context
 		if role == string(models.RoleSuperAdmin) {
@@ -28,6 +32,7 @@ func TenantMiddleware() fiber.Handler {
 
 		// Get school ID from context (set by auth middleware)
 		schoolIDVal := c.Locals("schoolID")
+		fmt.Printf("[DEBUG TenantMiddleware] schoolIDVal: %v (type: %T)\n", schoolIDVal, schoolIDVal)
 		
 		// Check if schoolID exists and is not nil
 		var schoolID *uint
@@ -36,14 +41,17 @@ func TenantMiddleware() fiber.Handler {
 			case *uint:
 				if v != nil {
 					schoolID = v
+					fmt.Printf("[DEBUG TenantMiddleware] schoolID from *uint: %d\n", *schoolID)
 				}
 			case uint:
 				schoolID = &v
+				fmt.Printf("[DEBUG TenantMiddleware] schoolID from uint: %d\n", *schoolID)
 			}
 		}
 
 		// For non-super_admin users, school_id must be present
 		if schoolID == nil {
+			fmt.Printf("[DEBUG TenantMiddleware] REJECTED - no school_id\n")
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"success": false,
 				"error": fiber.Map{
@@ -63,6 +71,7 @@ func TenantMiddleware() fiber.Handler {
 		// Using both tenantID and school_id for backward compatibility
 		c.Locals("tenantID", *schoolID)
 		c.Locals("school_id", *schoolID)
+		fmt.Printf("[DEBUG TenantMiddleware] PASSED - school_id: %d\n", *schoolID)
 
 		return c.Next()
 	}

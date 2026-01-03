@@ -23,6 +23,7 @@ type Service interface {
 	GetAllDevices(ctx context.Context, filter DeviceFilter) (*DeviceListResponse, error)
 	GetDevicesGroupedBySchool(ctx context.Context) (*GroupedDevicesResponse, error)
 	GetDeviceByID(ctx context.Context, id uint) (*DeviceResponse, error)
+	GetDeviceAPIKey(ctx context.Context, id uint) (*DeviceAPIKeyResponse, error)
 	GetDevicesBySchool(ctx context.Context, schoolID uint) ([]DeviceResponse, error)
 	UpdateDevice(ctx context.Context, id uint, req UpdateDeviceRequest) (*DeviceResponse, error)
 	ValidateAPIKey(ctx context.Context, apiKey string) (*APIKeyValidationResponse, error)
@@ -135,6 +136,26 @@ func (s *service) GetDeviceByID(ctx context.Context, id uint) (*DeviceResponse, 
 	}
 
 	return toDeviceResponse(device), nil
+}
+
+// GetDeviceAPIKey retrieves a device's API key
+func (s *service) GetDeviceAPIKey(ctx context.Context, id uint) (*DeviceAPIKeyResponse, error) {
+	device, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	schoolName := ""
+	if device.School.ID != 0 {
+		schoolName = device.School.Name
+	}
+
+	return &DeviceAPIKeyResponse{
+		DeviceID:   device.ID,
+		DeviceCode: device.DeviceCode,
+		SchoolName: schoolName,
+		APIKey:     device.APIKey,
+	}, nil
 }
 
 // GetDevicesBySchool retrieves all devices for a school

@@ -128,7 +128,9 @@ AttendanceResponse APIClient::recordAttendance(const String& rfidCode) {
       
       // Get student info from data
       result.studentName = data["student_name"] | "";
-      result.status = data["type"] | data["status"] | "";  // Backend uses "type" field
+      // Use "status" field for late status (on_time, late, very_late)
+      // "type" field is for action type (check_in, check_out)
+      result.status = data["status"] | data["type"] | "";
       result.message = data["message"] | "";
       
       // Success if top-level success OR data.success is true

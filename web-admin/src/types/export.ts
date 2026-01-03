@@ -35,6 +35,8 @@ export interface StudentRecapSummary {
   total_late: number
   total_very_late: number
   total_absent: number
+  total_sick: number
+  total_excused: number
   attendance_percent: number // (present / total_days) * 100
 }
 

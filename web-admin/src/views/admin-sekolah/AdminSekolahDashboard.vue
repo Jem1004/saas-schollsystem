@@ -87,6 +87,7 @@ const loadData = async () => {
         present: 0,
         absent: cls.studentCount || 0,
         late: 0,
+        sick: 0,
         excused: 0,
       }))
     }

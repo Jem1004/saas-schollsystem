@@ -4,6 +4,7 @@ export interface School {
   address?: string
   phone?: string
   email?: string
+  timezone?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -47,6 +48,7 @@ export interface CreateSchoolRequest {
   address?: string
   phone?: string
   email?: string
+  timezone?: string
   adminUsername?: string
   adminPassword?: string
   adminName?: string
@@ -58,6 +60,7 @@ export interface UpdateSchoolRequest {
   address?: string
   phone?: string
   email?: string
+  timezone?: string
 }
 
 export interface SchoolListResponse {

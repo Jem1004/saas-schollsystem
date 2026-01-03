@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -49,6 +50,15 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
+	// Set timezone based on database config (WITA = Asia/Makassar)
+	loc, err := time.LoadLocation(cfg.Database.Timezone)
+	if err != nil {
+		log.Printf("Warning: Failed to load timezone %s, using UTC: %v", cfg.Database.Timezone, err)
+	} else {
+		time.Local = loc
+		log.Printf("Timezone set to: %s", cfg.Database.Timezone)
+	}
+
 	// Initialize database connection
 	db, err := database.Connect(cfg.Database)
 	if err != nil {
@@ -77,6 +87,13 @@ func main() {
 
 	// Global middleware
 	app.Use(recover.New())
+	
+	// Debug middleware - log all requests
+	app.Use(func(c *fiber.Ctx) error {
+		log.Printf("[DEBUG GLOBAL] %s %s - Body length: %d", c.Method(), c.Path(), len(c.Body()))
+		return c.Next()
+	})
+	
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
@@ -276,7 +293,11 @@ func main() {
 	homeroomHandler := homeroom.NewHandler(homeroomService)
 
 	// Homeroom routes for Wali Kelas (full access to their class)
-	homeroomRoutes := tenantScoped.Group("/homeroom")
+	homeroomRoutes := tenantScoped.Group("/homeroom", func(c *fiber.Ctx) error {
+		log.Printf("[DEBUG] Homeroom route accessed: %s %s", c.Method(), c.Path())
+		log.Printf("[DEBUG] school_id: %v, user_id: %v", c.Locals("school_id"), c.Locals("user_id"))
+		return c.Next()
+	})
 	homeroomHandler.RegisterRoutesWithoutGroup(homeroomRoutes)
 
 	// Initialize FCM Client

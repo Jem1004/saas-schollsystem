@@ -21,8 +21,8 @@ void TimeManager::begin() {
   // Create UDP instance
   ntpUDP = new WiFiUDP();
   
-  // Create NTP client with WIB timezone (UTC+7) - AC6.2
-  timeClient = new NTPClient(*ntpUDP, NTP_SERVER, NTP_UTC_OFFSET_WIB, NTP_SYNC_INTERVAL);
+  // Create NTP client with WITA timezone (UTC+8)
+  timeClient = new NTPClient(*ntpUDP, NTP_SERVER, NTP_UTC_OFFSET_WITA, NTP_SYNC_INTERVAL);
   
   // Start NTP client
   timeClient->begin();
@@ -30,7 +30,7 @@ void TimeManager::begin() {
   Serial.println(F("[OK] TimeManager initialized"));
   Serial.print(F("     NTP Server: "));
   Serial.println(NTP_SERVER);
-  Serial.println(F("     Timezone: WIB (UTC+7)"));
+  Serial.println(F("     Timezone: WITA (UTC+8)"));
   
   // Initial sync - AC6.1
   forceSync();
