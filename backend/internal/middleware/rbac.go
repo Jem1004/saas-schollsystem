@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -250,6 +251,8 @@ func HomeroomNoteWriteAccess() fiber.Handler {
 func BKAccessMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role, ok := c.Locals("role").(string)
+		fmt.Printf("[DEBUG BKAccessMiddleware] Path: %s, Method: %s, Role: %s, RoleOK: %v\n", c.Path(), c.Method(), role, ok)
+		
 		if !ok {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"success": false,
@@ -267,23 +270,29 @@ func BKAccessMiddleware() fiber.Handler {
 		case models.RoleSuperAdmin, models.RoleAdminSekolah:
 			// Full access for admin roles
 			c.Locals("bkAccessLevel", "full")
+			fmt.Printf("[DEBUG BKAccessMiddleware] PASSED - Role: %s, Access: full\n", role)
 		case models.RoleGuruBK:
 			// Full access including internal notes
 			c.Locals("bkAccessLevel", "full")
 			c.Locals("canViewInternalNotes", true)
+			fmt.Printf("[DEBUG BKAccessMiddleware] PASSED - Role: %s, Access: full (with internal notes)\n", role)
 		case models.RoleWaliKelas:
 			// Read-only access, no internal notes
 			c.Locals("bkAccessLevel", "readonly")
 			c.Locals("canViewInternalNotes", false)
+			fmt.Printf("[DEBUG BKAccessMiddleware] PASSED - Role: %s, Access: readonly\n", role)
 		case models.RoleParent:
 			// Limited access - only parent summary
 			c.Locals("bkAccessLevel", "limited")
 			c.Locals("canViewInternalNotes", false)
+			fmt.Printf("[DEBUG BKAccessMiddleware] PASSED - Role: %s, Access: limited\n", role)
 		case models.RoleStudent:
 			// Limited access - summary only
 			c.Locals("bkAccessLevel", "limited")
 			c.Locals("canViewInternalNotes", false)
+			fmt.Printf("[DEBUG BKAccessMiddleware] PASSED - Role: %s, Access: limited\n", role)
 		default:
+			fmt.Printf("[DEBUG BKAccessMiddleware] REJECTED - Role: %s not allowed\n", role)
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"success": false,
 				"error": fiber.Map{

@@ -91,65 +91,71 @@ const onFinishFailed = (errorInfo: ValidateErrorEntity) => {
 
 <template>
   <div class="login-container">
-    <div class="login-card">
+    <div class="login-content">
       <div class="login-header">
-        <div class="logo">
+        <div class="logo-wrapper">
           <img src="/vite.svg" alt="Logo" class="logo-img" />
         </div>
-        <h1 class="title">Sistem Manajemen Sekolah</h1>
-        <p class="subtitle">Silakan masuk untuk melanjutkan</p>
+        <h1 class="brand-title">Sistem Manajemen Sekolah</h1>
+        <p class="brand-subtitle">Silakan masuk dengan akun Anda untuk melanjutkan</p>
       </div>
 
-      <a-form
-        :model="formState"
-        :rules="rules"
-        layout="vertical"
-        @finish="handleLogin"
-        @finishFailed="onFinishFailed"
-        class="login-form"
-      >
-        <a-form-item name="username" label="Username / Email">
-          <a-input
-            v-model:value="formState.username"
-            placeholder="Masukkan username atau email"
-            size="large"
-            :disabled="loading"
-          >
-            <template #prefix>
-              <UserOutlined class="input-icon" />
-            </template>
-          </a-input>
-        </a-form-item>
+      <div class="login-card">
+        <a-form
+          :model="formState"
+          :rules="rules"
+          layout="vertical"
+          @finish="handleLogin"
+          @finishFailed="onFinishFailed"
+          class="auth-form"
+          hideRequiredMark
+        >
+          <a-form-item name="username" label="Username / Email">
+            <a-input
+              v-model:value="formState.username"
+              placeholder="Contoh: uks@sekolah.sch.id"
+              size="large"
+              :disabled="loading"
+              class="modern-input"
+            >
+              <template #prefix>
+                <UserOutlined class="field-icon" />
+              </template>
+            </a-input>
+          </a-form-item>
 
-        <a-form-item name="password" label="Password">
-          <a-input-password
-            v-model:value="formState.password"
-            placeholder="Masukkan password"
-            size="large"
-            :disabled="loading"
-          >
-            <template #prefix>
-              <LockOutlined class="input-icon" />
-            </template>
-          </a-input-password>
-        </a-form-item>
+          <a-form-item name="password" label="Password">
+            <a-input-password
+              v-model:value="formState.password"
+              placeholder="Masukkan kata sandi"
+              size="large"
+              :disabled="loading"
+              class="modern-input"
+            >
+              <template #prefix>
+                <LockOutlined class="field-icon" />
+              </template>
+            </a-input-password>
+          </a-form-item>
 
-        <a-form-item>
-          <a-button
-            type="primary"
-            html-type="submit"
-            size="large"
-            block
-            :loading="loading"
-          >
-            {{ loading ? 'Memproses...' : 'Masuk' }}
-          </a-button>
-        </a-form-item>
-      </a-form>
+          <a-form-item class="submit-item">
+            <a-button
+              type="primary"
+              html-type="submit"
+              size="large"
+              block
+              :loading="loading"
+              class="submit-btn"
+            >
+              {{ loading ? 'Memproses...' : 'Masuk ke Dashboard' }}
+            </a-button>
+          </a-form-item>
+        </a-form>
+      </div>
 
       <div class="login-footer">
-        <p class="footer-text">
-          &copy; {{ new Date().getFullYear() }} Sistem Manajemen Sekolah
+        <p class="copyright">
+          &copy; {{ new Date().getFullYear() }} Sistem Manajemen Sekolah. All rights reserved.
         </p>
       </div>
     </div>
@@ -159,20 +165,22 @@ const onFinishFailed = (errorInfo: ValidateErrorEntity) => {
 <style scoped>
 .login-container {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  background-color: #f8fafc;
+  background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+  background-size: 24px 24px;
   padding: 20px;
 }
 
-.login-card {
+.login-content {
   width: 100%;
-  max-width: 400px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  padding: 40px;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .login-header {
@@ -180,45 +188,128 @@ const onFinishFailed = (errorInfo: ValidateErrorEntity) => {
   margin-bottom: 32px;
 }
 
-.logo {
-  margin-bottom: 16px;
+.logo-wrapper {
+  width: 64px;
+  height: 64px;
+  background: #fff;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid #f1f5f9;
 }
 
 .logo-img {
-  width: 64px;
-  height: 64px;
+  width: 36px;
+  height: 36px;
 }
 
-.title {
+.brand-title {
   font-size: 24px;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0 0 8px 0;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
 }
 
-.subtitle {
-  font-size: 14px;
-  color: #666666;
-  margin: 0;
+.brand-subtitle {
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
-.login-form {
+.login-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  border: 1px solid #f1f5f9;
   margin-bottom: 24px;
 }
 
-.input-icon {
-  color: #999999;
+/* Form Styles */
+.auth-form :deep(.ant-form-item-label > label) {
+  font-size: 14px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.modern-input {
+  border-radius: 8px;
+  padding: 8px 11px;
+  border-color: #e2e8f0;
+  font-size: 15px;
+  transition: all 0.2s ease;
+}
+
+.modern-input:hover,
+.modern-input:focus,
+.modern-input:focus-within {
+  border-color: #f97316;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+}
+
+.field-icon {
+  color: #94a3b8;
+  margin-right: 6px;
+}
+
+.submit-item {
+  margin-top: 24px;
+  margin-bottom: 0;
+}
+
+.submit-btn {
+  height: 46px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  background-color: #f97316;
+  border-color: #f97316;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.submit-btn:hover {
+  background-color: #ea580c;
+  border-color: #ea580c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.2);
 }
 
 .login-footer {
   text-align: center;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
 }
 
-.footer-text {
-  font-size: 12px;
-  color: #999999;
+.copyright {
+  font-size: 13px;
+  color: #94a3b8;
   margin: 0;
+}
+
+/* Responsiveness */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 24px;
+    box-shadow: none;
+    background: transparent;
+    border: none;
+  }
+  
+  .login-container {
+    background: #fff;
+    align-items: flex-start;
+    padding-top: 60px;
+  }
+
+  .logo-wrapper {
+    box-shadow: none;
+    background: transparent;
+    border: none;
+  }
 }
 </style>

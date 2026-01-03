@@ -22,25 +22,66 @@ type PaginationMeta struct {
 // Requirements: 6.1 - Violation SHALL require category, level, description, and student identifier
 type CreateViolationRequest struct {
 	StudentID   uint                  `json:"student_id" validate:"required"`
+	CategoryID  *uint                 `json:"category_id"`
 	Category    string                `json:"category" validate:"required"`
 	Level       models.ViolationLevel `json:"level" validate:"required"`
+	Point       *int                  `json:"point"`
 	Description string                `json:"description" validate:"required"`
 }
 
 // ViolationResponse represents a violation in responses
 type ViolationResponse struct {
-	ID          uint                  `json:"id"`
-	StudentID   uint                  `json:"student_id"`
-	StudentName string                `json:"student_name,omitempty"`
-	StudentNIS  string                `json:"student_nis,omitempty"`
-	StudentNISN string                `json:"student_nisn,omitempty"`
-	ClassName   string                `json:"class_name,omitempty"`
-	Category    string                `json:"category"`
-	Level       models.ViolationLevel `json:"level"`
-	Description string                `json:"description"`
-	CreatedBy   uint                  `json:"created_by"`
-	CreatorName string                `json:"creator_name,omitempty"`
-	CreatedAt   time.Time             `json:"created_at"`
+	ID           uint                  `json:"id"`
+	StudentID    uint                  `json:"student_id"`
+	StudentName  string                `json:"student_name,omitempty"`
+	StudentNIS   string                `json:"student_nis,omitempty"`
+	StudentNISN  string                `json:"student_nisn,omitempty"`
+	ClassName    string                `json:"class_name,omitempty"`
+	CategoryID   *uint                 `json:"category_id,omitempty"`
+	Category     string                `json:"category"`
+	Level        models.ViolationLevel `json:"level"`
+	Point        int                   `json:"point"`
+	Description  string                `json:"description"`
+	CreatedBy    uint                  `json:"created_by"`
+	CreatorName  string                `json:"creator_name,omitempty"`
+	CreatedAt    time.Time             `json:"created_at"`
+}
+
+// ==================== Violation Category DTOs ====================
+
+// CreateViolationCategoryRequest represents the request to create a violation category
+type CreateViolationCategoryRequest struct {
+	Name         string                `json:"name" validate:"required"`
+	DefaultPoint int                   `json:"default_point" validate:"max=0"`
+	DefaultLevel models.ViolationLevel `json:"default_level" validate:"required"`
+	Description  string                `json:"description"`
+}
+
+// UpdateViolationCategoryRequest represents the request to update a violation category
+type UpdateViolationCategoryRequest struct {
+	Name         string                `json:"name"`
+	DefaultPoint *int                  `json:"default_point"`
+	DefaultLevel models.ViolationLevel `json:"default_level"`
+	Description  string                `json:"description"`
+	IsActive     *bool                 `json:"is_active"`
+}
+
+// ViolationCategoryResponse represents a violation category in responses
+type ViolationCategoryResponse struct {
+	ID           uint                  `json:"id"`
+	SchoolID     uint                  `json:"school_id"`
+	Name         string                `json:"name"`
+	DefaultPoint int                   `json:"default_point"`
+	DefaultLevel models.ViolationLevel `json:"default_level"`
+	Description  string                `json:"description"`
+	IsActive     bool                  `json:"is_active"`
+	CreatedAt    time.Time             `json:"created_at"`
+	UpdatedAt    time.Time             `json:"updated_at"`
+}
+
+// ViolationCategoryListResponse represents a list of violation categories
+type ViolationCategoryListResponse struct {
+	Categories []ViolationCategoryResponse `json:"categories"`
 }
 
 // ViolationListResponse represents a paginated list of violations

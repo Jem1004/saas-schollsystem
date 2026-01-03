@@ -146,7 +146,7 @@ const allMenuItems: MenuItemConfig[] = [
     icon: SyncOutlined,
     label: 'Absensi Real-Time',
     path: '/attendance/live',
-    roles: ['admin_sekolah', 'guru_bk'],
+    roles: ['admin_sekolah'],
   },
   // Note: School settings removed from super_admin menu as they don't have school context
   // Super admin should manage school settings through tenant management

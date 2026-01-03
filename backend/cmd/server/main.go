@@ -273,7 +273,7 @@ func main() {
 
 	// BK routes for Guru BK (full access)
 	// Requirements: 6.1-6.5, 7.1-7.5, 8.1-8.5, 9.1-9.5
-	bkRoutes := tenantScoped.Group("/bk")
+	bkRoutes := tenantScoped.Group("/bk", middleware.BKAccessMiddleware())
 	bkHandler.RegisterRoutesWithoutGroup(bkRoutes)
 
 	// Initialize Grade Module

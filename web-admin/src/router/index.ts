@@ -101,7 +101,7 @@ const routes: RouteRecordRaw[] = [
         path: 'attendance/live',
         name: 'LiveAttendance',
         component: () => import('@/views/admin-sekolah/LiveAttendance.vue'),
-        meta: { title: 'Absensi Real-Time', roles: ['admin_sekolah', 'guru_bk'] },
+        meta: { title: 'Absensi Real-Time', roles: ['admin_sekolah'] },
       },
       {
         path: 'settings',
@@ -129,6 +129,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Dashboard BK', roles: ['guru_bk'] },
       },
       {
+        path: 'bk/students',
+        name: 'BKStudentList',
+        component: () => import('@/views/guru-bk/BKStudentList.vue'),
+        meta: { title: 'Profil Siswa BK', roles: ['guru_bk'] },
+      },
+      {
         path: 'bk/students/:id',
         name: 'StudentBKProfile',
         component: () => import('@/views/guru-bk/StudentBKProfile.vue'),
@@ -139,6 +145,12 @@ const routes: RouteRecordRaw[] = [
         name: 'ViolationManagement',
         component: () => import('@/views/guru-bk/ViolationManagement.vue'),
         meta: { title: 'Manajemen Pelanggaran', roles: ['guru_bk'] },
+      },
+      {
+        path: 'bk/violation-categories',
+        name: 'ViolationCategoryManagement',
+        component: () => import('@/views/guru-bk/ViolationCategoryManagement.vue'),
+        meta: { title: 'Kategori Pelanggaran', roles: ['guru_bk'] },
       },
       {
         path: 'bk/achievements',

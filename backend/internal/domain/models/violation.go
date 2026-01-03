@@ -28,15 +28,18 @@ func (v ViolationLevel) IsValid() bool {
 type Violation struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
 	StudentID   uint           `gorm:"index;not null" json:"student_id"`
+	CategoryID  *uint          `gorm:"index" json:"category_id"`
 	Category    string         `gorm:"type:varchar(100);not null" json:"category"`
 	Level       ViolationLevel `gorm:"type:varchar(20);not null" json:"level"`
+	Point       int            `gorm:"not null;default:-5" json:"point"`
 	Description string         `gorm:"type:text;not null" json:"description"`
 	CreatedBy   uint           `gorm:"not null" json:"created_by"`
 	CreatedAt   time.Time      `json:"created_at"`
 
 	// Relations
-	Student Student `gorm:"foreignKey:StudentID" json:"student,omitempty"`
-	Creator User    `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
+	Student           Student            `gorm:"foreignKey:StudentID" json:"student,omitempty"`
+	Creator           User               `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
+	ViolationCategory *ViolationCategory `gorm:"foreignKey:CategoryID" json:"violation_category,omitempty"`
 }
 
 // TableName specifies the table name for Violation

@@ -35,6 +35,15 @@ type Service interface {
 	GetStudentViolations(ctx context.Context, studentID uint) ([]ViolationResponse, error)
 	GetViolations(ctx context.Context, schoolID uint, filter ViolationFilter) (*ViolationListResponse, error)
 	DeleteViolation(ctx context.Context, id uint) error
+	GetStudentViolationPoints(ctx context.Context, studentID uint) (int, error)
+
+	// Violation Category operations
+	CreateViolationCategory(ctx context.Context, schoolID uint, req CreateViolationCategoryRequest) (*ViolationCategoryResponse, error)
+	GetViolationCategories(ctx context.Context, schoolID uint, activeOnly bool) (*ViolationCategoryListResponse, error)
+	GetViolationCategoryByID(ctx context.Context, id uint) (*ViolationCategoryResponse, error)
+	UpdateViolationCategory(ctx context.Context, id uint, req UpdateViolationCategoryRequest) (*ViolationCategoryResponse, error)
+	DeleteViolationCategory(ctx context.Context, id uint) error
+	InitializeDefaultCategories(ctx context.Context, schoolID uint) error
 
 	// Achievement operations
 	CreateAchievement(ctx context.Context, schoolID, createdBy uint, req CreateAchievementRequest) (*AchievementResponse, error)
@@ -106,10 +115,34 @@ func (s *service) CreateViolation(ctx context.Context, schoolID, createdBy uint,
 		return nil, ErrStudentNotInSchool
 	}
 
+	// Determine point value
+	point := -5 // default
+	if req.Point != nil {
+		point = *req.Point
+	} else if req.CategoryID != nil {
+		// Get default point from category
+		category, err := s.repo.FindViolationCategoryByID(ctx, *req.CategoryID)
+		if err == nil && category != nil {
+			point = category.DefaultPoint
+		}
+	} else {
+		// Set default point based on level
+		switch req.Level {
+		case models.ViolationLevelRingan:
+			point = -5
+		case models.ViolationLevelSedang:
+			point = -15
+		case models.ViolationLevelBerat:
+			point = -30
+		}
+	}
+
 	violation := &models.Violation{
 		StudentID:   req.StudentID,
+		CategoryID:  req.CategoryID,
 		Category:    req.Category,
 		Level:       req.Level,
+		Point:       point,
 		Description: req.Description,
 		CreatedBy:   createdBy,
 	}
@@ -192,6 +225,123 @@ func (s *service) GetViolations(ctx context.Context, schoolID uint, filter Viola
 // DeleteViolation deletes a violation record
 func (s *service) DeleteViolation(ctx context.Context, id uint) error {
 	return s.repo.DeleteViolation(ctx, id)
+}
+
+// GetStudentViolationPoints retrieves total violation points for a student
+func (s *service) GetStudentViolationPoints(ctx context.Context, studentID uint) (int, error) {
+	return s.repo.GetStudentViolationPoints(ctx, studentID)
+}
+
+// ==================== Violation Category Service ====================
+
+// CreateViolationCategory creates a new violation category
+func (s *service) CreateViolationCategory(ctx context.Context, schoolID uint, req CreateViolationCategoryRequest) (*ViolationCategoryResponse, error) {
+	if req.Name == "" {
+		return nil, errors.New("nama kategori wajib diisi")
+	}
+	if req.DefaultPoint > 0 {
+		return nil, errors.New("poin default harus 0 atau negatif")
+	}
+	if !req.DefaultLevel.IsValid() {
+		return nil, ErrInvalidViolationLevel
+	}
+
+	category := &models.ViolationCategory{
+		SchoolID:     schoolID,
+		Name:         req.Name,
+		DefaultPoint: req.DefaultPoint,
+		DefaultLevel: req.DefaultLevel,
+		Description:  req.Description,
+		IsActive:     true,
+	}
+
+	if err := s.repo.CreateViolationCategory(ctx, category); err != nil {
+		return nil, err
+	}
+
+	return toViolationCategoryResponse(category), nil
+}
+
+// GetViolationCategories retrieves all violation categories for a school
+func (s *service) GetViolationCategories(ctx context.Context, schoolID uint, activeOnly bool) (*ViolationCategoryListResponse, error) {
+	categories, err := s.repo.FindViolationCategories(ctx, schoolID, activeOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]ViolationCategoryResponse, len(categories))
+	for i, c := range categories {
+		responses[i] = *toViolationCategoryResponse(&c)
+	}
+
+	return &ViolationCategoryListResponse{Categories: responses}, nil
+}
+
+// GetViolationCategoryByID retrieves a violation category by ID
+func (s *service) GetViolationCategoryByID(ctx context.Context, id uint) (*ViolationCategoryResponse, error) {
+	category, err := s.repo.FindViolationCategoryByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return toViolationCategoryResponse(category), nil
+}
+
+// UpdateViolationCategory updates a violation category
+func (s *service) UpdateViolationCategory(ctx context.Context, id uint, req UpdateViolationCategoryRequest) (*ViolationCategoryResponse, error) {
+	category, err := s.repo.FindViolationCategoryByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Name != "" {
+		category.Name = req.Name
+	}
+	if req.DefaultPoint != nil {
+		if *req.DefaultPoint > 0 {
+			return nil, errors.New("poin default harus 0 atau negatif")
+		}
+		category.DefaultPoint = *req.DefaultPoint
+	}
+	if req.DefaultLevel != "" && req.DefaultLevel.IsValid() {
+		category.DefaultLevel = req.DefaultLevel
+	}
+	if req.Description != "" {
+		category.Description = req.Description
+	}
+	if req.IsActive != nil {
+		category.IsActive = *req.IsActive
+	}
+
+	if err := s.repo.UpdateViolationCategory(ctx, category); err != nil {
+		return nil, err
+	}
+
+	return toViolationCategoryResponse(category), nil
+}
+
+// DeleteViolationCategory deletes a violation category
+func (s *service) DeleteViolationCategory(ctx context.Context, id uint) error {
+	return s.repo.DeleteViolationCategory(ctx, id)
+}
+
+// InitializeDefaultCategories creates default violation categories for a school
+func (s *service) InitializeDefaultCategories(ctx context.Context, schoolID uint) error {
+	// Check if categories already exist
+	existing, err := s.repo.FindViolationCategories(ctx, schoolID, false)
+	if err != nil {
+		return err
+	}
+	if len(existing) > 0 {
+		return nil // Already initialized
+	}
+
+	defaults := models.DefaultViolationCategories(schoolID)
+	for _, cat := range defaults {
+		if err := s.repo.CreateViolationCategory(ctx, &cat); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 
@@ -812,8 +962,10 @@ func toViolationResponse(v *models.Violation) *ViolationResponse {
 	response := &ViolationResponse{
 		ID:          v.ID,
 		StudentID:   v.StudentID,
+		CategoryID:  v.CategoryID,
 		Category:    v.Category,
 		Level:       v.Level,
+		Point:       v.Point,
 		Description: v.Description,
 		CreatedBy:   v.CreatedBy,
 		CreatedAt:   v.CreatedAt,
@@ -834,6 +986,20 @@ func toViolationResponse(v *models.Violation) *ViolationResponse {
 	}
 
 	return response
+}
+
+func toViolationCategoryResponse(c *models.ViolationCategory) *ViolationCategoryResponse {
+	return &ViolationCategoryResponse{
+		ID:           c.ID,
+		SchoolID:     c.SchoolID,
+		Name:         c.Name,
+		DefaultPoint: c.DefaultPoint,
+		DefaultLevel: c.DefaultLevel,
+		Description:  c.Description,
+		IsActive:     c.IsActive,
+		CreatedAt:    c.CreatedAt,
+		UpdatedAt:    c.UpdatedAt,
+	}
 }
 
 func toAchievementResponse(a *models.Achievement) *AchievementResponse {

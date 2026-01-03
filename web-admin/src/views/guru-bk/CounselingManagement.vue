@@ -19,6 +19,7 @@ import {
   Textarea,
   Alert,
   Divider,
+  DatePicker,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -30,14 +31,19 @@ import {
   LockOutlined,
   UnlockOutlined,
   SafetyOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
+import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import { bkService, schoolService } from '@/services'
 import type { CounselingNote, CreateCounselingNoteRequest } from '@/types/bk'
 import type { Student } from '@/types/school'
 import { SensitiveDataField, ConfidentialBadge, ConfirmationDialog } from '@/components'
+import { exportToPDF, formatCounselingForExport } from '@/utils/pdfExport'
 
 const { Title, Text, Paragraph } = Typography
+const { RangePicker } = DatePicker
 
 const router = useRouter()
 
@@ -50,6 +56,7 @@ const pagination = reactive({
   pageSize: 10,
 })
 const searchText = ref('')
+const dateRange = ref<[Dayjs, Dayjs] | undefined>(undefined)
 
 // Students for dropdown
 const students = ref<Student[]>([])
@@ -74,21 +81,6 @@ const formRules = {
   studentId: [{ required: true, message: 'Siswa wajib dipilih' }],
   internalNote: [{ required: true, message: 'Catatan internal wajib diisi' }],
 }
-
-// Mock data for development
-const mockCounselingNotes: CounselingNote[] = [
-  { id: 1, studentId: 1, studentName: 'Ahmad Fauzi', studentNis: '2024001', studentClass: 'VII-A', internalNote: 'Siswa menunjukkan tanda-tanda stres karena tekanan akademik. Perlu pendampingan lebih lanjut dalam manajemen waktu dan teknik belajar efektif. Orang tua perlu dilibatkan dalam proses ini.', parentSummary: 'Siswa memerlukan dukungan dalam mengelola waktu belajar. Mohon bantuan orang tua untuk memantau jadwal belajar di rumah.', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date().toISOString() },
-  { id: 2, studentId: 2, studentName: 'Budi Santoso', studentNis: '2024002', studentClass: 'VII-B', internalNote: 'Sesi konseling terkait konflik dengan teman sekelas. Siswa merasa dikucilkan. Perlu mediasi dengan pihak terkait.', parentSummary: 'Siswa sedang dalam proses adaptasi sosial. Mohon dukungan orang tua untuk memberikan semangat.', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 3, studentId: 3, studentName: 'Citra Dewi', studentNis: '2024003', studentClass: 'VIII-A', internalNote: 'Konseling rutin bulanan. Siswa menunjukkan perkembangan positif dalam manajemen emosi. Tetap perlu monitoring.', parentSummary: 'Perkembangan positif dalam pengelolaan emosi. Terima kasih atas dukungan orang tua.', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 4, studentId: 4, studentName: 'Dian Pratama', studentNis: '2024004', studentClass: 'IX-A', internalNote: 'Siswa mengalami kecemasan menghadapi ujian nasional. Diberikan teknik relaksasi dan strategi menghadapi ujian.', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 259200000).toISOString() },
-]
-
-const mockStudents: Student[] = [
-  { id: 1, schoolId: 1, classId: 1, className: 'VII-A', nis: '2024001', nisn: '0012345678', name: 'Ahmad Fauzi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 2, schoolId: 1, classId: 2, className: 'VII-B', nis: '2024002', nisn: '0012345679', name: 'Budi Santoso', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 3, schoolId: 1, classId: 3, className: 'VIII-A', nis: '2024003', nisn: '0012345680', name: 'Citra Dewi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 4, schoolId: 1, classId: 4, className: 'IX-A', nis: '2024004', nisn: '0012345681', name: 'Dian Pratama', isActive: true, createdAt: '', updatedAt: '' },
-]
 
 // Table columns
 const columns: TableProps['columns'] = [
@@ -131,14 +123,25 @@ const columns: TableProps['columns'] = [
 
 // Computed filtered data
 const filteredNotes = computed(() => {
-  if (!searchText.value) return counselingNotes.value
+  let result = counselingNotes.value
 
-  const search = searchText.value.toLowerCase()
-  return counselingNotes.value.filter(
-    (n) =>
-      n.studentName?.toLowerCase().includes(search) ||
-      n.parentSummary?.toLowerCase().includes(search)
-  )
+  if (dateRange.value) {
+    const [start, end] = dateRange.value
+    result = result.filter(n => {
+      const date = dayjs(n.createdAt)
+      return date.isAfter(start.startOf('day')) && date.isBefore(end.endOf('day'))
+    })
+  }
+
+  if (searchText.value) {
+    const search = searchText.value.toLowerCase()
+    result = result.filter(
+      (n) =>
+        n.studentName?.toLowerCase().includes(search) ||
+        n.parentSummary?.toLowerCase().includes(search)
+    )
+  }
+  return result
 })
 
 // Format date
@@ -159,11 +162,12 @@ const loadCounselingNotes = async () => {
       pageSize: pagination.pageSize,
       search: searchText.value,
     })
-    counselingNotes.value = response.data
-    total.value = response.total
-  } catch {
-    counselingNotes.value = mockCounselingNotes
-    total.value = mockCounselingNotes.length
+    counselingNotes.value = response.data || []
+    total.value = response.total || 0
+  } catch (err) {
+    console.error('Failed to load counseling notes:', err)
+    counselingNotes.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -174,9 +178,10 @@ const loadStudents = async () => {
   loadingStudents.value = true
   try {
     const response = await schoolService.getStudents({ page_size: 1000 })
-    students.value = response.students
-  } catch {
-    students.value = mockStudents
+    students.value = response.students || []
+  } catch (err) {
+    console.error('Failed to load students:', err)
+    students.value = []
   } finally {
     loadingStudents.value = false
   }
@@ -193,6 +198,39 @@ const handleTableChange: TableProps['onChange'] = (pag) => {
 const handleSearch = () => {
   pagination.current = 1
   loadCounselingNotes()
+}
+
+// Handle filter change
+const handleFilterChange = () => {
+  pagination.current = 1
+}
+
+// Export to PDF (only exports non-sensitive data)
+const handleExportPDF = () => {
+  if (filteredNotes.value.length === 0) {
+    message.warning('Tidak ada data untuk diekspor')
+    return
+  }
+
+  const dateRangeStr = dateRange.value
+    ? { start: dateRange.value[0].format('DD/MM/YYYY'), end: dateRange.value[1].format('DD/MM/YYYY') }
+    : undefined
+
+  exportToPDF({
+    title: 'Laporan Catatan Konseling',
+    subtitle: 'Catatan internal tidak disertakan dalam laporan ini',
+    filename: `laporan-konseling-${dayjs().format('YYYY-MM-DD')}`,
+    columns: [
+      { header: 'Tanggal', dataKey: 'createdAt' },
+      { header: 'Siswa', dataKey: 'studentName' },
+      { header: 'Kelas', dataKey: 'studentClass' },
+      { header: 'Ringkasan untuk Orang Tua', dataKey: 'parentSummary' },
+      { header: 'Status', dataKey: 'status' },
+    ],
+    data: filteredNotes.value.map(n => formatCounselingForExport(n as unknown as Record<string, unknown>)),
+    dateRange: dateRangeStr,
+  })
+  message.success('PDF berhasil diunduh')
 }
 
 // Open create modal
@@ -325,17 +363,22 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa..."
               allow-clear
-              style="width: 300px"
+              style="width: 220px"
               @press-enter="handleSearch"
             >
               <template #prefix>
                 <SearchOutlined />
               </template>
             </Input>
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
           </Space>
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
+            <Button @click="handleExportPDF">
+              <template #icon><FilePdfOutlined /></template>
+              Export PDF
+            </Button>
             <Button @click="loadCounselingNotes">
               <template #icon><ReloadOutlined /></template>
             </Button>

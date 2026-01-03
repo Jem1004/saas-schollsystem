@@ -25,6 +25,15 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	// Dashboard
 	bk.Get("/dashboard", h.GetDashboard)
 
+	// Violation Categories
+	categories := bk.Group("/violation-categories")
+	categories.Get("", h.GetViolationCategories)
+	categories.Post("", h.CreateViolationCategory)
+	categories.Get("/:id", h.GetViolationCategoryByID)
+	categories.Put("/:id", h.UpdateViolationCategory)
+	categories.Delete("/:id", h.DeleteViolationCategory)
+	categories.Post("/initialize", h.InitializeDefaultCategories)
+
 	// Violations
 	violations := bk.Group("/violations")
 	violations.Get("", h.GetViolations)
@@ -60,6 +69,7 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 	// Student BK Profile
 	bk.Get("/students/:studentId/profile", h.GetStudentBKProfile)
 	bk.Get("/students/:studentId/violations", h.GetStudentViolations)
+	bk.Get("/students/:studentId/violations/points", h.GetStudentViolationPoints)
 	bk.Get("/students/:studentId/achievements", h.GetStudentAchievements)
 	bk.Get("/students/:studentId/permits", h.GetStudentPermits)
 	bk.Get("/students/:studentId/counseling", h.GetStudentCounselingNotes)
@@ -69,6 +79,14 @@ func (h *Handler) RegisterRoutes(router fiber.Router) {
 func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
 	// Dashboard
 	router.Get("/dashboard", h.GetDashboard)
+
+	// Violation Categories
+	router.Get("/violation-categories", h.GetViolationCategories)
+	router.Post("/violation-categories", h.CreateViolationCategory)
+	router.Get("/violation-categories/:id", h.GetViolationCategoryByID)
+	router.Put("/violation-categories/:id", h.UpdateViolationCategory)
+	router.Delete("/violation-categories/:id", h.DeleteViolationCategory)
+	router.Post("/violation-categories/initialize", h.InitializeDefaultCategories)
 
 	// Violations
 	router.Get("/violations", h.GetViolations)
@@ -101,6 +119,7 @@ func (h *Handler) RegisterRoutesWithoutGroup(router fiber.Router) {
 	// Student BK Profile
 	router.Get("/students/:studentId/profile", h.GetStudentBKProfile)
 	router.Get("/students/:studentId/violations", h.GetStudentViolations)
+	router.Get("/students/:studentId/violations/points", h.GetStudentViolationPoints)
 	router.Get("/students/:studentId/achievements", h.GetStudentAchievements)
 	router.Get("/students/:studentId/permits", h.GetStudentPermits)
 	router.Get("/students/:studentId/counseling", h.GetStudentCounselingNotes)
@@ -325,6 +344,227 @@ func (h *Handler) DeleteViolation(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Pelanggaran berhasil dihapus",
+	})
+}
+
+// GetStudentViolationPoints handles getting total violation points for a student
+// @Summary Get student violation points
+// @Description Get total violation points (negative) for a specific student
+// @Tags BK - Violations
+// @Produce json
+// @Param studentId path int true "Student ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/bk/students/{studentId}/violations/points [get]
+func (h *Handler) GetStudentViolationPoints(c *fiber.Ctx) error {
+	studentID, err := strconv.ParseUint(c.Params("studentId"), 10, 32)
+	if err != nil {
+		return h.invalidIDError(c, "student")
+	}
+
+	points, err := h.service.GetStudentViolationPoints(c.Context(), uint(studentID))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"student_id":   studentID,
+			"total_points": points,
+		},
+	})
+}
+
+// ==================== Violation Categories ====================
+
+// GetViolationCategories handles listing violation categories
+// @Summary List violation categories
+// @Description Get all violation categories for the school
+// @Tags BK - Violation Categories
+// @Produce json
+// @Param active_only query bool false "Filter active categories only"
+// @Success 200 {object} ViolationCategoryListResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/bk/violation-categories [get]
+func (h *Handler) GetViolationCategories(c *fiber.Ctx) error {
+	schoolID, ok := c.Locals("school_id").(uint)
+	if !ok {
+		return h.tenantRequiredError(c)
+	}
+
+	activeOnly := c.Query("active_only", "true") == "true"
+
+	response, err := h.service.GetViolationCategories(c.Context(), schoolID, activeOnly)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// CreateViolationCategory handles creating a new violation category
+// @Summary Create violation category
+// @Description Create a new violation category for the school
+// @Tags BK - Violation Categories
+// @Accept json
+// @Produce json
+// @Param request body CreateViolationCategoryRequest true "Category data"
+// @Success 201 {object} ViolationCategoryResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/bk/violation-categories [post]
+func (h *Handler) CreateViolationCategory(c *fiber.Ctx) error {
+	schoolID, ok := c.Locals("school_id").(uint)
+	if !ok {
+		return h.tenantRequiredError(c)
+	}
+
+	var req CreateViolationCategoryRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.invalidBodyError(c)
+	}
+
+	response, err := h.service.CreateViolationCategory(c.Context(), schoolID, req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "Kategori pelanggaran berhasil dibuat",
+	})
+}
+
+// GetViolationCategoryByID handles getting a single violation category
+// @Summary Get violation category by ID
+// @Description Get detailed information about a specific violation category
+// @Tags BK - Violation Categories
+// @Produce json
+// @Param id path int true "Category ID"
+// @Success 200 {object} ViolationCategoryResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/bk/violation-categories/{id} [get]
+func (h *Handler) GetViolationCategoryByID(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return h.invalidIDError(c, "kategori pelanggaran")
+	}
+
+	response, err := h.service.GetViolationCategoryByID(c.Context(), uint(id))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// UpdateViolationCategory handles updating a violation category
+// @Summary Update violation category
+// @Description Update an existing violation category
+// @Tags BK - Violation Categories
+// @Accept json
+// @Produce json
+// @Param id path int true "Category ID"
+// @Param request body UpdateViolationCategoryRequest true "Updated category data"
+// @Success 200 {object} ViolationCategoryResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/bk/violation-categories/{id} [put]
+func (h *Handler) UpdateViolationCategory(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return h.invalidIDError(c, "kategori pelanggaran")
+	}
+
+	var req UpdateViolationCategoryRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.invalidBodyError(c)
+	}
+
+	response, err := h.service.UpdateViolationCategory(c.Context(), uint(id), req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+		"message": "Kategori pelanggaran berhasil diperbarui",
+	})
+}
+
+// DeleteViolationCategory handles deleting a violation category
+// @Summary Delete violation category
+// @Description Delete a specific violation category
+// @Tags BK - Violation Categories
+// @Produce json
+// @Param id path int true "Category ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/bk/violation-categories/{id} [delete]
+func (h *Handler) DeleteViolationCategory(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return h.invalidIDError(c, "kategori pelanggaran")
+	}
+
+	if err := h.service.DeleteViolationCategory(c.Context(), uint(id)); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Kategori pelanggaran berhasil dihapus",
+	})
+}
+
+// InitializeDefaultCategories handles initializing default violation categories
+// @Summary Initialize default categories
+// @Description Create default violation categories for the school
+// @Tags BK - Violation Categories
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /api/v1/bk/violation-categories/initialize [post]
+func (h *Handler) InitializeDefaultCategories(c *fiber.Ctx) error {
+	schoolID, ok := c.Locals("school_id").(uint)
+	if !ok {
+		return h.tenantRequiredError(c)
+	}
+
+	if err := h.service.InitializeDefaultCategories(c.Context(), schoolID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Kategori pelanggaran default berhasil dibuat",
 	})
 }
 
@@ -1312,6 +1552,14 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 			"error": fiber.Map{
 				"code":    "NOT_FOUND_VIOLATION",
 				"message": "Pelanggaran tidak ditemukan",
+			},
+		})
+	case errors.Is(err, ErrViolationCategoryNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"error": fiber.Map{
+				"code":    "NOT_FOUND_VIOLATION_CATEGORY",
+				"message": "Kategori pelanggaran tidak ditemukan",
 			},
 		})
 	case errors.Is(err, ErrAchievementNotFound):

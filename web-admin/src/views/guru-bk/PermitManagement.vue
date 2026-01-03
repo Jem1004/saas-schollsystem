@@ -20,6 +20,7 @@ import {
   TimePicker,
   Descriptions,
   DescriptionsItem,
+  DatePicker,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -31,6 +32,7 @@ import {
   FileProtectOutlined,
   CheckOutlined,
   PrinterOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
@@ -38,8 +40,10 @@ import type { Dayjs } from 'dayjs'
 import { bkService, schoolService } from '@/services'
 import type { Permit, CreatePermitRequest } from '@/types/bk'
 import type { Student, SchoolUser } from '@/types/school'
+import { exportToPDF, formatPermitForExport, generatePermitPDF } from '@/utils/pdfExport'
 
 const { Title, Text } = Typography
+const { RangePicker } = DatePicker
 
 const router = useRouter()
 
@@ -53,6 +57,7 @@ const pagination = reactive({
 })
 const searchText = ref('')
 const filterStatus = ref<string | undefined>(undefined)
+const dateRange = ref<[Dayjs, Dayjs] | undefined>(undefined)
 
 // Students and teachers for dropdown
 const students = ref<Student[]>([])
@@ -95,25 +100,6 @@ const formRules = {
 const returnFormRules = {
   returnTimeValue: [{ required: true, message: 'Waktu kembali wajib diisi' }],
 }
-
-// Mock data for development
-const mockPermits: Permit[] = [
-  { id: 1, studentId: 1, studentName: 'Ahmad Fauzi', studentNis: '2024001', studentNisn: '0012345678', studentClass: 'VII-A', reason: 'Sakit perut, perlu ke klinik', exitTime: new Date(Date.now() - 3600000).toISOString(), returnTime: new Date().toISOString(), responsibleTeacherId: 1, responsibleTeacherName: 'Budi Santoso', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date().toISOString() },
-  { id: 2, studentId: 2, studentName: 'Budi Santoso', studentNis: '2024002', studentNisn: '0012345679', studentClass: 'VII-B', reason: 'Dipanggil orang tua', exitTime: new Date(Date.now() - 7200000).toISOString(), responsibleTeacherId: 2, responsibleTeacherName: 'Siti Rahayu', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 3, studentId: 3, studentName: 'Citra Dewi', studentNis: '2024003', studentNisn: '0012345680', studentClass: 'VIII-A', reason: 'Mengikuti lomba di luar sekolah', exitTime: new Date(Date.now() - 86400000 * 2).toISOString(), returnTime: new Date(Date.now() - 86400000 * 2 + 14400000).toISOString(), responsibleTeacherId: 1, responsibleTeacherName: 'Budi Santoso', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000 * 2).toISOString() },
-]
-
-const mockStudents: Student[] = [
-  { id: 1, schoolId: 1, classId: 1, className: 'VII-A', nis: '2024001', nisn: '0012345678', name: 'Ahmad Fauzi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 2, schoolId: 1, classId: 2, className: 'VII-B', nis: '2024002', nisn: '0012345679', name: 'Budi Santoso', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 3, schoolId: 1, classId: 3, className: 'VIII-A', nis: '2024003', nisn: '0012345680', name: 'Citra Dewi', isActive: true, createdAt: '', updatedAt: '' },
-]
-
-const mockTeachers: SchoolUser[] = [
-  { id: 1, schoolId: 1, role: 'guru', username: 'budi.santoso', name: 'Budi Santoso', isActive: true, mustResetPwd: false, createdAt: '', updatedAt: '' },
-  { id: 2, schoolId: 1, role: 'wali_kelas', username: 'siti.rahayu', name: 'Siti Rahayu', isActive: true, mustResetPwd: false, createdAt: '', updatedAt: '' },
-  { id: 3, schoolId: 1, role: 'guru_bk', username: 'ahmad.wijaya', name: 'Ahmad Wijaya', isActive: true, mustResetPwd: false, createdAt: '', updatedAt: '' },
-]
 
 // Table columns
 const columns: TableProps['columns'] = [
@@ -171,6 +157,14 @@ const filteredPermits = computed(() => {
     result = result.filter(p => !p.returnTime)
   }
 
+  if (dateRange.value) {
+    const [start, end] = dateRange.value
+    result = result.filter(p => {
+      const date = dayjs(p.createdAt)
+      return date.isAfter(start.startOf('day')) && date.isBefore(end.endOf('day'))
+    })
+  }
+
   if (searchText.value) {
     const search = searchText.value.toLowerCase()
     result = result.filter(
@@ -209,11 +203,12 @@ const loadPermits = async () => {
       pageSize: pagination.pageSize,
       search: searchText.value,
     })
-    permits.value = response.data
-    total.value = response.total
-  } catch {
-    permits.value = mockPermits
-    total.value = mockPermits.length
+    permits.value = response.data || []
+    total.value = response.total || 0
+  } catch (err) {
+    console.error('Failed to load permits:', err)
+    permits.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -224,9 +219,10 @@ const loadStudents = async () => {
   loadingStudents.value = true
   try {
     const response = await schoolService.getStudents({ page_size: 1000 })
-    students.value = response.students
-  } catch {
-    students.value = mockStudents
+    students.value = response.students || []
+  } catch (err) {
+    console.error('Failed to load students:', err)
+    students.value = []
   } finally {
     loadingStudents.value = false
   }
@@ -237,9 +233,10 @@ const loadTeachers = async () => {
   loadingTeachers.value = true
   try {
     const response = await schoolService.getUsers({ page_size: 1000 })
-    teachers.value = response.users
-  } catch {
-    teachers.value = mockTeachers
+    teachers.value = response.users || []
+  } catch (err) {
+    console.error('Failed to load teachers:', err)
+    teachers.value = []
   } finally {
     loadingTeachers.value = false
   }
@@ -262,6 +259,35 @@ const handleSearch = () => {
 const handleFilterChange = () => {
   pagination.current = 1
   loadPermits()
+}
+
+// Export to PDF
+const handleExportPDF = () => {
+  if (filteredPermits.value.length === 0) {
+    message.warning('Tidak ada data untuk diekspor')
+    return
+  }
+
+  const dateRangeStr = dateRange.value
+    ? { start: dateRange.value[0].format('DD/MM/YYYY'), end: dateRange.value[1].format('DD/MM/YYYY') }
+    : undefined
+
+  exportToPDF({
+    title: 'Laporan Izin Keluar Siswa',
+    filename: `laporan-izin-keluar-${dayjs().format('YYYY-MM-DD')}`,
+    columns: [
+      { header: 'Tanggal', dataKey: 'createdAt' },
+      { header: 'Siswa', dataKey: 'studentName' },
+      { header: 'Kelas', dataKey: 'studentClass' },
+      { header: 'Alasan', dataKey: 'reason' },
+      { header: 'Waktu Keluar', dataKey: 'exitTime' },
+      { header: 'Waktu Kembali', dataKey: 'returnTime' },
+      { header: 'Status', dataKey: 'status' },
+    ],
+    data: filteredPermits.value.map(p => formatPermitForExport(p as unknown as Record<string, unknown>)),
+    dateRange: dateRangeStr,
+  })
+  message.success('PDF berhasil diunduh')
 }
 
 // Open create modal
@@ -380,12 +406,11 @@ const handlePrintPermit = async () => {
   if (!selectedPermit.value) return
 
   try {
-    const blob = await bkService.getPermitDocument(selectedPermit.value.id)
-    const url = window.URL.createObjectURL(blob)
-    window.open(url, '_blank')
-  } catch {
-    // For mock, just show a message
-    message.info('Fitur cetak dokumen akan tersedia setelah backend terintegrasi')
+    const docData = await bkService.getPermitDocument(selectedPermit.value.id)
+    generatePermitPDF(docData)
+  } catch (error) {
+    console.error('Failed to generate permit document:', error)
+    message.error('Gagal membuat dokumen izin keluar')
   }
 }
 
@@ -438,13 +463,14 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa atau alasan..."
               allow-clear
-              style="width: 250px"
+              style="width: 220px"
               @press-enter="handleSearch"
             >
               <template #prefix>
                 <SearchOutlined />
               </template>
             </Input>
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
             <Select
               v-model:value="filterStatus"
               placeholder="Filter Status"
@@ -459,12 +485,16 @@ onMounted(() => {
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
+            <Button @click="handleExportPDF">
+              <template #icon><FilePdfOutlined /></template>
+              Export PDF
+            </Button>
             <Button @click="loadPermits">
               <template #icon><ReloadOutlined /></template>
             </Button>
             <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
-              Buat Izin Keluar
+              Buat Izin
             </Button>
           </Space>
         </Col>

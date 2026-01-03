@@ -28,7 +28,7 @@ import {
 } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
 import { bkService } from '@/services'
-import type { BKStats, Violation, Achievement, StudentBKProfile } from '@/types/bk'
+import type { BKStats, Violation, Achievement, StudentAttentionItem } from '@/types/bk'
 
 const { Title, Text } = Typography
 const router = useRouter()
@@ -43,33 +43,8 @@ const stats = ref<BKStats>({
   totalCounselingNotes: 0,
   recentViolations: [],
   recentAchievements: [],
-  studentsRequiringAttention: [],
+  studentsNeedingAttention: [],
 })
-
-// Mock data for development
-const loadMockData = () => {
-  stats.value = {
-    totalViolations: 45,
-    totalAchievements: 128,
-    totalPermits: 23,
-    totalCounselingNotes: 67,
-    recentViolations: [
-      { id: 1, studentId: 1, studentName: 'Ahmad Fauzi', studentClass: 'VII-A', category: 'Keterlambatan', level: 'ringan', description: 'Terlambat 15 menit', createdBy: 1, createdAt: new Date().toISOString() },
-      { id: 2, studentId: 2, studentName: 'Budi Santoso', studentClass: 'VII-B', category: 'Seragam', level: 'ringan', description: 'Tidak memakai dasi', createdBy: 1, createdAt: new Date(Date.now() - 86400000).toISOString() },
-      { id: 3, studentId: 3, studentName: 'Citra Dewi', studentClass: 'VIII-A', category: 'Bolos', level: 'sedang', description: 'Tidak masuk tanpa keterangan', createdBy: 1, createdAt: new Date(Date.now() - 172800000).toISOString() },
-    ],
-    recentAchievements: [
-      { id: 1, studentId: 4, studentName: 'Dian Pratama', studentClass: 'IX-A', title: 'Juara 1 Olimpiade Matematika', point: 100, createdBy: 1, createdAt: new Date().toISOString() },
-      { id: 2, studentId: 5, studentName: 'Eka Putri', studentClass: 'VIII-B', title: 'Juara 2 Lomba Pidato', point: 75, createdBy: 1, createdAt: new Date(Date.now() - 86400000).toISOString() },
-      { id: 3, studentId: 6, studentName: 'Fajar Nugroho', studentClass: 'VII-A', title: 'Siswa Teladan Bulan Ini', point: 50, createdBy: 1, createdAt: new Date(Date.now() - 172800000).toISOString() },
-    ],
-    studentsRequiringAttention: [
-      { student: { id: 3, name: 'Citra Dewi', nis: '2024003', nisn: '0012345680', className: 'VIII-A', classId: 3 }, totalAchievementPoints: 25, violationCount: 5, achievementCount: 1, permitCount: 2, counselingCount: 3 },
-      { student: { id: 7, name: 'Galih Pratama', nis: '2024007', nisn: '0012345686', className: 'IX-B', classId: 6 }, totalAchievementPoints: 10, violationCount: 4, achievementCount: 0, permitCount: 1, counselingCount: 2 },
-      { student: { id: 8, name: 'Hana Safitri', nis: '2024008', nisn: '0012345687', className: 'VII-C', classId: 3 }, totalAchievementPoints: 0, violationCount: 3, achievementCount: 0, permitCount: 0, counselingCount: 1 },
-    ],
-  }
-}
 
 const loadData = async () => {
   loading.value = true
@@ -78,8 +53,9 @@ const loadData = async () => {
   try {
     const response = await bkService.getStats()
     stats.value = response
-  } catch {
-    loadMockData()
+  } catch (err) {
+    console.error('Failed to load BK stats:', err)
+    error.value = 'Gagal memuat data statistik BK. Silakan coba lagi.'
   } finally {
     loading.value = false
   }
@@ -217,12 +193,12 @@ onMounted(() => {
               <ExclamationCircleOutlined style="color: #f97316; font-size: 18px" />
             </template>
             <List
-              v-if="stats.studentsRequiringAttention.length > 0"
-              :data-source="stats.studentsRequiringAttention"
+              v-if="stats.studentsNeedingAttention && stats.studentsNeedingAttention.length > 0"
+              :data-source="stats.studentsNeedingAttention"
               :loading="loading"
             >
               <template #renderItem="{ item }">
-                <ListItem class="attention-item" @click="goToStudentProfile((item as StudentBKProfile).student.id)">
+                <ListItem class="attention-item" @click="goToStudentProfile((item as StudentAttentionItem).studentId)">
                   <ListItemMeta>
                     <template #avatar>
                       <Avatar :style="{ backgroundColor: '#f97316' }">
@@ -230,14 +206,13 @@ onMounted(() => {
                       </Avatar>
                     </template>
                     <template #title>
-                      <span class="student-name">{{ (item as StudentBKProfile).student.name }}</span>
-                      <Tag color="blue" style="margin-left: 8px">{{ (item as StudentBKProfile).student.className }}</Tag>
+                      <span class="student-name">{{ (item as StudentAttentionItem).studentName }}</span>
+                      <Tag color="blue" style="margin-left: 8px">{{ (item as StudentAttentionItem).className }}</Tag>
                     </template>
                     <template #description>
                       <div class="student-stats">
-                        <Tag color="error">{{ (item as StudentBKProfile).violationCount }} pelanggaran</Tag>
-                        <Tag color="success">{{ (item as StudentBKProfile).achievementCount }} prestasi</Tag>
-                        <Tag color="purple">{{ (item as StudentBKProfile).counselingCount }} konseling</Tag>
+                        <Tag color="error">{{ (item as StudentAttentionItem).violationCount }} pelanggaran</Tag>
+                        <span style="margin-left: 8px; color: #8c8c8c">{{ (item as StudentAttentionItem).reason }}</span>
                       </div>
                     </template>
                   </ListItemMeta>

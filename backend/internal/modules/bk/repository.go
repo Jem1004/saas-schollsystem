@@ -11,12 +11,13 @@ import (
 )
 
 var (
-	ErrViolationNotFound      = errors.New("pelanggaran tidak ditemukan")
-	ErrAchievementNotFound    = errors.New("prestasi tidak ditemukan")
-	ErrPermitNotFound         = errors.New("izin keluar tidak ditemukan")
-	ErrCounselingNoteNotFound = errors.New("catatan konseling tidak ditemukan")
-	ErrStudentNotFound        = errors.New("siswa tidak ditemukan")
-	ErrUserNotFound           = errors.New("user tidak ditemukan")
+	ErrViolationNotFound         = errors.New("pelanggaran tidak ditemukan")
+	ErrViolationCategoryNotFound = errors.New("kategori pelanggaran tidak ditemukan")
+	ErrAchievementNotFound       = errors.New("prestasi tidak ditemukan")
+	ErrPermitNotFound            = errors.New("izin keluar tidak ditemukan")
+	ErrCounselingNoteNotFound    = errors.New("catatan konseling tidak ditemukan")
+	ErrStudentNotFound           = errors.New("siswa tidak ditemukan")
+	ErrUserNotFound              = errors.New("user tidak ditemukan")
 )
 
 // Repository defines the interface for BK data operations
@@ -27,6 +28,14 @@ type Repository interface {
 	FindViolationsByStudent(ctx context.Context, studentID uint) ([]models.Violation, error)
 	FindViolations(ctx context.Context, schoolID uint, filter ViolationFilter) ([]models.Violation, int64, error)
 	DeleteViolation(ctx context.Context, id uint) error
+	GetStudentViolationPoints(ctx context.Context, studentID uint) (int, error)
+
+	// Violation Category operations
+	CreateViolationCategory(ctx context.Context, category *models.ViolationCategory) error
+	FindViolationCategoryByID(ctx context.Context, id uint) (*models.ViolationCategory, error)
+	FindViolationCategories(ctx context.Context, schoolID uint, activeOnly bool) ([]models.ViolationCategory, error)
+	UpdateViolationCategory(ctx context.Context, category *models.ViolationCategory) error
+	DeleteViolationCategory(ctx context.Context, id uint) error
 
 	// Achievement operations
 	CreateAchievement(ctx context.Context, achievement *models.Achievement) error
@@ -194,6 +203,87 @@ func (r *repository) DeleteViolation(ctx context.Context, id uint) error {
 	}
 	if result.RowsAffected == 0 {
 		return ErrViolationNotFound
+	}
+	return nil
+}
+
+// GetStudentViolationPoints retrieves total violation points for a student
+func (r *repository) GetStudentViolationPoints(ctx context.Context, studentID uint) (int, error) {
+	var total int
+	err := r.db.WithContext(ctx).
+		Model(&models.Violation{}).
+		Where("student_id = ?", studentID).
+		Select("COALESCE(SUM(point), 0)").
+		Scan(&total).Error
+	return total, err
+}
+
+// ==================== Violation Category Repository ====================
+
+// CreateViolationCategory creates a new violation category
+func (r *repository) CreateViolationCategory(ctx context.Context, category *models.ViolationCategory) error {
+	return r.db.WithContext(ctx).Create(category).Error
+}
+
+// FindViolationCategoryByID retrieves a violation category by ID
+func (r *repository) FindViolationCategoryByID(ctx context.Context, id uint) (*models.ViolationCategory, error) {
+	var category models.ViolationCategory
+	err := r.db.WithContext(ctx).
+		Where("id = ?", id).
+		First(&category).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrViolationCategoryNotFound
+		}
+		return nil, err
+	}
+	return &category, nil
+}
+
+// FindViolationCategories retrieves all violation categories for a school
+func (r *repository) FindViolationCategories(ctx context.Context, schoolID uint, activeOnly bool) ([]models.ViolationCategory, error) {
+	var categories []models.ViolationCategory
+	query := r.db.WithContext(ctx).Where("school_id = ?", schoolID)
+	if activeOnly {
+		query = query.Where("is_active = ?", true)
+	}
+	err := query.Order("name ASC").Find(&categories).Error
+	return categories, err
+}
+
+// UpdateViolationCategory updates a violation category
+func (r *repository) UpdateViolationCategory(ctx context.Context, category *models.ViolationCategory) error {
+	// Use Save instead of Updates to properly handle boolean false values
+	result := r.db.WithContext(ctx).
+		Model(&models.ViolationCategory{}).
+		Where("id = ?", category.ID).
+		Select("name", "default_point", "default_level", "description", "is_active", "updated_at").
+		Updates(map[string]interface{}{
+			"name":          category.Name,
+			"default_point": category.DefaultPoint,
+			"default_level": category.DefaultLevel,
+			"description":   category.Description,
+			"is_active":     category.IsActive,
+			"updated_at":    time.Now(),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrViolationCategoryNotFound
+	}
+	return nil
+}
+
+// DeleteViolationCategory deletes a violation category
+func (r *repository) DeleteViolationCategory(ctx context.Context, id uint) error {
+	result := r.db.WithContext(ctx).Delete(&models.ViolationCategory{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrViolationCategoryNotFound
 	}
 	return nil
 }

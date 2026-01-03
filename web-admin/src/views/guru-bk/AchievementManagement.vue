@@ -19,6 +19,7 @@ import {
   Typography,
   Textarea,
   Statistic,
+  DatePicker,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -28,13 +29,18 @@ import {
   ReloadOutlined,
   EyeOutlined,
   TrophyOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
+import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import { bkService, schoolService } from '@/services'
 import type { Achievement, CreateAchievementRequest } from '@/types/bk'
 import type { Student } from '@/types/school'
+import { exportToPDF, formatAchievementForExport } from '@/utils/pdfExport'
 
 const { Title } = Typography
+const { RangePicker } = DatePicker
 
 const router = useRouter()
 
@@ -47,6 +53,7 @@ const pagination = reactive({
   pageSize: 10,
 })
 const searchText = ref('')
+const dateRange = ref<[Dayjs, Dayjs] | undefined>(undefined)
 
 // Students for dropdown
 const students = ref<Student[]>([])
@@ -76,23 +83,6 @@ const formRules = {
 const totalPoints = computed(() => {
   return achievements.value.reduce((sum, a) => sum + a.point, 0)
 })
-
-// Mock data for development
-const mockAchievements: Achievement[] = [
-  { id: 1, studentId: 1, studentName: 'Ahmad Fauzi', studentNis: '2024001', studentClass: 'VII-A', title: 'Juara 1 Olimpiade Matematika Tingkat Kota', point: 100, description: 'Meraih juara 1 dalam olimpiade matematika tingkat kota', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date().toISOString() },
-  { id: 2, studentId: 2, studentName: 'Budi Santoso', studentNis: '2024002', studentClass: 'VII-B', title: 'Juara 2 Lomba Pidato', point: 75, description: 'Meraih juara 2 dalam lomba pidato tingkat kabupaten', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 3, studentId: 3, studentName: 'Citra Dewi', studentNis: '2024003', studentClass: 'VIII-A', title: 'Siswa Teladan Bulan Ini', point: 50, description: 'Terpilih sebagai siswa teladan bulan ini', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 4, studentId: 4, studentName: 'Dian Pratama', studentNis: '2024004', studentClass: 'IX-A', title: 'Juara 3 Lomba Cerdas Cermat', point: 50, description: 'Meraih juara 3 dalam lomba cerdas cermat', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 259200000).toISOString() },
-  { id: 5, studentId: 5, studentName: 'Eka Putri', studentNis: '2024005', studentClass: 'VIII-B', title: 'Penghargaan Kehadiran Sempurna', point: 25, description: 'Tidak pernah absen selama 1 semester', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 345600000).toISOString() },
-]
-
-const mockStudents: Student[] = [
-  { id: 1, schoolId: 1, classId: 1, className: 'VII-A', nis: '2024001', nisn: '0012345678', name: 'Ahmad Fauzi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 2, schoolId: 1, classId: 2, className: 'VII-B', nis: '2024002', nisn: '0012345679', name: 'Budi Santoso', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 3, schoolId: 1, classId: 3, className: 'VIII-A', nis: '2024003', nisn: '0012345680', name: 'Citra Dewi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 4, schoolId: 1, classId: 4, className: 'IX-A', nis: '2024004', nisn: '0012345681', name: 'Dian Pratama', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 5, schoolId: 1, classId: 5, className: 'VIII-B', nis: '2024005', nisn: '0012345682', name: 'Eka Putri', isActive: true, createdAt: '', updatedAt: '' },
-]
 
 // Table columns
 const columns: TableProps['columns'] = [
@@ -136,15 +126,26 @@ const columns: TableProps['columns'] = [
 
 // Computed filtered data
 const filteredAchievements = computed(() => {
-  if (!searchText.value) return achievements.value
+  let result = achievements.value
+  
+  if (dateRange.value) {
+    const [start, end] = dateRange.value
+    result = result.filter(a => {
+      const date = dayjs(a.createdAt)
+      return date.isAfter(start.startOf('day')) && date.isBefore(end.endOf('day'))
+    })
+  }
 
-  const search = searchText.value.toLowerCase()
-  return achievements.value.filter(
-    (a) =>
-      a.studentName?.toLowerCase().includes(search) ||
-      a.title.toLowerCase().includes(search) ||
-      a.description?.toLowerCase().includes(search)
-  )
+  if (searchText.value) {
+    const search = searchText.value.toLowerCase()
+    result = result.filter(
+      (a) =>
+        a.studentName?.toLowerCase().includes(search) ||
+        a.title.toLowerCase().includes(search) ||
+        a.description?.toLowerCase().includes(search)
+    )
+  }
+  return result
 })
 
 // Format date
@@ -165,11 +166,12 @@ const loadAchievements = async () => {
       pageSize: pagination.pageSize,
       search: searchText.value,
     })
-    achievements.value = response.data
-    total.value = response.total
-  } catch {
-    achievements.value = mockAchievements
-    total.value = mockAchievements.length
+    achievements.value = response.data || []
+    total.value = response.total || 0
+  } catch (err) {
+    console.error('Failed to load achievements:', err)
+    achievements.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -180,9 +182,10 @@ const loadStudents = async () => {
   loadingStudents.value = true
   try {
     const response = await schoolService.getStudents({ page_size: 1000 })
-    students.value = response.students
-  } catch {
-    students.value = mockStudents
+    students.value = response.students || []
+  } catch (err) {
+    console.error('Failed to load students:', err)
+    students.value = []
   } finally {
     loadingStudents.value = false
   }
@@ -199,6 +202,39 @@ const handleTableChange: TableProps['onChange'] = (pag) => {
 const handleSearch = () => {
   pagination.current = 1
   loadAchievements()
+}
+
+// Handle filter change
+const handleFilterChange = () => {
+  pagination.current = 1
+}
+
+// Export to PDF
+const handleExportPDF = () => {
+  if (filteredAchievements.value.length === 0) {
+    message.warning('Tidak ada data untuk diekspor')
+    return
+  }
+
+  const dateRangeStr = dateRange.value
+    ? { start: dateRange.value[0].format('DD/MM/YYYY'), end: dateRange.value[1].format('DD/MM/YYYY') }
+    : undefined
+
+  exportToPDF({
+    title: 'Laporan Data Prestasi Siswa',
+    filename: `laporan-prestasi-${dayjs().format('YYYY-MM-DD')}`,
+    columns: [
+      { header: 'Tanggal', dataKey: 'createdAt' },
+      { header: 'Siswa', dataKey: 'studentName' },
+      { header: 'Kelas', dataKey: 'studentClass' },
+      { header: 'Prestasi', dataKey: 'title' },
+      { header: 'Poin', dataKey: 'point' },
+      { header: 'Deskripsi', dataKey: 'description' },
+    ],
+    data: filteredAchievements.value.map(a => formatAchievementForExport(a as unknown as Record<string, unknown>)),
+    dateRange: dateRangeStr,
+  })
+  message.success('PDF berhasil diunduh')
 }
 
 // Open create modal
@@ -315,17 +351,22 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa atau prestasi..."
               allow-clear
-              style="width: 300px"
+              style="width: 250px"
               @press-enter="handleSearch"
             >
               <template #prefix>
                 <SearchOutlined />
               </template>
             </Input>
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
           </Space>
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
+            <Button @click="handleExportPDF">
+              <template #icon><FilePdfOutlined /></template>
+              Export PDF
+            </Button>
             <Button @click="loadAchievements">
               <template #icon><ReloadOutlined /></template>
             </Button>

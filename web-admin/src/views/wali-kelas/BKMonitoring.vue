@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import {
-  Card, Row, Col, Typography, Table, Tag, Select, SelectOption, Spin, Segmented, Alert,
+  Card, Row, Col, Typography, Table, Tag, Select, SelectOption, Spin, Segmented, Alert, Empty,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -67,19 +67,28 @@ const getLevelColor = (level: string) => {
   return colors[level] || 'default'
 }
 
+// Get student IDs from class
+const classStudentIds = computed(() => students.value.map(s => s.id))
+
+// Filter data by class students
+const filterByClassStudents = <T extends { studentId: number }>(data: T[]): T[] => {
+  if (classStudentIds.value.length === 0) return data
+  return data.filter(item => classStudentIds.value.includes(item.studentId))
+}
+
 // Filtered data
 const filteredViolations = computed(() => {
-  const data = violations.value || []
+  let data = filterByClassStudents(violations.value || [])
   return selectedStudentId.value ? data.filter(v => v.studentId === selectedStudentId.value) : data
 })
 
 const filteredAchievements = computed(() => {
-  const data = achievements.value || []
+  let data = filterByClassStudents(achievements.value || [])
   return selectedStudentId.value ? data.filter(a => a.studentId === selectedStudentId.value) : data
 })
 
 const filteredPermits = computed(() => {
-  const data = permits.value || []
+  let data = filterByClassStudents(permits.value || [])
   return selectedStudentId.value ? data.filter(p => p.studentId === selectedStudentId.value) : data
 })
 
@@ -101,7 +110,7 @@ const loadData = async () => {
   permits.value = []
   
   try {
-    // Load students and class info
+    // Load students and class info first
     await Promise.all([loadStudents(), loadClassInfo()])
     
     if (!isMounted.value) return
@@ -194,7 +203,7 @@ onUnmounted(() => { isMounted.value = false })
       
       <Spin :spinning="loading">
         <template v-if="activeTab === 'violations'">
-          <Table :columns="violationColumns" :data-source="filteredViolations" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
+          <Table v-if="filteredViolations.length > 0" :columns="violationColumns" :data-source="filteredViolations" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'level'">
                 <Tag :color="getLevelColor((record as Violation).level)" size="small">{{ (record as Violation).level }}</Tag>
@@ -202,10 +211,11 @@ onUnmounted(() => { isMounted.value = false })
               <template v-else-if="column.key === 'createdAt'">{{ formatShortDate((record as Violation).createdAt) }}</template>
             </template>
           </Table>
+          <Empty v-else description="Tidak ada data pelanggaran" />
         </template>
 
         <template v-else-if="activeTab === 'achievements'">
-          <Table :columns="achievementColumns" :data-source="filteredAchievements" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
+          <Table v-if="filteredAchievements.length > 0" :columns="achievementColumns" :data-source="filteredAchievements" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'point'">
                 <Tag color="success" size="small">+{{ (record as Achievement).point }}</Tag>
@@ -213,10 +223,11 @@ onUnmounted(() => { isMounted.value = false })
               <template v-else-if="column.key === 'createdAt'">{{ formatShortDate((record as Achievement).createdAt) }}</template>
             </template>
           </Table>
+          <Empty v-else description="Tidak ada data prestasi" />
         </template>
 
         <template v-else-if="activeTab === 'permits'">
-          <Table :columns="permitColumns" :data-source="filteredPermits" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
+          <Table v-if="filteredPermits.length > 0" :columns="permitColumns" :data-source="filteredPermits" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'returnTime'">
                 <span v-if="(record as Permit).returnTime">{{ (record as Permit).returnTime }}</span>
@@ -224,6 +235,7 @@ onUnmounted(() => { isMounted.value = false })
               </template>
             </template>
           </Table>
+          <Empty v-else description="Tidak ada data izin keluar" />
         </template>
       </Spin>
     </Card>

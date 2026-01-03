@@ -18,6 +18,7 @@ import {
   Col,
   Typography,
   Textarea,
+  DatePicker,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -27,14 +28,20 @@ import {
   ReloadOutlined,
   FilterOutlined,
   EyeOutlined,
+  SettingOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
+import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import { bkService, schoolService } from '@/services'
-import type { Violation, CreateViolationRequest } from '@/types/bk'
+import type { Violation, ViolationCategory, CreateViolationRequest } from '@/types/bk'
 import type { Student } from '@/types/school'
-import { VIOLATION_CATEGORIES, VIOLATION_LEVELS } from '@/types/bk'
+import { VIOLATION_LEVELS } from '@/types/bk'
+import { exportToPDF, formatViolationForExport } from '@/utils/pdfExport'
 
-const { Title } = Typography
+const { Title, Text } = Typography
+const { RangePicker } = DatePicker
 
 const router = useRouter()
 
@@ -49,10 +56,15 @@ const pagination = reactive({
 const searchText = ref('')
 const filterLevel = ref<string | undefined>(undefined)
 const filterCategory = ref<string | undefined>(undefined)
+const dateRange = ref<[Dayjs, Dayjs] | undefined>(undefined)
 
 // Students for dropdown
 const students = ref<Student[]>([])
 const loadingStudents = ref(false)
+
+// Violation categories from API
+const violationCategories = ref<ViolationCategory[]>([])
+const loadingCategories = ref(false)
 
 // Modal state
 const modalVisible = ref(false)
@@ -62,8 +74,10 @@ const modalLoading = ref(false)
 const formRef = ref()
 const formState = reactive<CreateViolationRequest>({
   studentId: 0,
+  categoryId: undefined,
   category: '',
   level: 'ringan',
+  point: -5,
   description: '',
 })
 
@@ -71,106 +85,57 @@ const formState = reactive<CreateViolationRequest>({
 const formRules = {
   studentId: [{ required: true, message: 'Siswa wajib dipilih' }],
   category: [{ required: true, message: 'Kategori wajib dipilih' }],
-  level: [{ required: true, message: 'Tingkat wajib dipilih' }],
   description: [{ required: true, message: 'Deskripsi wajib diisi' }],
 }
 
-// Mock data for development
-const mockViolations: Violation[] = [
-  { id: 1, studentId: 1, studentName: 'Ahmad Fauzi', studentNis: '2024001', studentClass: 'VII-A', category: 'Keterlambatan', level: 'ringan', description: 'Terlambat 15 menit', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date().toISOString() },
-  { id: 2, studentId: 2, studentName: 'Budi Santoso', studentNis: '2024002', studentClass: 'VII-B', category: 'Seragam', level: 'ringan', description: 'Tidak memakai dasi', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 3, studentId: 3, studentName: 'Citra Dewi', studentNis: '2024003', studentClass: 'VIII-A', category: 'Bolos', level: 'sedang', description: 'Tidak masuk tanpa keterangan', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 172800000).toISOString() },
-  { id: 4, studentId: 4, studentName: 'Dian Pratama', studentNis: '2024004', studentClass: 'IX-A', category: 'Perilaku', level: 'sedang', description: 'Mengganggu teman saat pelajaran', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 259200000).toISOString() },
-  { id: 5, studentId: 5, studentName: 'Eka Putri', studentNis: '2024005', studentClass: 'VIII-B', category: 'Merokok', level: 'berat', description: 'Kedapatan merokok di toilet', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 345600000).toISOString() },
-]
-
-const mockStudents: Student[] = [
-  { id: 1, schoolId: 1, classId: 1, className: 'VII-A', nis: '2024001', nisn: '0012345678', name: 'Ahmad Fauzi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 2, schoolId: 1, classId: 2, className: 'VII-B', nis: '2024002', nisn: '0012345679', name: 'Budi Santoso', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 3, schoolId: 1, classId: 3, className: 'VIII-A', nis: '2024003', nisn: '0012345680', name: 'Citra Dewi', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 4, schoolId: 1, classId: 4, className: 'IX-A', nis: '2024004', nisn: '0012345681', name: 'Dian Pratama', isActive: true, createdAt: '', updatedAt: '' },
-  { id: 5, schoolId: 1, classId: 5, className: 'VIII-B', nis: '2024005', nisn: '0012345682', name: 'Eka Putri', isActive: true, createdAt: '', updatedAt: '' },
-]
-
 // Table columns
 const columns: TableProps['columns'] = [
-  {
-    title: 'Tanggal',
-    dataIndex: 'createdAt',
-    key: 'createdAt',
-    width: 120,
-    sorter: true,
-  },
-  {
-    title: 'Siswa',
-    dataIndex: 'studentName',
-    key: 'studentName',
-  },
-  {
-    title: 'Kelas',
-    dataIndex: 'studentClass',
-    key: 'studentClass',
-    width: 100,
-  },
-  {
-    title: 'Kategori',
-    dataIndex: 'category',
-    key: 'category',
-    width: 150,
-  },
-  {
-    title: 'Tingkat',
-    dataIndex: 'level',
-    key: 'level',
-    width: 100,
-    align: 'center',
-  },
-  {
-    title: 'Deskripsi',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true,
-  },
-  {
-    title: 'Aksi',
-    key: 'action',
-    width: 120,
-    align: 'center',
-  },
+  { title: 'Tanggal', dataIndex: 'createdAt', key: 'createdAt', width: 110, sorter: true },
+  { title: 'Siswa', dataIndex: 'studentName', key: 'studentName' },
+  { title: 'Kelas', dataIndex: 'studentClass', key: 'studentClass', width: 90 },
+  { title: 'Kategori', dataIndex: 'category', key: 'category', width: 130 },
+  { title: 'Tingkat', dataIndex: 'level', key: 'level', width: 90, align: 'center' },
+  { title: 'Poin', dataIndex: 'point', key: 'point', width: 80, align: 'center' },
+  { title: 'Deskripsi', dataIndex: 'description', key: 'description', ellipsis: true },
+  { title: 'Aksi', key: 'action', width: 100, align: 'center' },
 ]
 
 // Computed filtered data
 const filteredViolations = computed(() => {
   let result = violations.value
-
-  if (filterLevel.value) {
-    result = result.filter(v => v.level === filterLevel.value)
+  if (filterLevel.value) result = result.filter(v => v.level === filterLevel.value)
+  if (filterCategory.value) result = result.filter(v => v.category === filterCategory.value)
+  if (dateRange.value) {
+    const [start, end] = dateRange.value
+    result = result.filter(v => {
+      const date = dayjs(v.createdAt)
+      return date.isAfter(start.startOf('day')) && date.isBefore(end.endOf('day'))
+    })
   }
-
-  if (filterCategory.value) {
-    result = result.filter(v => v.category === filterCategory.value)
-  }
-
   if (searchText.value) {
     const search = searchText.value.toLowerCase()
-    result = result.filter(
-      (v) =>
-        v.studentName?.toLowerCase().includes(search) ||
-        v.description.toLowerCase().includes(search) ||
-        v.category.toLowerCase().includes(search)
+    result = result.filter(v =>
+      v.studentName?.toLowerCase().includes(search) ||
+      v.description.toLowerCase().includes(search) ||
+      v.category.toLowerCase().includes(search)
     )
   }
-
   return result
+})
+
+// Total points summary
+const totalPoints = computed(() => {
+  return filteredViolations.value.reduce((sum, v) => sum + (v.point || 0), 0)
+})
+
+// Category names for filter dropdown
+const categoryNames = computed(() => {
+  return violationCategories.value.map(c => c.name)
 })
 
 // Format date
 const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 // Get level color
@@ -185,6 +150,26 @@ const getLevelLabel = (level: string) => {
   return levelConfig?.label || level
 }
 
+// Load violation categories
+const loadCategories = async () => {
+  loadingCategories.value = true
+  try {
+    const response = await bkService.getViolationCategories(true)
+    violationCategories.value = response.categories || []
+    // If no categories, initialize defaults
+    if (violationCategories.value.length === 0) {
+      await bkService.initializeDefaultCategories()
+      const retryResponse = await bkService.getViolationCategories(true)
+      violationCategories.value = retryResponse.categories || []
+    }
+  } catch (err) {
+    console.error('Failed to load categories:', err)
+    violationCategories.value = []
+  } finally {
+    loadingCategories.value = false
+  }
+}
+
 // Load violations data
 const loadViolations = async () => {
   loading.value = true
@@ -196,11 +181,12 @@ const loadViolations = async () => {
       level: filterLevel.value,
       category: filterCategory.value,
     })
-    violations.value = response.data
-    total.value = response.total
-  } catch {
-    violations.value = mockViolations
-    total.value = mockViolations.length
+    violations.value = response.data || []
+    total.value = response.total || 0
+  } catch (err) {
+    console.error('Failed to load violations:', err)
+    violations.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
@@ -211,13 +197,26 @@ const loadStudents = async () => {
   loadingStudents.value = true
   try {
     const response = await schoolService.getStudents({ page_size: 1000 })
-    students.value = response.students
-  } catch {
-    students.value = mockStudents
+    students.value = response.students || []
+  } catch (err) {
+    console.error('Failed to load students:', err)
+    students.value = []
   } finally {
     loadingStudents.value = false
   }
 }
+
+// Handle category selection - auto-fill level and point
+const handleCategoryChange = (categoryName: unknown) => {
+  const category = violationCategories.value.find(c => c.name === categoryName)
+  if (category) {
+    formState.categoryId = category.id
+    formState.level = category.defaultLevel
+    formState.point = category.defaultPoint
+  }
+}
+
+
 
 // Handle table change
 const handleTableChange: TableProps['onChange'] = (pag) => {
@@ -247,8 +246,10 @@ const openCreateModal = () => {
 // Reset form
 const resetForm = () => {
   formState.studentId = 0
+  formState.categoryId = undefined
   formState.category = ''
   formState.level = 'ringan'
+  formState.point = -5
   formState.description = ''
   formRef.value?.resetFields()
 }
@@ -299,12 +300,48 @@ const viewStudentProfile = (studentId: number) => {
   router.push(`/bk/students/${studentId}`)
 }
 
+// Go to category management
+const goToCategoryManagement = () => {
+  router.push('/bk/violation-categories')
+}
+
+// Export to PDF
+const handleExportPDF = () => {
+  if (filteredViolations.value.length === 0) {
+    message.warning('Tidak ada data untuk diekspor')
+    return
+  }
+
+  const dateRangeStr = dateRange.value
+    ? { start: dateRange.value[0].format('DD/MM/YYYY'), end: dateRange.value[1].format('DD/MM/YYYY') }
+    : undefined
+
+  exportToPDF({
+    title: 'Laporan Data Pelanggaran Siswa',
+    filename: `laporan-pelanggaran-${dayjs().format('YYYY-MM-DD')}`,
+    columns: [
+      { header: 'Tanggal', dataKey: 'createdAt' },
+      { header: 'Siswa', dataKey: 'studentName' },
+      { header: 'Kelas', dataKey: 'studentClass' },
+      { header: 'Kategori', dataKey: 'category' },
+      { header: 'Tingkat', dataKey: 'level' },
+      { header: 'Poin', dataKey: 'point' },
+      { header: 'Deskripsi', dataKey: 'description' },
+    ],
+    data: filteredViolations.value.map(v => formatViolationForExport(v as unknown as Record<string, unknown>)),
+    dateRange: dateRangeStr,
+  })
+  message.success('PDF berhasil diunduh')
+}
+
 // Filter student options
-const filterStudentOption = (input: string, option: { label: string }) => {
-  return option.label.toLowerCase().includes(input.toLowerCase())
+const filterStudentOption = (input: string, option: unknown) => {
+  const opt = option as { label?: string }
+  return opt.label?.toLowerCase().includes(input.toLowerCase()) ?? false
 }
 
 onMounted(() => {
+  loadCategories()
   loadViolations()
   loadStudents()
 })
@@ -313,7 +350,15 @@ onMounted(() => {
 <template>
   <div class="violation-management">
     <div class="page-header">
-      <Title :level="2" style="margin: 0">Manajemen Pelanggaran</Title>
+      <Row justify="space-between" align="middle">
+        <Col><Title :level="2" style="margin: 0">Manajemen Pelanggaran</Title></Col>
+        <Col>
+          <Button @click="goToCategoryManagement">
+            <template #icon><SettingOutlined /></template>
+            Kelola Kategori
+          </Button>
+        </Col>
+      </Row>
     </div>
 
     <Card>
@@ -321,104 +366,52 @@ onMounted(() => {
       <Row :gutter="16" class="toolbar" justify="space-between" align="middle">
         <Col :xs="24" :sm="24" :md="18">
           <Space wrap>
-            <Input
-              v-model:value="searchText"
-              placeholder="Cari siswa atau deskripsi..."
-              allow-clear
-              style="width: 250px"
-              @press-enter="handleSearch"
-            >
-              <template #prefix>
-                <SearchOutlined />
-              </template>
+            <Input v-model:value="searchText" placeholder="Cari siswa atau deskripsi..." allow-clear style="width: 220px" @press-enter="handleSearch">
+              <template #prefix><SearchOutlined /></template>
             </Input>
-            <Select
-              v-model:value="filterLevel"
-              placeholder="Filter Tingkat"
-              allow-clear
-              style="width: 150px"
-              @change="handleFilterChange"
-            >
-              <template #suffixIcon>
-                <FilterOutlined />
-              </template>
-              <SelectOption v-for="level in VIOLATION_LEVELS" :key="level.value" :value="level.value">
-                {{ level.label }}
-              </SelectOption>
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <Select v-model:value="filterLevel" placeholder="Filter Tingkat" allow-clear style="width: 140px" @change="handleFilterChange">
+              <template #suffixIcon><FilterOutlined /></template>
+              <SelectOption v-for="level in VIOLATION_LEVELS" :key="level.value" :value="level.value">{{ level.label }}</SelectOption>
             </Select>
-            <Select
-              v-model:value="filterCategory"
-              placeholder="Filter Kategori"
-              allow-clear
-              style="width: 180px"
-              @change="handleFilterChange"
-            >
-              <SelectOption v-for="cat in VIOLATION_CATEGORIES" :key="cat" :value="cat">
-                {{ cat }}
-              </SelectOption>
+            <Select v-model:value="filterCategory" placeholder="Filter Kategori" allow-clear style="width: 160px" @change="handleFilterChange">
+              <SelectOption v-for="cat in categoryNames" :key="cat" :value="cat">{{ cat }}</SelectOption>
             </Select>
           </Space>
         </Col>
         <Col :xs="24" :sm="24" :md="6" class="toolbar-right">
           <Space>
-            <Button @click="loadViolations">
-              <template #icon><ReloadOutlined /></template>
-            </Button>
-            <Button type="primary" @click="openCreateModal">
-              <template #icon><PlusOutlined /></template>
-              Catat Pelanggaran
-            </Button>
+            <Text type="secondary">Total Poin: <Text strong :style="{ color: '#ef4444' }">{{ totalPoints }}</Text></Text>
+            <Button @click="handleExportPDF"><template #icon><FilePdfOutlined /></template>Export PDF</Button>
+            <Button @click="loadViolations"><template #icon><ReloadOutlined /></template></Button>
+            <Button type="primary" @click="openCreateModal"><template #icon><PlusOutlined /></template>Catat</Button>
           </Space>
         </Col>
       </Row>
 
       <!-- Table -->
-      <Table
-        :columns="columns"
-        :data-source="filteredViolations"
-        :loading="loading"
-        :pagination="{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          total: total,
-          showSizeChanger: true,
-          showTotal: (total: number) => `Total ${total} pelanggaran`,
-        }"
-        row-key="id"
-        @change="handleTableChange"
-      >
+      <Table :columns="columns" :data-source="filteredViolations" :loading="loading"
+        :pagination="{ current: pagination.current, pageSize: pagination.pageSize, total, showSizeChanger: true, showTotal: (t: number) => `Total ${t} pelanggaran` }"
+        row-key="id" @change="handleTableChange">
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'createdAt'">
-            {{ formatDate((record as Violation).createdAt) }}
-          </template>
+          <template v-if="column.key === 'createdAt'">{{ formatDate((record as Violation).createdAt) }}</template>
           <template v-else-if="column.key === 'studentName'">
-            <a @click="viewStudentProfile((record as Violation).studentId)">
-              {{ (record as Violation).studentName }}
-            </a>
+            <a @click="viewStudentProfile((record as Violation).studentId)">{{ (record as Violation).studentName }}</a>
           </template>
           <template v-else-if="column.key === 'studentClass'">
             <Tag color="blue">{{ (record as Violation).studentClass }}</Tag>
           </template>
           <template v-else-if="column.key === 'level'">
-            <Tag :color="getLevelColor((record as Violation).level)">
-              {{ getLevelLabel((record as Violation).level) }}
-            </Tag>
+            <Tag :color="getLevelColor((record as Violation).level)">{{ getLevelLabel((record as Violation).level) }}</Tag>
+          </template>
+          <template v-else-if="column.key === 'point'">
+            <Text strong :style="{ color: '#ef4444' }">{{ (record as Violation).point }}</Text>
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" @click="viewStudentProfile((record as Violation).studentId)">
-                <template #icon><EyeOutlined /></template>
-              </Button>
-              <Popconfirm
-                title="Hapus pelanggaran ini?"
-                description="Data pelanggaran akan dihapus permanen."
-                ok-text="Ya, Hapus"
-                cancel-text="Batal"
-                @confirm="handleDelete(record as Violation)"
-              >
-                <Button size="small" danger>
-                  <template #icon><DeleteOutlined /></template>
-                </Button>
+              <Button size="small" @click="viewStudentProfile((record as Violation).studentId)"><template #icon><EyeOutlined /></template></Button>
+              <Popconfirm title="Hapus pelanggaran ini?" description="Data pelanggaran akan dihapus permanen." ok-text="Ya, Hapus" cancel-text="Batal" @confirm="handleDelete(record as Violation)">
+                <Button size="small" danger><template #icon><DeleteOutlined /></template></Button>
               </Popconfirm>
             </Space>
           </template>
@@ -427,57 +420,33 @@ onMounted(() => {
     </Card>
 
     <!-- Create Modal -->
-    <Modal
-      v-model:open="modalVisible"
-      title="Catat Pelanggaran Baru"
-      :confirm-loading="modalLoading"
-      @ok="handleSubmit"
-      @cancel="handleModalCancel"
-      width="600px"
-    >
-      <Form
-        ref="formRef"
-        :model="formState"
-        :rules="formRules"
-        layout="vertical"
-        style="margin-top: 16px"
-      >
+    <Modal v-model:open="modalVisible" title="Catat Pelanggaran Baru" :confirm-loading="modalLoading" @ok="handleSubmit" @cancel="handleModalCancel" width="600px">
+      <Form ref="formRef" :model="formState" :rules="formRules" layout="vertical" style="margin-top: 16px">
         <FormItem label="Siswa" name="studentId" required>
-          <Select
-            v-model:value="formState.studentId"
-            placeholder="Pilih siswa"
-            :loading="loadingStudents"
-            show-search
-            :filter-option="filterStudentOption"
-            :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))"
-          />
+          <Select v-model:value="formState.studentId" placeholder="Pilih siswa" :loading="loadingStudents" show-search :filter-option="filterStudentOption"
+            :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))" />
         </FormItem>
-        <Row :gutter="16">
+        <FormItem label="Kategori Pelanggaran" name="category" required>
+          <Select v-model:value="formState.category" placeholder="Pilih kategori pelanggaran" :loading="loadingCategories" @change="handleCategoryChange">
+            <SelectOption v-for="cat in violationCategories" :key="cat.id" :value="cat.name">
+              {{ cat.name }}
+            </SelectOption>
+          </Select>
+        </FormItem>
+        <Row :gutter="16" v-if="formState.categoryId">
           <Col :span="12">
-            <FormItem label="Kategori" name="category" required>
-              <Select v-model:value="formState.category" placeholder="Pilih kategori">
-                <SelectOption v-for="cat in VIOLATION_CATEGORIES" :key="cat" :value="cat">
-                  {{ cat }}
-                </SelectOption>
-              </Select>
+            <FormItem label="Tingkat">
+              <Tag :color="getLevelColor(formState.level)" style="font-size: 14px; padding: 4px 12px">{{ getLevelLabel(formState.level) }}</Tag>
             </FormItem>
           </Col>
           <Col :span="12">
-            <FormItem label="Tingkat" name="level" required>
-              <Select v-model:value="formState.level" placeholder="Pilih tingkat">
-                <SelectOption v-for="level in VIOLATION_LEVELS" :key="level.value" :value="level.value">
-                  <Tag :color="level.color" style="margin-right: 8px">{{ level.label }}</Tag>
-                </SelectOption>
-              </Select>
+            <FormItem label="Poin">
+              <Text strong :style="{ color: '#ef4444', fontSize: '16px' }">{{ formState.point }} poin</Text>
             </FormItem>
           </Col>
         </Row>
         <FormItem label="Deskripsi" name="description" required>
-          <Textarea
-            v-model:value="formState.description"
-            placeholder="Jelaskan detail pelanggaran..."
-            :rows="4"
-          />
+          <Textarea v-model:value="formState.description" placeholder="Jelaskan detail pelanggaran..." :rows="4" />
         </FormItem>
       </Form>
     </Modal>
@@ -485,27 +454,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.violation-management {
-  padding: 0;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.toolbar {
-  margin-bottom: 16px;
-}
-
-.toolbar-right {
-  display: flex;
-  justify-content: flex-end;
-}
-
-@media (max-width: 768px) {
-  .toolbar-right {
-    margin-top: 16px;
-    justify-content: flex-start;
-  }
-}
+.violation-management { padding: 0; }
+.page-header { margin-bottom: 24px; }
+.toolbar { margin-bottom: 16px; }
+.toolbar-right { display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+@media (max-width: 768px) { .toolbar-right { margin-top: 16px; justify-content: flex-start; flex-wrap: wrap; } }
 </style>

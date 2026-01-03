@@ -52,95 +52,52 @@ const violations = ref<Violation[]>([])
 const achievements = ref<Achievement[]>([])
 const permits = ref<Permit[]>([])
 const counselingNotes = ref<CounselingNote[]>([])
-
-// Mock data for development
-const loadMockData = () => {
-  student.value = {
-    id: studentId.value,
-    schoolId: 1,
-    classId: 1,
-    className: 'VII-A',
-    nis: '2024001',
-    nisn: '0012345678',
-    name: 'Ahmad Fauzi',
-    rfidCode: 'RF001',
-    isActive: true,
-    createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-01-15T10:00:00Z',
-  }
-
-  profile.value = {
-    student: {
-      id: studentId.value,
-      name: 'Ahmad Fauzi',
-      nis: '2024001',
-      nisn: '0012345678',
-      className: 'VII-A',
-      classId: 1,
-    },
-    totalAchievementPoints: 150,
-    violationCount: 3,
-    achievementCount: 5,
-    permitCount: 2,
-    counselingCount: 4,
-  }
-
-  violations.value = [
-    { id: 1, studentId: studentId.value, category: 'Keterlambatan', level: 'ringan', description: 'Terlambat 15 menit', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date().toISOString() },
-    { id: 2, studentId: studentId.value, category: 'Seragam', level: 'ringan', description: 'Tidak memakai dasi', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000 * 3).toISOString() },
-    { id: 3, studentId: studentId.value, category: 'Bolos', level: 'sedang', description: 'Tidak masuk tanpa keterangan', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000 * 7).toISOString() },
-  ]
-
-  achievements.value = [
-    { id: 1, studentId: studentId.value, title: 'Juara 1 Olimpiade Matematika Tingkat Kota', point: 100, description: 'Meraih juara 1 dalam olimpiade matematika tingkat kota', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000 * 2).toISOString() },
-    { id: 2, studentId: studentId.value, title: 'Siswa Teladan Bulan Ini', point: 50, description: 'Terpilih sebagai siswa teladan bulan ini', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000 * 10).toISOString() },
-  ]
-
-  permits.value = [
-    { id: 1, studentId: studentId.value, reason: 'Sakit perut, perlu ke klinik', exitTime: new Date(Date.now() - 86400000).toISOString(), returnTime: new Date(Date.now() - 86400000 + 3600000).toISOString(), responsibleTeacherId: 1, responsibleTeacherName: 'Budi Santoso', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000).toISOString() },
-    { id: 2, studentId: studentId.value, reason: 'Dipanggil orang tua', exitTime: new Date(Date.now() - 86400000 * 5).toISOString(), responsibleTeacherId: 2, responsibleTeacherName: 'Siti Rahayu', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000 * 5).toISOString() },
-  ]
-
-  counselingNotes.value = [
-    { id: 1, studentId: studentId.value, internalNote: 'Siswa menunjukkan tanda-tanda stres karena tekanan akademik. Perlu pendampingan lebih lanjut.', parentSummary: 'Siswa memerlukan dukungan dalam mengelola waktu belajar.', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000).toISOString() },
-    { id: 2, studentId: studentId.value, internalNote: 'Sesi konseling kedua. Siswa mulai menunjukkan perbaikan dalam manajemen waktu.', parentSummary: 'Perkembangan positif dalam manajemen waktu belajar.', createdBy: 1, createdByName: 'Guru BK', createdAt: new Date(Date.now() - 86400000 * 7).toISOString() },
-  ]
-}
+const violationPoints = ref(0)
 
 const loadData = async () => {
   loading.value = true
   error.value = null
 
   try {
-    const [studentRes, profileRes, violationsRes, achievementsRes, permitsRes, counselingRes] = await Promise.allSettled([
+    const [studentRes, profileRes, violationsRes, achievementsRes, permitsRes, counselingRes, violationPointsRes] = await Promise.allSettled([
       schoolService.getStudent(studentId.value),
       bkService.getStudentBKProfile(studentId.value),
       bkService.getStudentViolations(studentId.value),
       bkService.getStudentAchievements(studentId.value),
       bkService.getStudentPermits(studentId.value),
       bkService.getStudentCounselingNotes(studentId.value),
+      bkService.getStudentViolationPoints(studentId.value),
     ])
 
     if (studentRes.status === 'fulfilled') student.value = studentRes.value
     if (profileRes.status === 'fulfilled') profile.value = profileRes.value
-    if (violationsRes.status === 'fulfilled') violations.value = violationsRes.value.data
-    if (achievementsRes.status === 'fulfilled') achievements.value = achievementsRes.value.data
-    if (permitsRes.status === 'fulfilled') permits.value = permitsRes.value.data
-    if (counselingRes.status === 'fulfilled') counselingNotes.value = counselingRes.value.data
+    if (violationsRes.status === 'fulfilled') violations.value = violationsRes.value.data || []
+    if (achievementsRes.status === 'fulfilled') achievements.value = achievementsRes.value.data || []
+    if (permitsRes.status === 'fulfilled') permits.value = permitsRes.value.data || []
+    if (counselingRes.status === 'fulfilled') counselingNotes.value = counselingRes.value.data || []
+    if (violationPointsRes.status === 'fulfilled') violationPoints.value = violationPointsRes.value || 0
 
-    // If all failed, use mock data
-    if (
-      studentRes.status === 'rejected' &&
-      profileRes.status === 'rejected'
-    ) {
-      loadMockData()
+    // If student data failed, show error
+    if (studentRes.status === 'rejected' && profileRes.status === 'rejected') {
+      error.value = 'Gagal memuat data siswa. Silakan coba lagi.'
     }
-  } catch {
-    loadMockData()
+  } catch (err) {
+    console.error('Failed to load student BK profile:', err)
+    error.value = 'Gagal memuat data siswa. Silakan coba lagi.'
   } finally {
     loading.value = false
   }
 }
+
+// Computed achievement points from actual achievements data
+const achievementPoints = computed(() => {
+  return achievements.value.reduce((sum, a) => sum + (a.point || 0), 0)
+})
+
+// Computed total net points (achievement points + violation points)
+const totalNetPoints = computed(() => {
+  return achievementPoints.value + violationPoints.value
+})
 
 // Format date
 const formatDate = (dateStr: string) => {
@@ -236,23 +193,30 @@ onMounted(() => {
           </Col>
           <Col :xs="24" :md="8">
             <Row :gutter="16">
-              <Col :span="12">
+              <Col :span="8">
                 <Statistic
-                  title="Total Poin Prestasi"
-                  :value="profile?.totalAchievementPoints || 0"
+                  title="Poin Prestasi"
+                  :value="achievementPoints"
                   :value-style="{ color: '#22c55e' }"
                 >
                   <template #prefix><TrophyOutlined /></template>
                 </Statistic>
               </Col>
-              <Col :span="12">
+              <Col :span="8">
                 <Statistic
-                  title="Pelanggaran"
-                  :value="profile?.violationCount || 0"
+                  title="Poin Pelanggaran"
+                  :value="violationPoints"
                   :value-style="{ color: '#ef4444' }"
                 >
                   <template #prefix><WarningOutlined /></template>
                 </Statistic>
+              </Col>
+              <Col :span="8">
+                <Statistic
+                  title="Total Poin"
+                  :value="totalNetPoints"
+                  :value-style="{ color: totalNetPoints >= 0 ? '#22c55e' : '#ef4444' }"
+                />
               </Col>
             </Row>
           </Col>
@@ -279,6 +243,7 @@ onMounted(() => {
                     <Tag :color="getViolationLevelColor(violation.level)">
                       {{ getViolationLevelLabel(violation.level) }}
                     </Tag>
+                    <Tag color="error">{{ violation.point }} poin</Tag>
                   </div>
                   <Text>{{ violation.description }}</Text>
                   <div class="timeline-meta">
