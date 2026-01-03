@@ -136,6 +136,7 @@ func generateAttendanceExcel(records []ExportAttendanceRecord) ([]byte, error) {
 
 // generateMonthlyRecapExcel generates an Excel file from monthly recap data
 // Requirements: 2.5 - Export monthly recap to Excel with summary statistics
+// Requirements: 8.2 - Include total_sick and total_excused columns per student
 func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 	f := excelize.NewFile()
 	defer f.Close()
@@ -144,7 +145,8 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 	sheetName := "Rekap Bulanan"
 	f.SetSheetName("Sheet1", sheetName)
 
-	// Define headers
+	// Define headers - updated to include Sakit and Izin columns
+	// Requirements: 8.2, 8.3, 8.4 - Include sick and excused with proper labels
 	headers := []string{
 		"No",
 		"NIS",
@@ -155,6 +157,8 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 		"Terlambat",
 		"Sangat Terlambat",
 		"Tidak Hadir",
+		"Sakit",
+		"Izin",
 		"Persentase Kehadiran (%)",
 	}
 
@@ -191,7 +195,7 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 		title += fmt.Sprintf(" - Kelas %s", recap.ClassName)
 	}
 	f.SetCellValue(sheetName, "A1", title)
-	f.MergeCell(sheetName, "A1", "J1")
+	f.MergeCell(sheetName, "A1", "L1") // Updated to L1 for 12 columns
 
 	titleStyle, _ := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{
@@ -202,11 +206,11 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 			Horizontal: "center",
 		},
 	})
-	f.SetCellStyle(sheetName, "A1", "J1", titleStyle)
+	f.SetCellStyle(sheetName, "A1", "L1", titleStyle)
 
 	// Write total days info
 	f.SetCellValue(sheetName, "A2", fmt.Sprintf("Total Hari Sekolah: %d hari", recap.TotalDays))
-	f.MergeCell(sheetName, "A2", "J2")
+	f.MergeCell(sheetName, "A2", "L2") // Updated to L2 for 12 columns
 
 	// Write headers (row 4)
 	for i, header := range headers {
@@ -215,7 +219,7 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 		f.SetCellStyle(sheetName, cell, cell, headerStyle)
 	}
 
-	// Set column widths
+	// Set column widths - updated to include Sakit and Izin columns
 	columnWidths := map[string]float64{
 		"A": 5,   // No
 		"B": 15,  // NIS
@@ -226,7 +230,9 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 		"G": 12,  // Terlambat
 		"H": 18,  // Sangat Terlambat
 		"I": 12,  // Tidak Hadir
-		"J": 25,  // Persentase
+		"J": 10,  // Sakit
+		"K": 10,  // Izin
+		"L": 25,  // Persentase
 	}
 	for col, width := range columnWidths {
 		f.SetColWidth(sheetName, col, col, width)
@@ -245,7 +251,7 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create data style: %w", err)
 	}
 
-	// Write data rows
+	// Write data rows - updated to include TotalSick and TotalExcused
 	for i, student := range recap.StudentRecaps {
 		row := i + 5 // Start from row 5 (after title, info, empty row, and header)
 
@@ -259,6 +265,8 @@ func generateMonthlyRecapExcel(recap *MonthlyRecapResponse) ([]byte, error) {
 			student.TotalLate,
 			student.TotalVeryLate,
 			student.TotalAbsent,
+			student.TotalSick,
+			student.TotalExcused,
 			fmt.Sprintf("%.2f%%", student.AttendancePercent),
 		}
 
