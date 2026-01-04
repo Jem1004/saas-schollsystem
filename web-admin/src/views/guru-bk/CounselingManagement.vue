@@ -362,7 +362,6 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa..."
               allow-clear
-              size="large"
               style="width: 220px"
               @press-enter="handleSearch"
             >
@@ -370,19 +369,19 @@ onMounted(() => {
                 <SearchOutlined />
               </template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
           </Space>
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
-            <Button size="large" @click="handleExportPDF">
+            <Button @click="handleExportPDF">
               <template #icon><FilePdfOutlined /></template>
               Export PDF
             </Button>
-            <Button size="large" @click="loadCounselingNotes">
+            <Button @click="loadCounselingNotes">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" size="large" @click="openCreateModal">
+            <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
               Buat Catatan
             </Button>
@@ -478,7 +477,6 @@ onMounted(() => {
             placeholder="Pilih siswa"
             :loading="loadingStudents"
             show-search
-            size="large"
             :filter-option="filterStudentOption"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))"
           />
@@ -672,11 +670,7 @@ onMounted(() => {
 }
 
 .class-badge {
-  background-color: #e6f7ff;
   color: #1890ff;
-  border: 1px solid #91d5ff;
-  padding: 0 8px;
-  border-radius: 4px;
   font-size: 12px;
 }
 

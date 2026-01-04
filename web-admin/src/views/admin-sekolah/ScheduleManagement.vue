@@ -335,11 +335,11 @@ onMounted(() => {
           <template v-else-if="column.key === 'action'">
             <Space>
               <Tooltip v-if="!(record as AttendanceSchedule).isDefault" title="Jadikan Default">
-                <Button size="small" @click="handleSetDefault(record as AttendanceSchedule)">
+                <Button @click="handleSetDefault(record as AttendanceSchedule)">
                   <template #icon><StarOutlined /></template>
                 </Button>
               </Tooltip>
-              <Button size="small" @click="openEditModal(record as AttendanceSchedule)">
+              <Button @click="openEditModal(record as AttendanceSchedule)">
                 <template #icon><EditOutlined /></template>
                 Edit
               </Button>
@@ -350,7 +350,7 @@ onMounted(() => {
                 cancel-text="Batal"
                 @confirm="handleDelete(record as AttendanceSchedule)"
               >
-                <Button size="small" danger>
+                <Button danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>

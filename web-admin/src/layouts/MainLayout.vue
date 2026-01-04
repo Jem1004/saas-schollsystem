@@ -401,7 +401,7 @@ onUnmounted(() => {
       :width="240"
     >
       <div class="logo">
-        <img src="/vite.svg" alt="Logo" class="logo-img" />
+        <img src="@/assets/styles/logo.png" alt="Logo" class="logo-img" />
         <span v-if="!collapsed" class="logo-text">School Admin</span>
       </div>
       <Menu

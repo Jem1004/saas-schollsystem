@@ -462,7 +462,6 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa atau alasan..."
               allow-clear
-              size="large"
               style="width: 220px"
               @press-enter="handleSearch"
             >
@@ -470,12 +469,11 @@ onMounted(() => {
                 <SearchOutlined />
               </template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
             <Select
               v-model:value="filterStatus"
               placeholder="Filter Status"
               allow-clear
-              size="large"
               style="width: 150px"
               @change="handleFilterChange"
             >
@@ -486,14 +484,14 @@ onMounted(() => {
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
-            <Button size="large" @click="handleExportPDF">
+            <Button @click="handleExportPDF">
               <template #icon><FilePdfOutlined /></template>
               Export PDF
             </Button>
-            <Button size="large" @click="loadPermits">
+            <Button @click="loadPermits">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" size="large" @click="openCreateModal">
+            <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
               Buat Izin
             </Button>
@@ -545,7 +543,6 @@ onMounted(() => {
               </Button>
               <Button
                 v-if="!(record as Permit).returnTime"
-                size="small"
                 type="primary"
                 @click="openReturnModal(record as Permit)"
               >
@@ -592,7 +589,6 @@ onMounted(() => {
             placeholder="Pilih siswa"
             :loading="loadingStudents"
             show-search
-            size="large"
             :filter-option="filterStudentOption"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))"
           />
@@ -611,7 +607,6 @@ onMounted(() => {
               <TimePicker
                 v-model:value="formState.exitTimeValue"
                 format="HH:mm"
-                size="large"
                 style="width: 100%"
                 placeholder="Pilih waktu"
               />
@@ -624,7 +619,6 @@ onMounted(() => {
                 placeholder="Pilih guru"
                 :loading="loadingTeachers"
                 show-search
-                size="large"
                 :filter-option="filterTeacherOption"
                 :options="teachers.map(t => ({ value: t.id, label: t.name || t.username }))"
               />
@@ -658,7 +652,6 @@ onMounted(() => {
           <TimePicker
             v-model:value="returnFormState.returnTimeValue"
             format="HH:mm"
-            size="large"
             style="width: 100%"
             placeholder="Pilih waktu kembali"
           />
@@ -705,7 +698,7 @@ onMounted(() => {
         </Descriptions>
 
         <div class="permit-actions">
-          <Button type="primary" size="large" @click="handlePrintPermit">
+          <Button type="primary" @click="handlePrintPermit">
             <template #icon><PrinterOutlined /></template>
             Cetak Dokumen
           </Button>
@@ -795,11 +788,7 @@ onMounted(() => {
 }
 
 .class-badge {
-  background-color: #e6f7ff;
   color: #1890ff;
-  border: 1px solid #91d5ff;
-  padding: 0 8px;
-  border-radius: 4px;
   font-size: 12px;
 }
 

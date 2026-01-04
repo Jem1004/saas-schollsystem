@@ -364,7 +364,7 @@ onMounted(() => {
           <template v-else-if="column.key === 'action'">
             <Space>
                <Tooltip title="Edit">
-                <Button size="small" type="text" @click="openEditModal(record as Class)">
+                <Button type="text" @click="openEditModal(record as Class)">
                   <template #icon><EditOutlined style="color: #64748b;" /></template>
                 </Button>
               </Tooltip>
@@ -377,7 +377,7 @@ onMounted(() => {
                   ok-type="danger"
                   @confirm="handleDelete(record as Class)"
                 >
-                  <Button size="small" type="text" danger>
+                  <Button type="text" danger>
                     <template #icon><DeleteOutlined /></template>
                   </Button>
                 </Popconfirm>
@@ -408,12 +408,12 @@ onMounted(() => {
         class="modern-form"
       >
         <FormItem label="Nama Kelas" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Contoh: VII-A, VIII-B" size="large" />
+          <Input v-model:value="formState.name" placeholder="Contoh: VII-A, VIII-B" />
         </FormItem>
         <Row :gutter="16">
           <Col :span="12">
             <FormItem label="Tingkat" name="grade" required>
-              <Select v-model:value="formState.grade" placeholder="Pilih tingkat" size="large">
+              <Select v-model:value="formState.grade" placeholder="Pilih tingkat">
                 <SelectOption :value="7">VII (Kelas 7)</SelectOption>
                 <SelectOption :value="8">VIII (Kelas 8)</SelectOption>
                 <SelectOption :value="9">IX (Kelas 9)</SelectOption>
@@ -425,7 +425,7 @@ onMounted(() => {
           </Col>
           <Col :span="12">
             <FormItem label="Tahun Ajaran" name="year" required>
-              <Input v-model:value="formState.year" placeholder="Contoh: 2024/2025" size="large" />
+              <Input v-model:value="formState.year" placeholder="Contoh: 2024/2025" />
             </FormItem>
           </Col>
         </Row>
@@ -437,7 +437,6 @@ onMounted(() => {
             show-search
             :filter-option="filterTeacherOption"
             :loading="loadingTeachers"
-            size="large"
           >
             <SelectOption
               v-for="teacher in teachers"
@@ -492,11 +491,7 @@ onMounted(() => {
 /* Badges */
 .grade-badge {
   display: inline-block;
-  background: #eff6ff;
   color: #3b82f6;
-  border: 1px solid #dbeafe;
-  padding: 2px 8px;
-  border-radius: 4px;
   font-weight: 500;
   font-size: 13px;
 }
@@ -504,9 +499,6 @@ onMounted(() => {
 .student-count-badge {
   color: #64748b;
   font-size: 13px;
-  background: #f1f5f9;
-  padding: 2px 8px;
-  border-radius: 4px;
 }
 
 .teacher-info {
@@ -522,12 +514,8 @@ onMounted(() => {
 
 .select-badge {
   font-size: 10px;
-  background: #e0f2fe;
   color: #0284c7;
-  padding: 1px 6px;
-  border-radius: 4px;
   margin-left: 8px;
-  border: 1px solid #bae6fd;
 }
 
 @media (max-width: 576px) {

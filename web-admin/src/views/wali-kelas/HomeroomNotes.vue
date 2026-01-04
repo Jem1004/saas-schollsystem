@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import {
   Table, Button, Space, Card, Row, Col, Typography, Modal, Form,
   FormItem, Input, Select, SelectOption, message, Popconfirm, Drawer,
-  List, ListItem, ListItemMeta, Avatar, Empty, Tag, Alert,
+  List, ListItem, ListItemMeta, Avatar, Empty, Alert,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -201,9 +201,9 @@ onUnmounted(() => { isMounted.value = false })
               <template v-else-if="column.key === 'createdAt'">{{ formatDate((record as HomeroomNote).createdAt) }}</template>
               <template v-else-if="column.key === 'action'">
                 <Space>
-                  <Button type="link" size="small" @click="openNoteModal(record as HomeroomNote)"><template #icon><EditOutlined /></template></Button>
+                  <Button type="link" @click="openNoteModal(record as HomeroomNote)"><template #icon><EditOutlined /></template></Button>
                   <Popconfirm title="Hapus catatan ini?" ok-text="Ya" cancel-text="Tidak" @confirm="handleDelete((record as HomeroomNote).id)">
-                    <Button type="link" size="small" danger><template #icon><DeleteOutlined /></template></Button>
+                    <Button type="link" danger><template #icon><DeleteOutlined /></template></Button>
                   </Popconfirm>
                 </Space>
               </template>
@@ -214,18 +214,18 @@ onUnmounted(() => { isMounted.value = false })
 
       <Col :xs="24" :lg="8">
         <Card title="Siswa" class="students-card">
-          <List :data-source="students" :loading="loading" size="small">
+          <List :data-source="students" :loading="loading">
             <template #renderItem="{ item }">
               <ListItem class="clickable-item">
                 <ListItemMeta>
-                  <template #avatar><Avatar :style="{ backgroundColor: '#f97316' }" size="small"><template #icon><UserOutlined /></template></Avatar></template>
+                  <template #avatar><Avatar :style="{ backgroundColor: '#f97316' }"><template #icon><UserOutlined /></template></Avatar></template>
                   <template #title><span class="student-name">{{ (item as ClassStudent).name }}</span></template>
                   <template #description>NIS: {{ (item as ClassStudent).nis }}</template>
                 </ListItemMeta>
                 <template #actions>
-                  <Space size="small">
-                    <Button type="link" size="small" @click="quickAddNote(item as ClassStudent)"><FormOutlined /></Button>
-                    <Button type="link" size="small" @click="openHistoryDrawer(item as ClassStudent)"><HistoryOutlined /></Button>
+                  <Space>
+                    <Button type="link" @click="quickAddNote(item as ClassStudent)"><FormOutlined /></Button>
+                    <Button type="link" @click="openHistoryDrawer(item as ClassStudent)"><HistoryOutlined /></Button>
                   </Space>
                 </template>
               </ListItem>
@@ -256,7 +256,7 @@ onUnmounted(() => { isMounted.value = false })
     <Drawer v-model:open="historyDrawerVisible" :title="`Riwayat Catatan - ${selectedStudent?.name || ''}`" width="500" @close="closeHistoryDrawer">
       <div v-if="selectedStudent" class="history-content">
         <div class="student-info-header">
-          <Avatar :style="{ backgroundColor: '#f97316' }" size="large"><template #icon><UserOutlined /></template></Avatar>
+          <Avatar :style="{ backgroundColor: '#f97316' }"><template #icon><UserOutlined /></template></Avatar>
           <div class="student-info-text">
             <Text strong>{{ selectedStudent.name }}</Text><br />
             <Text type="secondary">NIS: {{ selectedStudent.nis }}</Text>
@@ -268,14 +268,14 @@ onUnmounted(() => { isMounted.value = false })
         <div class="notes-timeline">
           <List v-if="studentNotes.length > 0" :data-source="studentNotes" :loading="loadingHistory">
             <template #renderItem="{ item }">
-              <Card size="small" class="note-card">
-                <div class="note-date"><Tag color="blue">{{ formatFullDate((item as HomeroomNote).createdAt) }}</Tag></div>
+              <Card class="note-card">
+                <div class="note-date"><span class="date-text">{{ formatFullDate((item as HomeroomNote).createdAt) }}</span></div>
                 <Paragraph style="margin: 8px 0 0 0">{{ (item as HomeroomNote).content }}</Paragraph>
                 <div class="note-actions">
                   <Space>
-                    <Button type="link" size="small" @click="openNoteModal(item as HomeroomNote)"><EditOutlined /> Edit</Button>
+                    <Button type="link" @click="openNoteModal(item as HomeroomNote)"><EditOutlined /> Edit</Button>
                     <Popconfirm title="Hapus catatan ini?" ok-text="Ya" cancel-text="Tidak" @confirm="handleDelete((item as HomeroomNote).id)">
-                      <Button type="link" size="small" danger><DeleteOutlined /> Hapus</Button>
+                      <Button type="link" danger><DeleteOutlined /> Hapus</Button>
                     </Popconfirm>
                   </Space>
                 </div>
@@ -306,6 +306,7 @@ onUnmounted(() => { isMounted.value = false })
 .notes-timeline { margin-top: 16px; }
 .note-card { margin-bottom: 12px; }
 .note-date { margin-bottom: 8px; }
+.date-text { color: #3b82f6; font-size: 12px; font-weight: 500; }
 .note-actions { margin-top: 12px; padding-top: 8px; border-top: 1px solid #f0f0f0; }
 @media (max-width: 768px) { .toolbar-right { margin-top: 16px; justify-content: flex-start; } }
 </style>

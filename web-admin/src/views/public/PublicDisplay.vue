@@ -494,7 +494,7 @@ onUnmounted(() => {
         <Text type="secondary" class="error-hint">
           Silakan hubungi administrator sekolah untuk mendapatkan token display yang valid.
         </Text>
-        <Button type="primary" size="large" class="refresh-button" @click="handleManualRefresh">
+        <Button type="primary" class="refresh-button" @click="handleManualRefresh">
           <template #icon><ReloadOutlined /></template>
           Coba Lagi
         </Button>
@@ -1044,13 +1044,9 @@ onUnmounted(() => {
 .status-badge.default { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
 
 .class-badge {
-  background: #f1f5f9;
   color: #475569;
-  padding: 1px 6px;
-  border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
-  border: 1px solid #e2e8f0;
 }
 
 .rank-badge {

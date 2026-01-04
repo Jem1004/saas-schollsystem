@@ -302,7 +302,6 @@ onMounted(() => {
             v-model:value="searchText" 
             placeholder="Cari device atau sekolah..." 
             allow-clear
-            size="large"
             class="search-input"
           >
             <template #prefix><SearchOutlined /></template>
@@ -314,10 +313,10 @@ onMounted(() => {
               <Text type="secondary">Total:</Text>
               <Text strong>{{ totalDevices }}</Text>
             </div>
-            <Button @click="loadDevices" :loading="loading" size="large">
+            <Button @click="loadDevices" :loading="loading">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" @click="openRegisterModal" size="large">
+            <Button type="primary" @click="openRegisterModal">
               <template #icon><PlusOutlined /></template>
               Daftarkan Device
             </Button>
@@ -400,26 +399,26 @@ onMounted(() => {
                 <Col :xs="24" :sm="24" :md="4" class="device-actions">
                   <Space size="small">
                     <Tooltip title="Lihat API Key">
-                      <Button type="text" size="small" @click="handleShowApiKey(device)">
+                      <Button type="text" @click="handleShowApiKey(device)">
                         <template #icon><KeyOutlined style="color: #64748b" /></template>
                       </Button>
                     </Tooltip>
                     <Popconfirm title="Regenerate API Key?" ok-text="Ya" @confirm="handleRegenerateApiKey(device)">
                       <Tooltip title="Regenerate">
-                        <Button type="text" size="small">
+                        <Button type="text">
                           <template #icon><ReloadOutlined style="color: #f97316" /></template>
                         </Button>
                       </Tooltip>
                     </Popconfirm>
                     <Popconfirm v-if="device.isActive" title="Cabut API Key?" ok-text="Ya" @confirm="handleRevokeApiKey(device)">
                       <Tooltip title="Cabut Akses">
-                        <Button type="text" size="small" danger>
+                      <Button type="text" danger>
                           <template #icon><StopOutlined /></template>
                         </Button>
                       </Tooltip>
                     </Popconfirm>
                     <Tooltip title="Hapus Device">
-                      <Button type="text" size="small" danger @click="openDeleteModal(device)">
+                      <Button type="text" danger @click="openDeleteModal(device)">
                         <template #icon><DeleteOutlined /></template>
                       </Button>
                     </Tooltip>
@@ -459,16 +458,15 @@ onMounted(() => {
             :loading="schoolsLoading" 
             show-search 
             :filter-option="filterSchoolOption"
-            size="large"
           >
             <SelectOption v-for="school in schools" :key="school.id" :value="school.id" :label="school.name">{{ school.name }}</SelectOption>
           </Select>
         </FormItem>
         <FormItem label="Kode Device" name="deviceCode" required>
-          <Input v-model:value="formState.deviceCode" placeholder="Contoh: ESP32-JKT-001" size="large" />
+          <Input v-model:value="formState.deviceCode" placeholder="Contoh: ESP32-JKT-001" />
         </FormItem>
         <FormItem label="Deskripsi" name="description">
-          <Input v-model:value="formState.description" placeholder="Contoh: Pintu Utama" size="large" />
+          <Input v-model:value="formState.description" placeholder="Contoh: Pintu Utama" />
         </FormItem>
       </Form>
     </Modal>
@@ -499,12 +497,12 @@ onMounted(() => {
             <Text code class="key-text">{{ showApiKey ? selectedDevice.apiKey : maskApiKey(selectedDevice.apiKey) }}</Text>
             <Space :size="4">
               <Tooltip :title="showApiKey ? 'Sembunyikan' : 'Tampilkan'">
-                <Button type="text" size="small" @click="showApiKey = !showApiKey">
+                <Button type="text" @click="showApiKey = !showApiKey">
                   <template #icon><EyeInvisibleOutlined v-if="showApiKey" /><EyeOutlined v-else /></template>
                 </Button>
               </Tooltip>
               <Tooltip title="Salin">
-                <Button type="text" size="small" @click="copyApiKey">
+                <Button type="text" @click="copyApiKey">
                   <template #icon><CopyOutlined /></template>
                 </Button>
               </Tooltip>
@@ -521,7 +519,7 @@ onMounted(() => {
         />
 
         <div class="modal-actions" style="margin-top: 24px;">
-           <Button type="primary" block size="large" @click="apiKeyModalVisible = false">Selesai</Button>
+           <Button type="primary" block @click="apiKeyModalVisible = false">Selesai</Button>
         </div>
       </div>
     </Modal>
@@ -535,8 +533,6 @@ onMounted(() => {
       cancel-text="Batal"
       ok-type="danger"
       wrap-class-name="modern-modal"
-      :ok-button-props="{ size: 'large' }"
-      :cancel-button-props="{ size: 'large' }"
       @ok="handleDelete"
     >
       <div v-if="deviceToDelete" class="delete-confirmation-content">

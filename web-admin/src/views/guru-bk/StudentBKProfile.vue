@@ -487,11 +487,7 @@ onMounted(() => {
 }
 
 .class-badge {
-  background-color: #e6f7ff;
   color: #1890ff;
-  border: 1px solid #91d5ff;
-  padding: 0 8px;
-  border-radius: 4px;
   font-size: 12px;
 }
 

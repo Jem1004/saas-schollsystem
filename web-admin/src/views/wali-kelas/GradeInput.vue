@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import {
-  Table, Button, Space, Tag, Card, Row, Col, Typography, Modal, Form,
+  Table, Button, Space, Card, Row, Col, Typography, Modal, Form,
   FormItem, Input, InputNumber, Select, SelectOption, Tabs, TabPane,
   message, Popconfirm, Drawer, List, ListItem, ListItemMeta, Avatar, Empty, Alert,
 } from 'ant-design-vue'
@@ -262,14 +262,14 @@ onUnmounted(() => { isMounted.value = false })
           <Table :columns="columns" :data-source="grades" :loading="loading" :pagination="{ pageSize: 10 }" row-key="id">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'score'">
-                <Tag :color="getScoreTagColor((record as Grade).score)">{{ (record as Grade).score }}</Tag>
+                <span :class="['score-text', getScoreTagColor((record as Grade).score)]">{{ (record as Grade).score }}</span>
               </template>
               <template v-else-if="column.key === 'createdAt'">{{ formatDate((record as Grade).createdAt) }}</template>
               <template v-else-if="column.key === 'action'">
                 <Space>
-                  <Button type="link" size="small" @click="openGradeModal(record as Grade)"><template #icon><EditOutlined /></template></Button>
+                  <Button type="link" @click="openGradeModal(record as Grade)"><template #icon><EditOutlined /></template></Button>
                   <Popconfirm title="Hapus nilai ini?" ok-text="Ya" cancel-text="Tidak" @confirm="handleDelete((record as Grade).id)">
-                    <Button type="link" size="small" danger><template #icon><DeleteOutlined /></template></Button>
+                    <Button type="link" danger><template #icon><DeleteOutlined /></template></Button>
                   </Popconfirm>
                 </Space>
               </template>
@@ -348,7 +348,7 @@ onUnmounted(() => { isMounted.value = false })
     <!-- History Drawer -->
     <Drawer v-model:open="historyDrawerVisible" :title="`Riwayat Nilai - ${selectedStudent?.name || ''}`" width="500" @close="closeHistoryDrawer">
       <div v-if="selectedStudent" class="history-content">
-        <Card class="average-card" size="small">
+        <Card class="average-card">
           <Row :gutter="16" align="middle">
             <Col :span="12"><Text type="secondary">Rata-rata Nilai</Text></Col>
             <Col :span="12" style="text-align: right">
@@ -390,5 +390,10 @@ onUnmounted(() => { isMounted.value = false })
 .batch-grade-row:not(:last-child) { border-bottom: 1px solid #f0f0f0; }
 .history-content { padding: 0; }
 .average-card { background: #f6ffed; border-color: #b7eb8f; }
+.score-text { font-weight: 600; font-size: 13px; }
+.score-text.success, .score-text.green { color: #22c55e; }
+.score-text.blue { color: #3b82f6; }
+.score-text.orange { color: #f97316; }
+.score-text.red { color: #ef4444; }
 @media (max-width: 768px) { .toolbar-right { margin-top: 16px; justify-content: flex-start; } }
 </style>

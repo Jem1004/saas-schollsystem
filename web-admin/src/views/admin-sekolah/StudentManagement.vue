@@ -844,7 +844,7 @@ onUnmounted(() => {
         <template #message>
           <Space>
             <span>Ada <strong>{{ studentsWithoutClass }}</strong> siswa yang belum memiliki kelas.</span>
-            <Button type="link" size="small" @click="filterWithoutClass = true; handleFilterWithoutClassChange()">
+            <Button type="link" @click="filterWithoutClass = true; handleFilterWithoutClassChange()">
               Lihat &amp; Assign Kelas
             </Button>
           </Space>
@@ -922,7 +922,7 @@ onUnmounted(() => {
           <template v-else-if="column.key === 'action'">
             <Space>
               <Tooltip title="Edit">
-                <Button size="small" type="text" @click="openEditModal(record as Student)">
+                <Button type="text" @click="openEditModal(record as Student)">
                   <template #icon><EditOutlined style="color: #64748b;" /></template>
                 </Button>
               </Tooltip>
@@ -937,7 +937,7 @@ onUnmounted(() => {
                     ok-type="danger"
                     @confirm="handleClearRFID(record as Student)"
                   >
-                    <Button size="small" type="text" danger>
+                    <Button type="text" danger>
                       <template #icon><CloseCircleOutlined /></template>
                     </Button>
                   </Popconfirm>
@@ -945,7 +945,7 @@ onUnmounted(() => {
               </template>
               <template v-else>
                 <Tooltip title="Pasangkan Kartu RFID">
-                  <Button size="small" type="text" @click="openPairingModal(record as Student)">
+                  <Button type="text" @click="openPairingModal(record as Student)">
                     <template #icon><WifiOutlined style="color: #3b82f6;" /></template>
                   </Button>
                 </Tooltip>
@@ -960,7 +960,7 @@ onUnmounted(() => {
                     cancel-text="Batal"
                     @confirm="handleResetPassword(record as Student)"
                   >
-                    <Button size="small" type="text">
+                    <Button type="text">
                       <template #icon><KeyOutlined style="color: #f59e0b;" /></template>
                     </Button>
                   </Popconfirm>
@@ -975,7 +975,7 @@ onUnmounted(() => {
                     cancel-text="Batal"
                     @confirm="handleCreateAccount(record as Student)"
                   >
-                    <Button size="small" type="text">
+                    <Button type="text">
                       <template #icon><UserOutlined style="color: #8b5cf6;" /></template>
                     </Button>
                   </Popconfirm>
@@ -990,7 +990,7 @@ onUnmounted(() => {
                   ok-type="danger"
                   @confirm="handleDelete(record as Student)"
                 >
-                  <Button size="small" type="text" danger>
+                  <Button type="text" danger>
                     <template #icon><DeleteOutlined /></template>
                   </Button>
                 </Popconfirm>
@@ -1025,7 +1025,6 @@ onUnmounted(() => {
             v-model:value="formState.class_id"
             placeholder="Pilih kelas"
             :loading="loadingClasses"
-            size="large"
           >
             <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
               {{ cls.name }}
@@ -1035,7 +1034,7 @@ onUnmounted(() => {
         <Row :gutter="16">
           <Col :span="12">
             <FormItem label="NIS" name="nis" required>
-              <Input v-model:value="formState.nis" placeholder="NIS" size="large" />
+              <Input v-model:value="formState.nis" placeholder="NIS" />
             </FormItem>
           </Col>
           <Col :span="12">
@@ -1044,16 +1043,15 @@ onUnmounted(() => {
                 v-model:value="formState.nisn"
                 placeholder="NISN"
                 :disabled="isEditing"
-                size="large"
               />
             </FormItem>
           </Col>
         </Row>
         <FormItem label="Nama Lengkap" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Nama lengkap siswa" size="large" />
+          <Input v-model:value="formState.name" placeholder="Nama lengkap siswa" />
         </FormItem>
         <FormItem label="Kode RFID" name="rfid_code">
-          <Input v-model:value="formState.rfid_code" placeholder="Kode kartu RFID (opsional)" size="large" />
+          <Input v-model:value="formState.rfid_code" placeholder="Kode kartu RFID (opsional)" />
         </FormItem>
         <FormItem v-if="isEditing" label="Status" name="is_active">
            <div class="status-switch-wrapper">
@@ -1101,7 +1099,7 @@ onUnmounted(() => {
             <span class="label">Username (NIS)</span>
             <div class="value-row">
                <span class="value">{{ credentialData.username }}</span>
-               <Button size="small" type="text" @click="copyToClipboard(credentialData.username)">
+               <Button type="text" @click="copyToClipboard(credentialData.username)">
                  <template #icon><CopyOutlined /></template>
                </Button>
             </div>
@@ -1110,7 +1108,7 @@ onUnmounted(() => {
             <span class="label">Password</span>
              <div class="value-row">
                <span class="value code">{{ credentialData.password }}</span>
-               <Button size="small" type="text" @click="copyToClipboard(credentialData.password)">
+               <Button type="text" @click="copyToClipboard(credentialData.password)">
                  <template #icon><CopyOutlined /></template>
                </Button>
             </div>
@@ -1125,7 +1123,7 @@ onUnmounted(() => {
           style="text-align: left; margin-top: 16px; border-radius: 8px;"
         />
 
-        <Button type="primary" block size="large" @click="credentialModalVisible = false" style="margin-top: 24px">
+        <Button type="primary" block @click="credentialModalVisible = false" style="margin-top: 24px">
           Tutup
         </Button>
       </div>
@@ -1162,7 +1160,6 @@ onUnmounted(() => {
               placeholder="Pilih perangkat"
               :loading="loadingDevices"
               style="width: 100%"
-              size="large"
             >
               <SelectOption v-for="device in devices" :key="device.id" :value="device.id">
                 {{ device.deviceCode }} - {{ device.description || 'Tanpa deskripsi' }}
@@ -1182,7 +1179,6 @@ onUnmounted(() => {
           <Button
             type="primary"
             block
-            size="large"
             :loading="pairingLoading"
             :disabled="!selectedDeviceId"
             @click="startPairing"
@@ -1217,7 +1213,6 @@ onUnmounted(() => {
           <Button
             danger
             block
-            size="large"
             @click="cancelPairing"
             style="margin-top: 24px"
           >
@@ -1233,7 +1228,7 @@ onUnmounted(() => {
             show-icon
             style="margin-bottom: 16px"
           />
-          <Button type="primary" block size="large" @click="pairingSession = null">
+          <Button type="primary" block @click="pairingSession = null">
             Coba Lagi
           </Button>
         </div>
@@ -1335,7 +1330,7 @@ onUnmounted(() => {
            </div>
         </div>
 
-        <Button type="primary" block size="large" @click="closeImportResultModal" style="margin-top: 16px;">
+        <Button type="primary" block @click="closeImportResultModal" style="margin-top: 16px;">
           Selesai
         </Button>
       </div>
@@ -1365,7 +1360,6 @@ onUnmounted(() => {
               placeholder="Pilih kelas"
               :loading="loadingClasses"
               style="width: 100%"
-              size="large"
             >
               <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
                 {{ cls.name }} ({{ cls.studentCount || 0 }} siswa)
@@ -1420,22 +1414,13 @@ onUnmounted(() => {
 
 /* Badges & Indicators */
 .class-badge {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
   color: #475569;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  display: inline-block;
+  font-size: 13px;
 }
 
 .no-class-badge {
   color: #f59e0b;
-  font-size: 11px;
-  background: #fffbeb;
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid #fcd34d;
+  font-size: 13px;
 }
 
 .status-indicator {

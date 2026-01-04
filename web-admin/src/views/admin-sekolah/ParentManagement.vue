@@ -595,13 +595,13 @@ onMounted(() => {
                   cancel-text="Batal"
                   @confirm="handleResetPassword(record as Parent)"
                 >
-                  <Button size="small" type="text">
+                  <Button type="text">
                     <template #icon><KeyOutlined style="color: #f59e0b;" /></template>
                   </Button>
                 </Popconfirm>
               </Tooltip>
               <Tooltip title="Edit">
-                <Button size="small" type="text" @click="openEditModal(record as Parent)">
+                <Button type="text" @click="openEditModal(record as Parent)">
                   <template #icon><EditOutlined style="color: #64748b;" /></template>
                 </Button>
               </Tooltip>
@@ -614,7 +614,7 @@ onMounted(() => {
                   ok-type="danger"
                   @confirm="handleDelete(record as Parent)"
                 >
-                  <Button size="small" type="text" danger>
+                  <Button type="text" danger>
                     <template #icon><DeleteOutlined /></template>
                   </Button>
                 </Popconfirm>
@@ -643,7 +643,7 @@ onMounted(() => {
         class="modern-form"
       >
         <FormItem label="Nama Lengkap" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Nama lengkap orang tua" size="large" />
+          <Input v-model:value="formState.name" placeholder="Nama lengkap orang tua" />
         </FormItem>
         <Row :gutter="16">
           <Col :span="12">
@@ -657,13 +657,12 @@ onMounted(() => {
                 v-model:value="formState.phone" 
                 placeholder="Contoh: 081234567890"
                 :disabled="isEditing"
-                size="large"
               />
             </FormItem>
           </Col>
           <Col :span="12">
             <FormItem label="Email" name="email">
-              <Input v-model:value="formState.email" placeholder="email@example.com" size="large" />
+              <Input v-model:value="formState.email" placeholder="email@example.com" />
             </FormItem>
           </Col>
         </Row>
@@ -696,7 +695,6 @@ onMounted(() => {
             v-model:value="studentSearchQuery"
             placeholder="Cari siswa berdasarkan NISN atau nama..."
             allow-clear
-            size="large"
             @input="(e: Event) => handleStudentSearch((e.target as HTMLInputElement).value)"
             style="margin-bottom: 8px"
           >
@@ -788,7 +786,7 @@ onMounted(() => {
             <Text type="secondary">Username:</Text>
             <div class="credential-value">
               <Text strong copyable>{{ credentialData.username }}</Text>
-              <Button size="small" @click="copyToClipboard(credentialData.username)">
+              <Button @click="copyToClipboard(credentialData.username)">
                 <template #icon><CopyOutlined /></template>
               </Button>
             </div>
@@ -797,7 +795,7 @@ onMounted(() => {
             <Text type="secondary">Password:</Text>
             <div class="credential-value">
               <Text strong code>{{ credentialData.password }}</Text>
-              <Button size="small" @click="copyToClipboard(credentialData.password)">
+              <Button @click="copyToClipboard(credentialData.password)">
                 <template #icon><CopyOutlined /></template>
               </Button>
             </div>
@@ -1074,13 +1072,9 @@ onMounted(() => {
 
 /* Badges */
 .phone-badge {
-  background: #f8fafc;
   color: #64748b;
-  padding: 2px 8px;
-  border-radius: 6px;
   font-family: monospace;
   font-size: 13px;
-  border: 1px solid #e2e8f0;
 }
 
 .text-secondary {
@@ -1098,12 +1092,8 @@ onMounted(() => {
 }
 
 .student-badge {
-  background: #f0fdf4;
   color: #166534;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  border: 1px solid #dcfce7;
+  font-size: 13px;
 }
 
 /* Form Styles */
@@ -1114,12 +1104,8 @@ onMounted(() => {
 }
 
 .default-badge {
-  background: #eff6ff;
   color: #3b82f6;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  border: 1px solid #dbeafe;
+  font-size: 11px;
 }
 
 /* Student Search */

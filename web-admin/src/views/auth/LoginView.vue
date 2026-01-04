@@ -94,7 +94,7 @@ const onFinishFailed = (errorInfo: ValidateErrorEntity) => {
     <div class="login-content">
       <div class="login-header">
         <div class="logo-wrapper">
-          <img src="/vite.svg" alt="Logo" class="logo-img" />
+          <img src="@/assets/styles/logo.png" alt="Logo" class="logo-img" />
         </div>
         <h1 class="brand-title">Sistem Manajemen Sekolah</h1>
         <p class="brand-subtitle">Silakan masuk dengan akun Anda untuk melanjutkan</p>
@@ -189,21 +189,15 @@ const onFinishFailed = (errorInfo: ValidateErrorEntity) => {
 }
 
 .logo-wrapper {
-  width: 64px;
-  height: 64px;
-  background: #fff;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   margin: 0 auto 20px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  border: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: center;
 }
 
 .logo-img {
-  width: 36px;
-  height: 36px;
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
 }
 
 .brand-title {

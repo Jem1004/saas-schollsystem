@@ -194,8 +194,8 @@ onMounted(() => {
         </Col>
         <Col>
           <Space>
-            <Button size="large" @click="loadCategories"><template #icon><ReloadOutlined /></template></Button>
-            <Button type="primary" size="large" @click="openCreateModal"><template #icon><PlusOutlined /></template>Tambah Kategori</Button>
+            <Button @click="loadCategories"><template #icon><ReloadOutlined /></template></Button>
+            <Button type="primary" @click="openCreateModal"><template #icon><PlusOutlined /></template>Tambah Kategori</Button>
           </Space>
         </Col>
       </Row>
@@ -241,18 +241,18 @@ onMounted(() => {
     <Modal v-model:open="modalVisible" :title="isEditing ? 'Edit Kategori' : 'Tambah Kategori Baru'" :confirm-loading="modalLoading" @ok="handleSubmit" @cancel="handleModalCancel" width="500px" wrap-class-name="modern-modal">
       <Form ref="formRef" :model="formState" :rules="formRules" layout="vertical" style="margin-top: 16px">
         <FormItem label="Nama Kategori" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Contoh: Keterlambatan, Bolos, dll" size="large" />
+          <Input v-model:value="formState.name" placeholder="Contoh: Keterlambatan, Bolos, dll" />
         </FormItem>
         <Row :gutter="16">
           <Col :span="12">
             <FormItem label="Poin Default" name="defaultPoint" required>
-              <InputNumber v-model:value="formState.defaultPoint" :max="0" style="width: 100%" size="large" />
+              <InputNumber v-model:value="formState.defaultPoint" :max="0" style="width: 100%" />
               <Text type="secondary" style="font-size: 12px">Harus 0 atau negatif</Text>
             </FormItem>
           </Col>
           <Col :span="12">
             <FormItem label="Tingkat Default" name="defaultLevel" required>
-              <Select v-model:value="formState.defaultLevel" size="large">
+              <Select v-model:value="formState.defaultLevel">
                 <SelectOption v-for="level in VIOLATION_LEVELS" :key="level.value" :value="level.value">
                    {{ level.label }}
                 </SelectOption>

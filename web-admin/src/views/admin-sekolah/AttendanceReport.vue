@@ -902,7 +902,7 @@ onMounted(() => {
                   cancel-text="Batal"
                   @confirm="handleDeleteAttendance((record as AttendanceCamelCase).id)"
                 >
-                  <Button type="text" danger size="small">
+                  <Button type="text" danger>
                     <template #icon><DeleteOutlined /></template>
                   </Button>
                 </Popconfirm>
@@ -1033,12 +1033,8 @@ onMounted(() => {
 .status-badge.purple, .status-badge.manual { background: #fdf4ff; color: #86198f; border: 1px solid #fae8ff; }
 
 .class-badge {
-  background: #f1f5f9;
   color: #475569;
-  padding: 2px 8px;
-  border-radius: 4px;
   font-size: 12px;
-  border: 1px solid #e2e8f0;
 }
 
 .text-zero {

@@ -363,7 +363,6 @@ onMounted(() => {
             <Space>
               <Tooltip title="Salin URL Display">
                 <Button 
-                  size="small"
                   type="text"
                   :disabled="!(record as DisplayToken).displayUrl"
                   @click="copyDisplayUrl((record as DisplayToken).displayUrl)"
@@ -379,7 +378,7 @@ onMounted(() => {
                   cancel-text="Batal"
                   @confirm="handleRegenerate(record as DisplayToken)"
                 >
-                  <Button size="small" type="text">
+                  <Button type="text">
                     <template #icon><SyncOutlined style="color: #f59e0b;" /></template>
                   </Button>
                 </Popconfirm>
@@ -392,7 +391,7 @@ onMounted(() => {
                   cancel-text="Batal"
                   @confirm="handleRevoke(record as DisplayToken)"
                 >
-                  <Button size="small" type="text" danger>
+                  <Button type="text" danger>
                     <template #icon><StopOutlined /></template>
                   </Button>
                 </Popconfirm>
@@ -405,7 +404,7 @@ onMounted(() => {
                 ok-type="danger"
                 @confirm="handleDelete(record as DisplayToken)"
               >
-                <Button size="small" type="text" danger>
+                <Button type="text" danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>
@@ -436,7 +435,6 @@ onMounted(() => {
           <Input 
             v-model:value="formState.name" 
             placeholder="Contoh: Display Pintu Utama, LCD Lobby" 
-            size="large"
           />
           <Text type="secondary" style="font-size: 12px">
             Nama untuk mengidentifikasi lokasi display
@@ -449,7 +447,6 @@ onMounted(() => {
             format="DD MMMM YYYY"
             placeholder="Pilih tanggal"
             style="width: 100%"
-            size="large"
             :disabled-date="(current: dayjs.Dayjs) => current && current < dayjs().startOf('day')"
           />
           <Text type="secondary" style="font-size: 12px">
@@ -494,12 +491,10 @@ onMounted(() => {
               :value="newTokenData.token"
               readonly
               style="flex: 1"
-              size="large"
             />
             <Button 
               :type="tokenCopied ? 'primary' : 'default'"
               @click="copyToken"
-              size="large"
             >
               <template #icon>
                 <CheckOutlined v-if="tokenCopied" />
@@ -517,12 +512,10 @@ onMounted(() => {
               :value="newTokenData.displayUrl"
               readonly
               style="flex: 1"
-              size="large"
             />
             <Button 
               :type="urlCopied ? 'primary' : 'default'"
               @click="copyDisplayUrl()"
-              size="large"
             >
               <template #icon>
                 <CheckOutlined v-if="urlCopied" />
@@ -538,7 +531,7 @@ onMounted(() => {
       </div>
 
       <div style="margin-top: 32px; text-align: right">
-        <Button type="primary" size="large" @click="handleSecretModalClose">
+        <Button type="primary" @click="handleSecretModalClose">
           Saya Sudah Menyimpan Token
         </Button>
       </div>

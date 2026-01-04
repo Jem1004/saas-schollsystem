@@ -350,7 +350,6 @@ onMounted(() => {
               v-model:value="searchText"
               placeholder="Cari siswa atau prestasi..."
               allow-clear
-              size="large"
               style="width: 250px"
               @press-enter="handleSearch"
             >
@@ -358,19 +357,19 @@ onMounted(() => {
                 <SearchOutlined />
               </template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
           </Space>
         </Col>
         <Col :xs="24" :sm="24" :md="8" class="toolbar-right">
           <Space>
-            <Button size="large" @click="handleExportPDF">
+            <Button @click="handleExportPDF">
               <template #icon><FilePdfOutlined /></template>
               Export PDF
             </Button>
-            <Button size="large" @click="loadAchievements">
+            <Button @click="loadAchievements">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" size="large" @click="openCreateModal">
+            <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
               Catat Prestasi
             </Button>
@@ -455,20 +454,18 @@ onMounted(() => {
             placeholder="Pilih siswa"
             :loading="loadingStudents"
             show-search
-            size="large"
             :filter-option="filterStudentOption"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))"
           />
         </FormItem>
         <FormItem label="Judul Prestasi" name="title" required>
-          <Input v-model:value="formState.title" size="large" placeholder="Contoh: Juara 1 Olimpiade Matematika" />
+          <Input v-model:value="formState.title" placeholder="Contoh: Juara 1 Olimpiade Matematika" />
         </FormItem>
         <FormItem label="Poin" name="point" required>
           <InputNumber
             v-model:value="formState.point"
             :min="1"
             :max="1000"
-            size="large"
             style="width: 100%"
             placeholder="Masukkan poin prestasi"
           />
@@ -537,11 +534,7 @@ onMounted(() => {
 }
 
 .class-badge {
-  background-color: #e6f7ff;
   color: #1890ff;
-  border: 1px solid #91d5ff;
-  padding: 0 8px;
-  border-radius: 4px;
   font-size: 12px;
 }
 

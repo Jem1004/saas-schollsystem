@@ -285,7 +285,6 @@ watch(filterClassId, () => {
         <Button 
           v-if="!connectionStatus.connected" 
           type="link" 
-          size="small"
           @click="handleReconnect"
         >
           <template #icon><ReloadOutlined /></template>

@@ -464,7 +464,7 @@ onMounted(() => {
           </template>
           <template v-else-if="column.key === 'action'">
             <Space>
-              <Button size="small" type="text" @click="openEditModal(record as SchoolUser)">
+              <Button type="text" @click="openEditModal(record as SchoolUser)">
                 <template #icon><EditOutlined style="color: #64748b;" /></template>
               </Button>
               <Popconfirm
@@ -474,7 +474,7 @@ onMounted(() => {
                 cancel-text="Batal"
                 @confirm="handleResetPassword(record as SchoolUser)"
               >
-                <Button size="small" type="text">
+                <Button type="text">
                   <template #icon><KeyOutlined style="color: #f59e0b;" /></template>
                 </Button>
               </Popconfirm>
@@ -486,7 +486,7 @@ onMounted(() => {
                 ok-type="danger"
                 @confirm="handleDelete(record as SchoolUser)"
               >
-                <Button size="small" type="text" danger>
+                <Button type="text" danger>
                   <template #icon><DeleteOutlined /></template>
                 </Button>
               </Popconfirm>
@@ -520,7 +520,6 @@ onMounted(() => {
             v-model:value="formState.role" 
             placeholder="Pilih role" 
             :disabled="isEditing"
-            size="large"
           >
             <SelectOption v-for="role in roleOptions" :key="role.value" :value="role.value">
               {{ role.label }}
@@ -534,18 +533,17 @@ onMounted(() => {
                 v-model:value="formState.username"
                 placeholder="Username"
                 :disabled="isEditing"
-                size="large"
               />
             </FormItem>
           </Col>
           <Col :span="12">
             <FormItem label="Email" name="email">
-              <Input v-model:value="formState.email" placeholder="email@sekolah.id" size="large" />
+              <Input v-model:value="formState.email" placeholder="email@sekolah.id" />
             </FormItem>
           </Col>
         </Row>
         <FormItem label="Nama Lengkap" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Nama lengkap" size="large" />
+          <Input v-model:value="formState.name" placeholder="Nama lengkap" />
         </FormItem>
         <FormItem
           v-if="!isEditing"
@@ -553,7 +551,7 @@ onMounted(() => {
           name="password"
           required
         >
-          <Input.Password v-model:value="formState.password" placeholder="Minimal 8 karakter" size="large" />
+          <Input.Password v-model:value="formState.password" placeholder="Minimal 8 karakter" />
           <Text type="secondary" style="font-size: 12px; margin-top: 4px; display: block;">User akan diminta mengganti password saat login pertama</Text>
         </FormItem>
         <FormItem
@@ -566,7 +564,6 @@ onMounted(() => {
             placeholder="Pilih kelas"
             allow-clear
             :loading="loadingClasses"
-            size="large"
           >
             <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
               {{ cls.name }}
@@ -585,7 +582,6 @@ onMounted(() => {
             allow-clear
             :loading="loadingClasses"
             :filter-option="filterClassOption"
-            size="large"
           >
             <SelectOption v-for="cls in classes" :key="cls.id" :value="cls.id">
               {{ cls.name }}
@@ -681,41 +677,26 @@ onMounted(() => {
 
 /* Role Badges */
 .role-badge {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  display: inline-block;
-  border: 1px solid transparent;
 }
 
 .role-guru {
-  background-color: #f1f5f9;
   color: #475569;
-  border-color: #e2e8f0;
 }
 
 .role-wali_kelas {
-  background-color: #fff7ed;
   color: #c2410c;
-  border-color: #ffedd5;
 }
 
 .role-guru_bk {
-  background-color: #f0f9ff;
   color: #0369a1;
-  border-color: #e0f2fe;
 }
 
 /* Class Tags */
 .class-badge {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
   color: #475569;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  display: inline-block;
+  font-size: 13px;
 }
 
 .class-tags-wrapper {

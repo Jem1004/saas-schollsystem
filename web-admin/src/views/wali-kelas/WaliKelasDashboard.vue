@@ -11,7 +11,6 @@ import {
   ListItem,
   ListItemMeta,
   Typography,
-  Tag,
   Avatar,
   Button,
   Empty,
@@ -157,27 +156,27 @@ onUnmounted(() => { isMounted.value = false })
         <Col :xs="24" :lg="12">
           <Card title="Daftar Siswa" class="content-card">
             <template #extra><Text type="secondary">{{ stats.className }}</Text></template>
-            <Table :columns="studentColumns" :data-source="students" :pagination="false" :loading="loading" row-key="id" size="small">
+            <Table :columns="studentColumns" :data-source="students" :pagination="false" :loading="loading" row-key="id">
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'status'">
-                  <Tag v-if="(record as ClassStudent).isActive" color="success">Aktif</Tag>
-                  <Tag v-else color="default">Tidak Aktif</Tag>
+                  <span v-if="(record as ClassStudent).isActive" class="status-text success">Aktif</span>
+                  <span v-else class="status-text default">Tidak Aktif</span>
                 </template>
               </template>
             </Table>
             <div v-if="students.length > 5" class="view-all">
-              <Button type="link" size="small">Lihat Semua Siswa <RightOutlined /></Button>
+              <Button type="link">Lihat Semua Siswa <RightOutlined /></Button>
             </div>
           </Card>
         </Col>
         <Col :xs="24" :lg="12">
           <Card title="Nilai Terbaru" class="content-card">
-            <template #extra><Button type="link" size="small" @click="goToGrades">Lihat Semua <RightOutlined /></Button></template>
-            <List v-if="stats.recentGrades.length > 0" :data-source="stats.recentGrades" :loading="loading" size="small">
+            <template #extra><Button type="link" @click="goToGrades">Lihat Semua <RightOutlined /></Button></template>
+            <List v-if="stats.recentGrades.length > 0" :data-source="stats.recentGrades" :loading="loading">
               <template #renderItem="{ item }">
                 <ListItem class="clickable-item" @click="goToStudentProfile((item as Grade).studentId)">
                   <ListItemMeta>
-                    <template #avatar><Avatar :style="{ backgroundColor: getScoreColor((item as Grade).score) }" size="small">{{ (item as Grade).score }}</Avatar></template>
+                    <template #avatar><Avatar :style="{ backgroundColor: getScoreColor((item as Grade).score) }">{{ (item as Grade).score }}</Avatar></template>
                     <template #title><span>{{ (item as Grade).studentName }}</span></template>
                     <template #description>
                       <div>{{ (item as Grade).title }}</div>
@@ -195,7 +194,7 @@ onUnmounted(() => { isMounted.value = false })
       <Row :gutter="[24, 24]" style="margin-top: 24px">
         <Col :xs="24">
           <Card title="Catatan Wali Kelas Terbaru" class="content-card">
-            <template #extra><Button type="link" size="small" @click="goToNotes">Lihat Semua <RightOutlined /></Button></template>
+            <template #extra><Button type="link" @click="goToNotes">Lihat Semua <RightOutlined /></Button></template>
             <List v-if="stats.recentNotes.length > 0" :data-source="stats.recentNotes" :loading="loading">
               <template #renderItem="{ item }">
                 <ListItem class="clickable-item" @click="goToStudentProfile((item as HomeroomNote).studentId)">
@@ -232,5 +231,8 @@ onUnmounted(() => { isMounted.value = false })
 .student-name { font-weight: 500; }
 .note-content { color: #595959; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .date-text { font-size: 12px; display: block; margin-top: 4px; }
+.status-text { font-size: 13px; font-weight: 500; }
+.status-text.success { color: #22c55e; }
+.status-text.default { color: #64748b; }
 @media (max-width: 768px) { .page-header { flex-direction: column; align-items: flex-start; } }
 </style>

@@ -13,7 +13,7 @@ import type { StudentBKProfile } from '@/types/bk'
 import type { Student } from '@/types/school'
 import type { Class } from '@/types/school'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 const router = useRouter()
 
 const loading = ref(false)
@@ -162,16 +162,16 @@ onMounted(() => { loadData() })
       <Row :gutter="16" class="toolbar" justify="space-between" align="middle">
         <Col :xs="24" :md="16">
           <Space wrap>
-            <Input v-model:value="searchText" placeholder="Cari nama atau NIS..." allow-clear size="large" style="width: 250px" @press-enter="handleSearch">
+            <Input v-model:value="searchText" placeholder="Cari nama atau NIS..." allow-clear style="width: 250px" @press-enter="handleSearch">
               <template #prefix><SearchOutlined /></template>
             </Input>
-            <a-select v-model:value="filterClassId" placeholder="Filter Kelas" allow-clear size="large" style="width: 150px" @change="handleSearch">
+            <a-select v-model:value="filterClassId" placeholder="Filter Kelas" allow-clear style="width: 150px" @change="handleSearch">
               <a-select-option v-for="c in classes" :key="c.id" :value="c.id">{{ c.name }}</a-select-option>
             </a-select>
           </Space>
         </Col>
         <Col :xs="24" :md="8" class="toolbar-right">
-          <Button size="large" @click="loadData"><template #icon><ReloadOutlined /></template></Button>
+          <Button @click="loadData"><template #icon><ReloadOutlined /></template></Button>
         </Col>
       </Row>
 
@@ -188,10 +188,12 @@ onMounted(() => { loadData() })
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'student'">
             <div class="student-cell">
-              <Avatar :style="{ backgroundColor: '#f97316' }"><template #icon><UserOutlined /></template></Avatar>
+              <div class="student-avatar">
+                <UserOutlined />
+              </div>
               <div class="student-info">
-                <a @click="viewStudentProfile((record as Student).id)">{{ (record as Student).name }}</a>
-                <span class="student-nisn">NISN: {{ (record as Student).nisn }}</span>
+                <a @click="viewStudentProfile((record as Student).id)" class="student-name-link">{{ (record as Student).name }}</a>
+                <Text type="secondary" class="student-detail">NISN: {{ (record as Student).nisn }}</Text>
               </div>
             </div>
           </template>
@@ -227,21 +229,34 @@ onMounted(() => { loadData() })
 .toolbar-right { display: flex; justify-content: flex-end; }
 .student-cell { display: flex; align-items: center; gap: 12px; }
 .student-info { display: flex; flex-direction: column; }
-.student-info a { font-weight: 500; }
-.student-nisn { font-size: 12px; color: #8c8c8c; }
+.student-avatar {
+  width: 32px;
+  height: 32px;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+}
+.student-name-link { font-weight: 500; }
+.student-detail { font-size: 12px; }
 .points { font-weight: 600; }
 .points.positive { color: #22c55e; }
 .points.negative { color: #ef4444; }
 
 /* Custom Table Styles */
 .custom-table :deep(.ant-table-thead > tr > th) {
-  background: #fafafa;
-  font-weight: 600;
+  background: #f8fafc;
   color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .custom-table :deep(.ant-table-tbody > tr > td) {
-  padding: 16px;
+  padding: 16px 16px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .custom-table :deep(.ant-table-tbody > tr:hover > td) {
@@ -272,11 +287,7 @@ onMounted(() => { loadData() })
 }
 
 .class-badge {
-  background-color: #e6f7ff;
   color: #1890ff;
-  border: 1px solid #91d5ff;
-  padding: 0 8px;
-  border-radius: 4px;
   font-size: 12px;
 }
 

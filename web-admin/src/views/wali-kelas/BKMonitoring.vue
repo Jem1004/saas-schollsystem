@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import {
-  Card, Row, Col, Typography, Table, Tag, Select, SelectOption, Spin, Segmented, Alert, Empty,
+  Card, Row, Col, Typography, Table, Select, SelectOption, Spin, Segmented, Alert, Empty,
 } from 'ant-design-vue'
 import type { TableProps } from 'ant-design-vue'
 import {
@@ -163,7 +163,7 @@ onUnmounted(() => { isMounted.value = false })
     <!-- Summary -->
     <Row :gutter="16" class="summary-row">
       <Col :span="8">
-        <Card size="small" :class="{ active: activeTab === 'violations' }" @click="activeTab = 'violations'">
+        <Card :class="{ active: activeTab === 'violations' }" @click="activeTab = 'violations'">
           <div class="summary-item">
             <WarningOutlined class="icon-violation" />
             <div>
@@ -174,7 +174,7 @@ onUnmounted(() => { isMounted.value = false })
         </Card>
       </Col>
       <Col :span="8">
-        <Card size="small" :class="{ active: activeTab === 'achievements' }" @click="activeTab = 'achievements'">
+        <Card :class="{ active: activeTab === 'achievements' }" @click="activeTab = 'achievements'">
           <div class="summary-item">
             <TrophyOutlined class="icon-achievement" />
             <div>
@@ -185,7 +185,7 @@ onUnmounted(() => { isMounted.value = false })
         </Card>
       </Col>
       <Col :span="8">
-        <Card size="small" :class="{ active: activeTab === 'permits' }" @click="activeTab = 'permits'">
+        <Card :class="{ active: activeTab === 'permits' }" @click="activeTab = 'permits'">
           <div class="summary-item">
             <FileProtectOutlined class="icon-permit" />
             <div>
@@ -198,15 +198,15 @@ onUnmounted(() => { isMounted.value = false })
     </Row>
 
     <!-- Content -->
-    <Card size="small">
+    <Card>
       <Segmented v-model:value="activeTab" :options="tabOptions" block style="margin-bottom: 16px" />
       
       <Spin :spinning="loading">
         <template v-if="activeTab === 'violations'">
-          <Table v-if="filteredViolations.length > 0" :columns="violationColumns" :data-source="filteredViolations" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
+          <Table v-if="filteredViolations.length > 0" :columns="violationColumns" :data-source="filteredViolations" :pagination="{ pageSize: 10 }" row-key="id">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'level'">
-                <Tag :color="getLevelColor((record as Violation).level)" size="small">{{ (record as Violation).level }}</Tag>
+                <span :class="['level-text', getLevelColor((record as Violation).level)]">{{ (record as Violation).level }}</span>
               </template>
               <template v-else-if="column.key === 'createdAt'">{{ formatShortDate((record as Violation).createdAt) }}</template>
             </template>
@@ -215,10 +215,10 @@ onUnmounted(() => { isMounted.value = false })
         </template>
 
         <template v-else-if="activeTab === 'achievements'">
-          <Table v-if="filteredAchievements.length > 0" :columns="achievementColumns" :data-source="filteredAchievements" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
+          <Table v-if="filteredAchievements.length > 0" :columns="achievementColumns" :data-source="filteredAchievements" :pagination="{ pageSize: 10 }" row-key="id">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'point'">
-                <Tag color="success" size="small">+{{ (record as Achievement).point }}</Tag>
+                <span class="point-text success">+{{ (record as Achievement).point }}</span>
               </template>
               <template v-else-if="column.key === 'createdAt'">{{ formatShortDate((record as Achievement).createdAt) }}</template>
             </template>
@@ -227,11 +227,11 @@ onUnmounted(() => { isMounted.value = false })
         </template>
 
         <template v-else-if="activeTab === 'permits'">
-          <Table v-if="filteredPermits.length > 0" :columns="permitColumns" :data-source="filteredPermits" :pagination="{ pageSize: 10, size: 'small' }" row-key="id" size="small">
+          <Table v-if="filteredPermits.length > 0" :columns="permitColumns" :data-source="filteredPermits" :pagination="{ pageSize: 10 }" row-key="id">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'returnTime'">
                 <span v-if="(record as Permit).returnTime">{{ (record as Permit).returnTime }}</span>
-                <Tag v-else color="warning" size="small">-</Tag>
+                <span v-else class="return-text warning">-</span>
               </template>
             </template>
           </Table>
@@ -254,4 +254,12 @@ onUnmounted(() => { isMounted.value = false })
 .icon-violation { font-size: 24px; color: #ef4444; }
 .icon-achievement { font-size: 24px; color: #22c55e; }
 .icon-permit { font-size: 24px; color: #3b82f6; }
+.level-text { font-size: 13px; font-weight: 500; text-transform: capitalize; }
+.level-text.warning { color: #f59e0b; }
+.level-text.orange { color: #f97316; }
+.level-text.error { color: #ef4444; }
+.point-text { font-size: 13px; font-weight: 600; }
+.point-text.success { color: #22c55e; }
+.return-text { font-size: 13px; font-weight: 500; }
+.return-text.warning { color: #f59e0b; }
 </style>

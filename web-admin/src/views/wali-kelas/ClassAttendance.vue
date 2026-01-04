@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import {
-  Table, Button, Space, Tag, Card, Row, Col, Typography, DatePicker,
+  Table,
+  Button,
+  Space,
+  Card,
+  Row,
+  Col,
+  Typography,
+  DatePicker,
   Progress, Statistic, Modal, Form, FormItem, Select, SelectOption,
   TimePicker, message, Alert,
 } from 'ant-design-vue'
@@ -298,7 +305,7 @@ onUnmounted(() => { isMounted.value = false })
       <Table :columns="columns" :data-source="attendanceData" :loading="loading" :pagination="false" row-key="id">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <Tag :color="getStatusColor((record as StudentAttendance).status)">{{ getStatusLabel((record as StudentAttendance).status) }}</Tag>
+            <span :class="['status-text', getStatusColor((record as StudentAttendance).status)]">{{ getStatusLabel((record as StudentAttendance).status) }}</span>
           </template>
           <template v-else-if="column.key === 'checkInTime'">
             <span v-if="(record as StudentAttendance).checkInTime">{{ (record as StudentAttendance).checkInTime }}</span>
@@ -309,10 +316,10 @@ onUnmounted(() => { isMounted.value = false })
             <Text v-else type="secondary">-</Text>
           </template>
           <template v-else-if="column.key === 'method'">
-            <Tag :color="(record as StudentAttendance).method === 'rfid' ? 'blue' : 'orange'">{{ getMethodLabel((record as StudentAttendance).method) }}</Tag>
+            <span :class="['method-text', (record as StudentAttendance).method === 'rfid' ? 'blue' : 'orange']">{{ getMethodLabel((record as StudentAttendance).method) }}</span>
           </template>
           <template v-else-if="column.key === 'action'">
-            <Button type="link" size="small" @click="openManualAttendanceModal(record as StudentAttendance)"><template #icon><EditOutlined /></template>Edit</Button>
+            <Button type="link" @click="openManualAttendanceModal(record as StudentAttendance)"><template #icon><EditOutlined /></template>Edit</Button>
           </template>
         </template>
         <template #summary>
@@ -320,7 +327,7 @@ onUnmounted(() => { isMounted.value = false })
             <Table.Summary.Row class="summary-row-table">
               <Table.Summary.Cell :index="0" :col-span="2"><Text strong>Persentase Kehadiran</Text></Table.Summary.Cell>
               <Table.Summary.Cell :index="2" :col-span="5">
-                <Progress :percent="summaryStats.percentage" :stroke-color="summaryStats.percentage >= 90 ? '#22c55e' : summaryStats.percentage >= 75 ? '#f97316' : '#ef4444'" :show-info="true" size="small" style="max-width: 300px" />
+                <Progress :percent="summaryStats.percentage" :stroke-color="summaryStats.percentage >= 90 ? '#22c55e' : summaryStats.percentage >= 75 ? '#f97316' : '#ef4444'" :show-info="true" style="max-width: 300px" />
               </Table.Summary.Cell>
             </Table.Summary.Row>
           </Table.Summary>
@@ -335,7 +342,7 @@ onUnmounted(() => { isMounted.value = false })
           <Select v-model:value="formState.scheduleId" placeholder="Pilih jadwal" :loading="loadingSchedules" :disabled="schedules.length === 0">
             <SelectOption v-for="schedule in schedules" :key="schedule.id" :value="schedule.id">
               {{ schedule.name }} ({{ schedule.startTime }} - {{ schedule.endTime }})
-              <Tag v-if="schedule.isDefault" color="blue" size="small" style="margin-left: 8px">Default</Tag>
+              <Tag v-if="schedule.isDefault" color="blue" style="margin-left: 8px">Default</Tag>
             </SelectOption>
           </Select>
         </FormItem>
@@ -377,5 +384,15 @@ onUnmounted(() => { isMounted.value = false })
 .toolbar-right { display: flex; justify-content: flex-end; }
 :deep(.summary-row-table) { background: #fafafa; }
 .info-box { padding: 12px 16px; background: #f5f5f5; border-radius: 6px; margin-top: 8px; }
+.status-text { font-size: 13px; font-weight: 500; }
+.status-text.success { color: #22c55e; }
+.status-text.warning { color: #f59e0b; }
+.status-text.orange { color: #f97316; }
+.status-text.error { color: #ef4444; }
+.status-text.purple { color: #a855f7; }
+.status-text.blue { color: #3b82f6; }
+.method-text { font-size: 12px; font-weight: 500; }
+.method-text.blue { color: #3b82f6; }
+.method-text.orange { color: #f97316; }
 @media (max-width: 768px) { .toolbar-right { margin-top: 16px; justify-content: flex-start; } }
 </style>

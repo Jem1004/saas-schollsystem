@@ -384,7 +384,6 @@ onMounted(() => {
             v-model:value="searchText"
             placeholder="Cari nama sekolah..."
             allow-clear
-            size="large"
             @press-enter="handleSearch"
             class="search-input"
           >
@@ -395,10 +394,10 @@ onMounted(() => {
         </Col>
         <Col :xs="24" :sm="12" :md="8" class="toolbar-right">
           <Space>
-            <Button @click="loadSchools" size="large">
+            <Button @click="loadSchools">
               <template #icon><ReloadOutlined /></template>
             </Button>
-            <Button type="primary" @click="openCreateModal" size="large">
+            <Button type="primary" @click="openCreateModal">
               <template #icon><PlusOutlined /></template>
               Tambah Sekolah
             </Button>
@@ -435,12 +434,12 @@ onMounted(() => {
           <template v-else-if="column.key === 'action'">
             <Space :size="4">
               <Tooltip title="Lihat Detail">
-                <Button size="small" type="text" @click="openDetailModal(record as School)">
+                <Button type="text" @click="openDetailModal(record as School)">
                   <template #icon><InfoCircleOutlined style="color: #64748b" /></template>
                 </Button>
               </Tooltip>
               <Tooltip title="Edit">
-                <Button size="small" type="text" @click="openEditModal(record as School)">
+                <Button type="text" @click="openEditModal(record as School)">
                   <template #icon><EditOutlined style="color: #f97316" /></template>
                 </Button>
               </Tooltip>
@@ -453,7 +452,7 @@ onMounted(() => {
                 @confirm="handleDeactivate(record as School)"
               >
                 <Tooltip title="Nonaktifkan">
-                  <Button size="small" type="text" danger>
+                  <Button type="text" danger>
                     <template #icon><StopOutlined /></template>
                   </Button>
                 </Tooltip>
@@ -466,7 +465,7 @@ onMounted(() => {
                 @confirm="handleActivate(record as School)"
               >
                 <Tooltip title="Aktifkan">
-                  <Button size="small" type="text" style="color: #22c55e">
+                  <Button type="text" style="color: #22c55e">
                     <template #icon><CheckCircleOutlined /></template>
                   </Button>
                 </Tooltip>
@@ -479,7 +478,7 @@ onMounted(() => {
                 @confirm="openDeleteModal(record as School)"
               >
                 <Tooltip title="Hapus Permanen">
-                  <Button size="small" type="text" danger>
+                  <Button type="text" danger>
                     <template #icon><DeleteOutlined /></template>
                   </Button>
                 </Tooltip>
@@ -511,7 +510,7 @@ onMounted(() => {
         class="modern-form"
       >
         <FormItem label="Nama Sekolah" name="name" required>
-          <Input v-model:value="formState.name" placeholder="Masukkan nama sekolah" size="large" />
+          <Input v-model:value="formState.name" placeholder="Masukkan nama sekolah" />
         </FormItem>
         <FormItem label="Alamat" name="address">
           <Input.TextArea
@@ -524,17 +523,17 @@ onMounted(() => {
         <Row :gutter="16">
           <Col :span="12">
             <FormItem label="Telepon" name="phone">
-              <Input v-model:value="formState.phone" placeholder="Contoh: 021-1234567" size="large" />
+              <Input v-model:value="formState.phone" placeholder="Contoh: 021-1234567" />
             </FormItem>
           </Col>
           <Col :span="12">
             <FormItem label="Email Sekolah" name="email">
-              <Input v-model:value="formState.email" placeholder="email@sekolah.sch.id" size="large" />
+              <Input v-model:value="formState.email" placeholder="email@sekolah.sch.id" />
             </FormItem>
           </Col>
         </Row>
         <FormItem label="Zona Waktu" name="timezone">
-          <Select v-model:value="formState.timezone" placeholder="Pilih zona waktu" size="large">
+          <Select v-model:value="formState.timezone" placeholder="Pilih zona waktu">
             <SelectOption 
               v-for="tz in timezoneOptions" 
               :key="tz.value" 
@@ -566,7 +565,6 @@ onMounted(() => {
                       <Input 
                         v-model:value="formState.adminUsername" 
                         placeholder="Otomatis"
-                        size="large"
                       />
                     </FormItem>
                   </Col>
@@ -575,7 +573,6 @@ onMounted(() => {
                       <Input.Password 
                         v-model:value="formState.adminPassword" 
                         placeholder="Otomatis"
-                        size="large"
                       />
                     </FormItem>
                   </Col>
@@ -586,7 +583,6 @@ onMounted(() => {
                       <Input 
                         v-model:value="formState.adminName" 
                         placeholder="Otomatis"
-                        size="large"
                       />
                     </FormItem>
                   </Col>
@@ -595,7 +591,6 @@ onMounted(() => {
                       <Input 
                         v-model:value="formState.adminEmail" 
                         placeholder="Otomatis"
-                        size="large"
                       />
                     </FormItem>
                   </Col>
@@ -632,7 +627,7 @@ onMounted(() => {
             <span class="label">Username</span>
             <div class="value-group">
               <span class="value code">{{ adminCredentials.username }}</span>
-              <Button type="text" size="small" @click="copyToClipboard(adminCredentials.username, 'Username')">
+              <Button type="text" @click="copyToClipboard(adminCredentials.username, 'Username')">
                 <template #icon><CopyOutlined /></template>
               </Button>
             </div>
@@ -643,13 +638,13 @@ onMounted(() => {
             <div class="value-group">
               <span class="value code">{{ showPassword ? adminCredentials.password : '••••••••••••' }}</span>
               <Space :size="4">
-                <Button type="text" size="small" @click="showPassword = !showPassword">
+                <Button type="text" @click="showPassword = !showPassword">
                   <template #icon>
                     <EyeInvisibleOutlined v-if="showPassword" />
                     <EyeOutlined v-else />
                   </template>
                 </Button>
-                <Button type="text" size="small" @click="copyToClipboard(adminCredentials.password, 'Password')">
+                <Button type="text" @click="copyToClipboard(adminCredentials.password, 'Password')">
                   <template #icon><CopyOutlined /></template>
                 </Button>
               </Space>
@@ -672,7 +667,6 @@ onMounted(() => {
           <Button 
             type="primary" 
             block 
-            size="large"
             class="copy-all-btn"
             @click="copyToClipboard(`Username: ${adminCredentials.username}\nPassword: ${adminCredentials.password}`, 'Kredensial')"
           >
@@ -788,8 +782,7 @@ onMounted(() => {
       cancel-text="Batal"
       ok-type="danger"
       wrap-class-name="modern-modal"
-      :ok-button-props="{ disabled: !canDelete, size: 'large' }"
-      :cancel-button-props="{ size: 'large' }"
+      :ok-button-props="{ disabled: !canDelete }"
       @ok="handleDelete"
       @cancel="deleteModalVisible = false"
     >
@@ -810,7 +803,6 @@ onMounted(() => {
             v-model:value="deleteConfirmText" 
             :placeholder="schoolToDelete.name"
             class="confirm-input"
-            size="large"
           />
         </div>
       </div>

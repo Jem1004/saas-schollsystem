@@ -367,15 +367,15 @@ onMounted(() => {
       <Row :gutter="16" class="toolbar" justify="space-between" align="middle">
         <Col :xs="24" :sm="24" :md="18">
           <Space wrap>
-            <Input v-model:value="searchText" placeholder="Cari siswa atau deskripsi..." allow-clear size="large" style="width: 220px" @press-enter="handleSearch">
+            <Input v-model:value="searchText" placeholder="Cari siswa atau deskripsi..." allow-clear style="width: 220px" @press-enter="handleSearch">
               <template #prefix><SearchOutlined /></template>
             </Input>
-            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" size="large" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
-            <Select v-model:value="filterLevel" placeholder="Filter Tingkat" allow-clear size="large" style="width: 140px" @change="handleFilterChange">
+            <RangePicker v-model:value="dateRange" format="DD/MM/YYYY" :placeholder="['Dari Tanggal', 'Sampai Tanggal']" style="width: 250px" @change="handleFilterChange" />
+            <Select v-model:value="filterLevel" placeholder="Filter Tingkat" allow-clear style="width: 140px" @change="handleFilterChange">
               <template #suffixIcon><FilterOutlined /></template>
               <SelectOption v-for="level in VIOLATION_LEVELS" :key="level.value" :value="level.value">{{ level.label }}</SelectOption>
             </Select>
-            <Select v-model:value="filterCategory" placeholder="Filter Kategori" allow-clear size="large" style="width: 160px" @change="handleFilterChange">
+            <Select v-model:value="filterCategory" placeholder="Filter Kategori" allow-clear style="width: 160px" @change="handleFilterChange">
               <SelectOption v-for="cat in categoryNames" :key="cat" :value="cat">{{ cat }}</SelectOption>
             </Select>
           </Space>
@@ -383,9 +383,9 @@ onMounted(() => {
         <Col :xs="24" :sm="24" :md="6" class="toolbar-right">
           <Space>
             <Text type="secondary">Total Poin: <Text strong :style="{ color: '#ef4444' }">{{ totalPoints }}</Text></Text>
-            <Button size="large" @click="handleExportPDF"><template #icon><FilePdfOutlined /></template>Export PDF</Button>
-            <Button size="large" @click="loadViolations"><template #icon><ReloadOutlined /></template></Button>
-            <Button type="primary" size="large" @click="openCreateModal"><template #icon><PlusOutlined /></template>Catat</Button>
+            <Button @click="handleExportPDF"><template #icon><FilePdfOutlined /></template>Export PDF</Button>
+            <Button @click="loadViolations"><template #icon><ReloadOutlined /></template></Button>
+            <Button type="primary" @click="openCreateModal"><template #icon><PlusOutlined /></template>Catat</Button>
           </Space>
         </Col>
       </Row>
@@ -431,11 +431,11 @@ onMounted(() => {
     <Modal v-model:open="modalVisible" title="Catat Pelanggaran Baru" :confirm-loading="modalLoading" @ok="handleSubmit" @cancel="handleModalCancel" width="600px" wrap-class-name="modern-modal">
       <Form ref="formRef" :model="formState" :rules="formRules" layout="vertical" style="margin-top: 16px">
         <FormItem label="Siswa" name="studentId" required>
-          <Select v-model:value="formState.studentId" placeholder="Pilih siswa" :loading="loadingStudents" show-search :filter-option="filterStudentOption" size="large"
+          <Select v-model:value="formState.studentId" placeholder="Pilih siswa" :loading="loadingStudents" show-search :filter-option="filterStudentOption"
             :options="students.map(s => ({ value: s.id, label: `${s.name} (${s.className})` }))" />
         </FormItem>
         <FormItem label="Kategori Pelanggaran" name="category" required>
-          <Select v-model:value="formState.category" placeholder="Pilih kategori pelanggaran" :loading="loadingCategories" @change="handleCategoryChange" size="large">
+          <Select v-model:value="formState.category" placeholder="Pilih kategori pelanggaran" :loading="loadingCategories" @change="handleCategoryChange">
             <SelectOption v-for="cat in violationCategories" :key="cat.id" :value="cat.name">
               {{ cat.name }}
             </SelectOption>
@@ -518,11 +518,7 @@ onMounted(() => {
 }
 
 .class-badge {
-  background-color: #e6f7ff;
   color: #1890ff;
-  border: 1px solid #91d5ff;
-  padding: 0 8px;
-  border-radius: 4px;
   font-size: 12px;
 }
 

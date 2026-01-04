@@ -216,7 +216,7 @@ onMounted(() => {
                     </template>
                   </ListItemMeta>
                   <template #actions>
-                    <Button type="link" size="small">
+                    <Button type="link">
                       Lihat Detail <RightOutlined />
                     </Button>
                   </template>
@@ -233,7 +233,7 @@ onMounted(() => {
         <Col :xs="24" :lg="12">
           <Card title="Pelanggaran Terbaru" class="recent-card">
             <template #extra>
-              <Button type="link" size="small" @click="goToViolations">
+              <Button type="link" @click="goToViolations">
                 Lihat Semua <RightOutlined />
               </Button>
             </template>
@@ -271,7 +271,7 @@ onMounted(() => {
         <Col :xs="24" :lg="12">
           <Card title="Prestasi Terbaru" class="recent-card">
             <template #extra>
-              <Button type="link" size="small" @click="goToAchievements">
+              <Button type="link" @click="goToAchievements">
                 Lihat Semua <RightOutlined />
               </Button>
             </template>
@@ -418,11 +418,7 @@ onMounted(() => {
 }
 
 .class-badge {
-  background-color: #e6f7ff;
   color: #1890ff;
-  border: 1px solid #91d5ff;
-  padding: 0 8px;
-  border-radius: 4px;
   font-size: 12px;
 }
 
